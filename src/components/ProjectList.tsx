@@ -1,0 +1,138 @@
+import React, { useState } from 'react';
+import { Project, ProjectState } from '../types';
+import { formatCurrency, cn } from '../lib/utils';
+import { Search, Filter, MoreHorizontal, Calendar, User, ChevronRight } from 'lucide-react';
+import { PROJECT_STATES } from '../constants';
+import { getThemeClasses } from '../lib/theme';
+
+interface ProjectListProps {
+  projects: Project[];
+  onSelectProject: (project: Project) => void;
+  themeColor?: string;
+}
+
+export const ProjectList: React.FC<ProjectListProps> = ({ projects, onSelectProject, themeColor = 'teal' }) => {
+  const [search, setSearch] = useState('');
+  const [stateFilter, setStateFilter] = useState<ProjectState | 'All'>('All');
+
+  const theme = getThemeClasses(themeColor);
+
+  const filteredProjects = projects.filter(p => {
+    const matchesSearch = p.clientName.toLowerCase().includes(search.toLowerCase()) || 
+                          p.assignedPM.toLowerCase().includes(search.toLowerCase());
+    const matchesState = stateFilter === 'All' || p.state === stateFilter;
+    return matchesSearch && matchesState;
+  });
+
+  return (
+    <div className="p-6 space-y-6">
+      <div className="flex flex-col md:flex-row gap-4 justify-between items-start md:items-center">
+        <h2 className="text-2xl font-bold text-slate-900">Projects</h2>
+        
+        <div className="flex flex-wrap gap-3 w-full md:w-auto">
+          <div className="relative flex-1 md:w-64">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <input 
+              type="text" 
+              placeholder="Search clients or PMs..."
+              className={cn(
+                "w-full pl-10 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 transition-all",
+                theme.ring, theme.focusBorder
+              )}
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
+          
+          <select 
+            className={cn(
+              "px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 transition-all",
+              theme.ring, theme.focusBorder
+            )}
+            value={stateFilter}
+            onChange={(e) => setStateFilter(e.target.value as any)}
+          >
+            <option value="All">All States</option>
+            {PROJECT_STATES.map(state => (
+              <option key={state} value={state}>{state}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4">
+        {filteredProjects.map(project => (
+          <div 
+            key={project.id}
+            onClick={() => onSelectProject(project)}
+            className={cn(
+              "bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-all cursor-pointer group",
+              theme.hoverBorder
+            )}
+          >
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div className="space-y-1">
+                <div className="flex items-center gap-3">
+                  <h3 className={cn("text-lg font-bold text-slate-900 transition-colors", theme.groupHoverText)}>{project.clientName}</h3>
+                  <StateBadge state={project.state} themeColor={themeColor} />
+                </div>
+                <p className="text-sm text-slate-500 font-medium">{project.packageName}</p>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-6">
+                <div className="flex items-center gap-2 text-slate-600">
+                  <User className="w-4 h-4 text-slate-400" />
+                  <span className="text-sm">{project.assignedPM}</span>
+                </div>
+                <div className="flex items-center gap-2 text-slate-600">
+                  <Calendar className="w-4 h-4 text-slate-400" />
+                  <span className="text-sm">{project.startDate}</span>
+                </div>
+                <div className="flex items-center gap-2 text-slate-900 font-bold">
+                  <span className="text-sm">{formatCurrency(project.value)}</span>
+                </div>
+                <button className="p-2 hover:bg-slate-100 rounded-lg transition-colors">
+                  <ChevronRight className="w-5 h-5 text-slate-400" />
+                </button>
+              </div>
+            </div>
+
+            <div className="mt-4 flex flex-wrap gap-2">
+              {project.productLines.map(pl => (
+                <span key={pl} className="px-2 py-1 bg-slate-100 text-slate-600 text-[10px] font-bold uppercase tracking-wider rounded-md">
+                  {pl}
+                </span>
+              ))}
+            </div>
+          </div>
+        ))}
+
+        {filteredProjects.length === 0 && (
+          <div className="py-20 text-center bg-slate-50 rounded-3xl border-2 border-dashed border-slate-200">
+            <Search className="w-12 h-12 text-slate-300 mx-auto mb-4" />
+            <p className="text-slate-500 font-medium">No projects found matching your criteria</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export const StateBadge = ({ state, themeColor = 'teal' }: { state: ProjectState, themeColor?: string }) => {
+  const theme = getThemeClasses(themeColor);
+  
+  const styles: Record<ProjectState, string> = {
+    'Active': 'bg-blue-50 text-blue-600 border-blue-100',
+    'Delayed': 'bg-amber-50 text-amber-600 border-amber-100',
+    'Suspended': 'bg-slate-100 text-slate-600 border-slate-200',
+    'Ready for Billing': `${theme.lightBg} ${theme.lightText} ${theme.lightBorder}`,
+    'Billed': 'bg-emerald-50 text-emerald-600 border-emerald-100',
+    'Closed': 'bg-slate-200 text-slate-700 border-slate-300',
+  };
+
+  return (
+    <span className={cn("px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-tight border", styles[state])}>
+      {state}
+    </span>
+  );
+};
