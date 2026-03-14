@@ -21,8 +21,18 @@ export const api = {
         ...projectData as any,
         id: Math.random().toString(36).substr(2, 9),
         createdAt: new Date().toISOString().split('T')[0],
+        updatedAt: new Date().toISOString().split('T')[0],
         comments: [],
         risks: [],
+        activities: [
+          { 
+            id: Math.random().toString(36).substr(2, 9), 
+            type: 'System', 
+            user: 'System', 
+            description: 'Project created from intake form', 
+            timestamp: new Date().toLocaleString([], { dateStyle: 'short', timeStyle: 'short' }) 
+          }
+        ],
       };
       return newProject;
     }

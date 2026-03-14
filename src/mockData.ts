@@ -27,7 +27,14 @@ export const MOCK_PROJECTS: Project[] = [
     risks: [
       { id: 'r1', description: 'Delayed API documentation from client', impact: 'Medium', status: 'Open', createdAt: format(subDays(now, 10), 'yyyy-MM-dd') }
     ],
-    priority: 'P1'
+    priority: 'P1',
+    updatedAt: format(subDays(now, 2), 'yyyy-MM-dd'),
+    activities: [
+      { id: 'a1', type: 'System', user: 'System', description: 'Project created from intake form', timestamp: format(subDays(now, 50), 'yyyy-MM-dd HH:mm') },
+      { id: 'a2', type: 'Milestone', user: 'Sarah Jenkins', description: 'Milestone "PIM" completed', timestamp: format(subDays(now, 42), 'yyyy-MM-dd HH:mm') },
+      { id: 'a3', type: 'Risk', user: 'Sarah Jenkins', description: 'New risk identified: Delayed API documentation from client', timestamp: format(subDays(now, 10), 'yyyy-MM-dd HH:mm') },
+      { id: 'a4', type: 'Comment', user: 'Sarah Jenkins', description: 'Added comment: Client requested additional USSD flows.', timestamp: format(subDays(now, 5), 'yyyy-MM-dd HH:mm') },
+    ]
   },
   {
     id: '2',
@@ -48,7 +55,9 @@ export const MOCK_PROJECTS: Project[] = [
     risks: [
       { id: 'r2', description: 'Server infrastructure not ready', impact: 'High', status: 'Open', createdAt: format(subDays(now, 2), 'yyyy-MM-dd') }
     ],
-    priority: 'P2'
+    priority: 'P2',
+    updatedAt: format(subDays(now, 20), 'yyyy-MM-dd'), // Stale
+    activities: []
   },
   {
     id: '3',
@@ -69,7 +78,9 @@ export const MOCK_PROJECTS: Project[] = [
     ],
     comments: [],
     risks: [],
-    priority: 'P2'
+    priority: 'P2',
+    updatedAt: format(subDays(now, 5), 'yyyy-MM-dd'),
+    activities: []
   },
   {
     id: '4',
@@ -87,7 +98,9 @@ export const MOCK_PROJECTS: Project[] = [
     ],
     comments: [],
     risks: [],
-    priority: 'P3'
+    priority: 'P3',
+    updatedAt: format(subDays(now, 1), 'yyyy-MM-dd'),
+    activities: []
   },
   {
     id: '5',
@@ -106,7 +119,9 @@ export const MOCK_PROJECTS: Project[] = [
     ],
     comments: [],
     risks: [],
-    priority: 'P1'
+    priority: 'P1',
+    updatedAt: format(subDays(now, 10), 'yyyy-MM-dd'),
+    activities: []
   }
 ];
 export const MOCK_USERS: User[] = [
@@ -128,6 +143,7 @@ export const MOCK_AUDIT_LOGS: AuditLog[] = [
 
 export const INITIAL_CONFIG: AppConfig = {
   atRiskThresholdDays: 7,
+  staleThresholdDays: 14,
   currency: 'USD',
   defaultMilestones: ['PIM', 'Pre-requisites', 'Implementation', 'Sign Off'],
   allowPostIntakeRevenueEdit: true,

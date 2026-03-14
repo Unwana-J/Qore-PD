@@ -20,6 +20,16 @@ export interface Milestone {
   status: MilestoneStatus;
 }
 
+export type ActivityType = 'Comment' | 'Risk' | 'Milestone' | 'StateChange' | 'System';
+
+export interface ProjectActivity {
+  id: string;
+  type: ActivityType;
+  user: string;
+  description: string;
+  timestamp: string;
+}
+
 export type ProductLine = 'Bankone' | 'Channels' | 'Recova' | 'Cluster';
 
 export interface Comment {
@@ -52,6 +62,8 @@ export interface Project {
   risks: Risk[];
   priority: ProjectPriority;
   createdAt: string;
+  updatedAt: string;
+  activities: ProjectActivity[];
 }
 
 export interface PackageConfig {
@@ -95,6 +107,7 @@ export interface BrandConfig {
 
 export interface AppConfig {
   atRiskThresholdDays: number;
+  staleThresholdDays: number;
   currency: string;
   defaultMilestones: string[];
   allowPostIntakeRevenueEdit: boolean;

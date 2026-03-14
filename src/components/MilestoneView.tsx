@@ -14,7 +14,8 @@ import {
   Send,
   AlertTriangle,
   Plus,
-  Shield
+  Shield,
+  RefreshCw
 } from 'lucide-react';
 import { PROJECT_STATES } from '../constants';
 import { getThemeClasses } from '../lib/theme';
@@ -28,6 +29,7 @@ interface MilestoneViewProps {
 }
 
 export const MilestoneView: React.FC<MilestoneViewProps> = ({ project, onBack, onUpdateProject, userRole, themeColor = 'teal' }) => {
+  const [activeTab, setActiveTab] = useState<'overview' | 'activity'>('overview');
   const [commentText, setCommentText] = useState('');
   const [isAddingRisk, setIsAddingRisk] = useState(false);
   const [newRisk, setNewRisk] = useState({ description: '', impact: 'Medium' as Risk['impact'] });
@@ -116,6 +118,27 @@ export const MilestoneView: React.FC<MilestoneViewProps> = ({ project, onBack, o
           </div>
         </div>
 
+        <div className="flex gap-1 bg-white p-1 rounded-xl border border-slate-200 shadow-sm">
+          <button 
+            onClick={() => setActiveTab('overview')}
+            className={cn(
+              "px-4 py-1.5 text-xs font-bold rounded-lg transition-all",
+              activeTab === 'overview' ? cn(theme.bg, "text-white shadow-md") : "text-slate-500 hover:bg-slate-50"
+            )}
+          >
+            Overview
+          </button>
+          <button 
+            onClick={() => setActiveTab('activity')}
+            className={cn(
+              "px-4 py-1.5 text-xs font-bold rounded-lg transition-all",
+              activeTab === 'activity' ? cn(theme.bg, "text-white shadow-md") : "text-slate-500 hover:bg-slate-50"
+            )}
+          >
+            Activity Feed
+          </button>
+        </div>
+
         {canChangeState && (
           <div className="flex items-center gap-3 bg-white p-2 rounded-2xl border border-slate-200 shadow-sm">
             <span className="text-xs font-bold text-slate-400 uppercase ml-2">Update Status:</span>
@@ -155,159 +178,203 @@ export const MilestoneView: React.FC<MilestoneViewProps> = ({ project, onBack, o
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Left Column: Milestones & Risks */}
+        {/* Main Content Area */}
         <div className="lg:col-span-2 space-y-8">
-          {/* Milestones */}
-          <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
-            <h3 className="text-lg font-bold text-slate-900 mb-6 flex items-center gap-2">
-              <Clock className={cn("w-5 h-5", theme.text)} />
-              Project Milestones
-            </h3>
-            <div className="space-y-8 relative before:absolute before:left-[19px] before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-100">
-              {project.milestones.map((milestone) => (
-                <div key={milestone.id} className="relative pl-12">
-                  <div className={cn(
-                    "absolute left-0 top-1 w-10 h-10 rounded-full flex items-center justify-center z-10 border-4 border-white",
-                    milestone.status === 'Completed' ? "bg-emerald-500 text-white" : 
-                    milestone.status === 'In Progress' ? "bg-amber-500 text-white" : "bg-slate-200 text-slate-500"
-                  )}>
-                    {milestone.status === 'Completed' ? <CheckCircle2 className="w-5 h-5" /> : 
-                     milestone.status === 'In Progress' ? <Clock className="w-5 h-5" /> : <Circle className="w-5 h-5" />}
-                  </div>
-                  
-                  <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 flex justify-between items-center">
-                    <div>
-                      <h4 className="font-bold text-slate-900">{milestone.name}</h4>
-                      <p className="text-xs text-slate-500 mt-1 flex items-center gap-1">
-                        <Calendar className="w-3 h-3" />
-                        Target: {milestone.targetDate}
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      {canEdit ? (
-                        <select 
-                          value={milestone.status}
-                          onChange={(e) => handleMilestoneStatusChange(milestone.id, e.target.value as any)}
-                          className={cn(
-                            "px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider outline-none cursor-pointer border border-transparent hover:border-slate-300 transition-all",
-                            milestone.status === 'Completed' ? "bg-emerald-100 text-emerald-700" : 
-                            milestone.status === 'In Progress' ? "bg-amber-100 text-amber-700" : "bg-slate-200 text-slate-600"
-                          )}
-                        >
-                          <option value="Pending">Pending</option>
-                          <option value="In Progress">In Progress</option>
-                          <option value="Completed">Completed</option>
-                        </select>
-                      ) : (
-                        <span className={cn(
-                          "px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider",
-                          milestone.status === 'Completed' ? "bg-emerald-100 text-emerald-700" : 
-                          milestone.status === 'In Progress' ? "bg-amber-100 text-amber-700" : "bg-slate-200 text-slate-600"
-                        )}>
-                          {milestone.status}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Risks & Issues Section */}
-          <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                <AlertTriangle className="w-5 h-5 text-red-500" />
-                Risks & Issues
-              </h3>
-              {canEdit && (
-                <button 
-                  onClick={() => setIsAddingRisk(!isAddingRisk)}
-                  className="p-2 bg-red-50 text-red-600 rounded-xl hover:bg-red-100 transition-colors"
-                >
-                  <Plus className="w-4 h-4" />
-                </button>
-              )}
-            </div>
-
-            {isAddingRisk && (
-              <form onSubmit={handleAddRisk} className="mb-6 p-4 bg-red-50 rounded-2xl border border-red-100 space-y-4 animate-in fade-in slide-in-from-top-2">
-                <input 
-                  autoFocus
-                  placeholder="Describe the risk or issue..."
-                  className="w-full px-4 py-2 bg-white border border-red-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-red-500/20"
-                  value={newRisk.description}
-                  onChange={e => setNewRisk({...newRisk, description: e.target.value})}
-                />
-                <div className="flex gap-3">
-                  <select 
-                    className="flex-1 px-3 py-2 bg-white border border-red-200 rounded-xl text-sm outline-none"
-                    value={newRisk.impact}
-                    onChange={e => setNewRisk({...newRisk, impact: e.target.value as any})}
-                  >
-                    <option value="Low">Low Impact</option>
-                    <option value="Medium">Medium Impact</option>
-                    <option value="High">High Impact</option>
-                  </select>
-                  <button type="submit" className="px-6 py-2 bg-red-600 text-white font-bold rounded-xl text-sm">Log Risk</button>
-                </div>
-              </form>
-            )}
-
-            <div className="space-y-3">
-              {project.risks.map(risk => (
-                <div key={risk.id} className="p-4 bg-slate-50 rounded-2xl border border-slate-100 flex justify-between items-start">
-                  <div className="space-y-1">
-                    <p className="text-sm font-semibold text-slate-900">{risk.description}</p>
-                    <p className="text-[10px] text-slate-400 font-mono">Logged on {risk.createdAt}</p>
-                  </div>
-                  <div className="flex flex-col items-end gap-2">
-                    <span className={cn(
-                      "px-2 py-0.5 rounded text-[10px] font-bold uppercase",
-                      risk.impact === 'High' ? "bg-red-100 text-red-700" : 
-                      risk.impact === 'Medium' ? "bg-amber-100 text-amber-700" : "bg-blue-100 text-blue-700"
-                    )}>
-                      {risk.impact}
-                    </span>
-                    {canEdit ? (
-                      <select 
-                        value={risk.status}
-                        onChange={(e) => handleRiskStatusChange(risk.id, e.target.value as any)}
-                        className={cn(
-                          "text-[10px] font-bold uppercase flex items-center gap-1 bg-transparent outline-none cursor-pointer border border-transparent hover:border-slate-300 rounded px-1 transition-all",
-                          risk.status === 'Open' ? "text-red-500" : 
-                          risk.status === 'Addressing' ? "text-amber-500" : "text-slate-400"
-                        )}
-                      >
-                        <option value="Open">Open</option>
-                        <option value="Addressing">Addressing</option>
-                        <option value="Closed">Closed</option>
-                      </select>
-                    ) : (
-                      <span className={cn(
-                        "text-[10px] font-bold uppercase flex items-center gap-1",
-                        risk.status === 'Open' ? "text-red-500" : 
-                        risk.status === 'Addressing' ? "text-amber-500" : "text-slate-400"
+          {activeTab === 'overview' ? (
+            <>
+              {/* Milestones */}
+              <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
+                <h3 className="text-lg font-bold text-slate-900 mb-6 flex items-center gap-2">
+                  <Clock className={cn("w-5 h-5", theme.text)} />
+                  Project Milestones
+                </h3>
+                <div className="space-y-8 relative before:absolute before:left-[19px] before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-100">
+                  {project.milestones.map((milestone) => (
+                    <div key={milestone.id} className="relative pl-12">
+                      <div className={cn(
+                        "absolute left-0 top-1 w-10 h-10 rounded-full flex items-center justify-center z-10 border-4 border-white",
+                        milestone.status === 'Completed' ? "bg-emerald-500 text-white" : 
+                        milestone.status === 'In Progress' ? "bg-amber-500 text-white" : "bg-slate-200 text-slate-500"
                       )}>
-                        <AlertTriangle className="w-3 h-3" />
-                        {risk.status}
-                      </span>
-                    )}
+                        {milestone.status === 'Completed' ? <CheckCircle2 className="w-5 h-5" /> : 
+                         milestone.status === 'In Progress' ? <Clock className="w-5 h-5" /> : <Circle className="w-5 h-5" />}
+                      </div>
+                      
+                      <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 flex justify-between items-center">
+                        <div>
+                          <h4 className="font-bold text-slate-900">{milestone.name}</h4>
+                          <p className="text-xs text-slate-500 mt-1 flex items-center gap-1">
+                            <Calendar className="w-3 h-3" />
+                            Target: {milestone.targetDate}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          {canEdit ? (
+                            <select 
+                              value={milestone.status}
+                              onChange={(e) => handleMilestoneStatusChange(milestone.id, e.target.value as any)}
+                              className={cn(
+                                "px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider outline-none cursor-pointer border border-transparent hover:border-slate-300 transition-all",
+                                milestone.status === 'Completed' ? "bg-emerald-100 text-emerald-700" : 
+                                milestone.status === 'In Progress' ? "bg-amber-100 text-amber-700" : "bg-slate-200 text-slate-600"
+                              )}
+                            >
+                              <option value="Pending">Pending</option>
+                              <option value="In Progress">In Progress</option>
+                              <option value="Completed">Completed</option>
+                            </select>
+                          ) : (
+                            <span className={cn(
+                              "px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider",
+                              milestone.status === 'Completed' ? "bg-emerald-100 text-emerald-700" : 
+                              milestone.status === 'In Progress' ? "bg-amber-100 text-amber-700" : "bg-slate-200 text-slate-600"
+                            )}>
+                              {milestone.status}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Risks & Issues Section */}
+              <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
+                <div className="flex justify-between items-center mb-6">
+                  <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                    <AlertTriangle className="w-5 h-5 text-red-500" />
+                    Risks & Issues
+                  </h3>
+                  {canEdit && (
+                    <button 
+                      onClick={() => setIsAddingRisk(!isAddingRisk)}
+                      className="p-2 bg-red-50 text-red-600 rounded-xl hover:bg-red-100 transition-colors"
+                    >
+                      <Plus className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+
+                {isAddingRisk && (
+                  <form onSubmit={handleAddRisk} className="mb-6 p-4 bg-red-50 rounded-2xl border border-red-100 space-y-4 animate-in fade-in slide-in-from-top-2">
+                    <input 
+                      autoFocus
+                      placeholder="Describe the risk or issue..."
+                      className="w-full px-4 py-2 bg-white border border-red-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-red-500/20"
+                      value={newRisk.description}
+                      onChange={e => setNewRisk({...newRisk, description: e.target.value})}
+                    />
+                    <div className="flex gap-3">
+                      <select 
+                        className="flex-1 px-3 py-2 bg-white border border-red-200 rounded-xl text-sm outline-none"
+                        value={newRisk.impact}
+                        onChange={e => setNewRisk({...newRisk, impact: e.target.value as any})}
+                      >
+                        <option value="Low">Low Impact</option>
+                        <option value="Medium">Medium Impact</option>
+                        <option value="High">High Impact</option>
+                      </select>
+                      <button type="submit" className="px-6 py-2 bg-red-600 text-white font-bold rounded-xl text-sm">Log Risk</button>
+                    </div>
+                  </form>
+                )}
+
+                <div className="space-y-3">
+                  {project.risks.map(risk => (
+                    <div key={risk.id} className="p-4 bg-slate-50 rounded-2xl border border-slate-100 flex justify-between items-start">
+                      <div className="space-y-1">
+                        <p className="text-sm font-semibold text-slate-900">{risk.description}</p>
+                        <p className="text-[10px] text-slate-400 font-mono">Logged on {risk.createdAt}</p>
+                      </div>
+                      <div className="flex flex-col items-end gap-2">
+                        <span className={cn(
+                          "px-2 py-0.5 rounded text-[10px] font-bold uppercase",
+                          risk.impact === 'High' ? "bg-red-100 text-red-700" : 
+                          risk.impact === 'Medium' ? "bg-amber-100 text-amber-700" : "bg-blue-100 text-blue-700"
+                        )}>
+                          {risk.impact}
+                        </span>
+                        {canEdit ? (
+                          <select 
+                            value={risk.status}
+                            onChange={(e) => handleRiskStatusChange(risk.id, e.target.value as any)}
+                            className={cn(
+                              "text-[10px] font-bold uppercase flex items-center gap-1 bg-transparent outline-none cursor-pointer border border-transparent hover:border-slate-300 rounded px-1 transition-all",
+                              risk.status === 'Open' ? "text-red-500" : 
+                              risk.status === 'Addressing' ? "text-amber-500" : "text-slate-400"
+                            )}
+                          >
+                            <option value="Open">Open</option>
+                            <option value="Addressing">Addressing</option>
+                            <option value="Closed">Closed</option>
+                          </select>
+                        ) : (
+                          <span className={cn(
+                            "text-[10px] font-bold uppercase flex items-center gap-1",
+                            risk.status === 'Open' ? "text-red-500" : 
+                            risk.status === 'Addressing' ? "text-amber-500" : "text-slate-400"
+                          )}>
+                            <AlertTriangle className="w-3 h-3" />
+                            {risk.status}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                  {project.risks.length === 0 && (
+                    <div className="py-8 text-center text-slate-400">
+                      <Shield className="w-8 h-8 mx-auto mb-2 opacity-20" />
+                      <p className="text-sm italic">No risks documented for this project.</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </>
+          ) : (
+            <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm min-h-[500px]">
+              <h3 className="text-lg font-bold text-slate-900 mb-6 flex items-center gap-2">
+                <Clock className={cn("w-5 h-5", theme.text)} />
+                Activity Timeline
+              </h3>
+              <div className="space-y-6 relative before:absolute before:left-[15px] before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-100">
+                {project.activities?.map((activity) => (
+                  <div key={activity.id} className="relative pl-10">
+                    <div className={cn(
+                      "absolute left-0 top-0.5 w-8 h-8 rounded-full flex items-center justify-center z-10 border-4 border-white shadow-sm",
+                      activity.type === 'StateChange' ? "bg-blue-500 text-white" :
+                      activity.type === 'Milestone' ? "bg-emerald-500 text-white" :
+                      activity.type === 'Risk' ? "bg-red-500 text-white" :
+                      activity.type === 'Comment' ? "bg-purple-500 text-white" : "bg-slate-400 text-white"
+                    )}>
+                      {activity.type === 'StateChange' ? <RefreshCw className="w-4 h-4" /> :
+                       activity.type === 'Milestone' ? <CheckCircle2 className="w-4 h-4" /> :
+                       activity.type === 'Risk' ? <AlertTriangle className="w-4 h-4" /> :
+                       activity.type === 'Comment' ? <MessageSquare className="w-4 h-4" /> : <Clock className="w-4 h-4" />}
+                    </div>
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-xs font-bold text-slate-900">{activity.user}</span>
+                        <span className="text-[10px] text-slate-400 font-medium">{activity.timestamp}</span>
+                      </div>
+                      <div className="bg-slate-50 p-3 rounded-2xl border border-slate-100 text-sm text-slate-600 leading-relaxed shadow-sm">
+                        {activity.description}
+                      </div>
+                    </div>
                   </div>
-                </div>
-              ))}
-              {project.risks.length === 0 && (
-                <div className="py-8 text-center text-slate-400">
-                  <Shield className="w-8 h-8 mx-auto mb-2 opacity-20" />
-                  <p className="text-sm italic">No risks documented for this project.</p>
-                </div>
-              )}
+                ))}
+                {!project.activities?.length && (
+                  <div className="text-center py-20 text-slate-400">
+                    <Clock className="w-12 h-12 mx-auto mb-2 opacity-10" />
+                    <p className="italic">No activity recorded yet.</p>
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
-        {/* Right Column: Details & Comments */}
+        {/* Info Column: Details & Comments */}
         <div className="space-y-8">
           {/* Project Details */}
           <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">

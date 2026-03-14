@@ -96,6 +96,7 @@ export default function App() {
                         projects={filteredProjects} 
                         onSelectProject={setSelectedProject} 
                         themeColor={config.brand.themeColor}
+                        staleThresholdDays={config.staleThresholdDays}
                       />
                     )}
                     {currentView === 'risks' && (

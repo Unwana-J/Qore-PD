@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
-import { Project, Role, AppConfig, ProjectPriority } from '../types';
+import { Project, Role, AppConfig, ProjectPriority, ProjectActivity, ActivityType } from '../types';
 import { api } from '../lib/api';
 
 export function useProjects(userRole: Role, config: AppConfig) {
@@ -70,8 +70,84 @@ export function useProjects(userRole: Role, config: AppConfig) {
     }
   };
 
-  const updateProject = async (updatedProject: Project) => {
+  const updateProject = async (project: Project) => {
     try {
+      const oldProject = projects.find(p => p.id === project.id);
+      if (!oldProject) return;
+
+      const newActivities: ProjectActivity[] = [...(project.activities || [])];
+      const now = new Date().toLocaleString([], { dateStyle: 'short', timeStyle: 'short' });
+      const userName = userRole === 'PM' ? 'Sarah Jenkins' : 'Admin User'; // Mock user context
+
+      // Detect State Change
+      if (oldProject.state !== project.state) {
+        newActivities.unshift({
+          id: Math.random().toString(36).substr(2, 9),
+          type: 'StateChange',
+          user: userName,
+          description: `Changed project state from "${oldProject.state}" to "${project.state}"`,
+          timestamp: now
+        });
+      }
+
+      // Detect Milestone Change
+      project.milestones.forEach(m => {
+        const oldM = oldProject.milestones.find(om => om.id === m.id);
+        if (oldM && oldM.status !== m.status) {
+          newActivities.unshift({
+            id: Math.random().toString(36).substr(2, 9),
+            type: 'Milestone',
+            user: userName,
+            description: `Updated milestone "${m.name}" to "${m.status}"`,
+            timestamp: now
+          });
+        }
+      });
+
+      // Detect New Risk
+      if (project.risks.length > oldProject.risks.length) {
+        const newestRisk = project.risks[0];
+        newActivities.unshift({
+          id: Math.random().toString(36).substr(2, 9),
+          type: 'Risk',
+          user: userName,
+          description: `Logged new risk: "${newestRisk.description}" (${newestRisk.impact} impact)`,
+          timestamp: now
+        });
+      }
+
+      // Detect Risk status change
+      project.risks.forEach(r => {
+        const oldR = oldProject.risks.find(or => or.id === r.id);
+        if (oldR && oldR.status !== r.status) {
+          newActivities.unshift({
+            id: Math.random().toString(36).substr(2, 9),
+            type: 'Risk',
+            user: userName,
+            description: `Updated risk "${r.description}" status to "${r.status}"`,
+            timestamp: now
+          });
+        }
+      });
+
+      // Detect New Comment
+      if (project.comments.length > oldProject.comments.length) {
+        const newestComment = project.comments[0];
+        newActivities.unshift({
+          id: Math.random().toString(36).substr(2, 9),
+          type: 'Comment',
+          user: userName,
+          description: `Added a comment: "${newestComment.text.substring(0, 50)}${newestComment.text.length > 50 ? '...' : ''}"`,
+          timestamp: now
+        });
+      }
+
+      const updatedProject = { 
+        ...project, 
+        updatedAt: new Date().toISOString().split('T')[0],
+        activities: newActivities 
+      };
+      
       const result = await api.projects.update(updatedProject);
       setProjects(prev => prev.map(p => p.id === result.id ? result : p));
       if (selectedProject?.id === result.id) {

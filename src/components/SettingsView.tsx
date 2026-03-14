@@ -506,6 +506,22 @@ const ProjectConfig = ({ config, setConfig }: any) => {
       </div>
 
       <div className="space-y-6">
+        <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100 space-y-4">
+          <h4 className="text-sm font-bold text-slate-900">Stale Project Detection</h4>
+          <div className="flex items-center gap-4">
+            <input 
+              type="number" 
+              className={cn(
+                "w-24 px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm font-bold outline-none focus:ring-2",
+                theme.ring, theme.focusBorder
+              )}
+              value={config.staleThresholdDays}
+              onChange={e => setConfig({...config, staleThresholdDays: parseInt(e.target.value)})}
+            />
+            <span className="text-sm text-slate-600 font-medium">days without activity before flagging as "Stale"</span>
+          </div>
+        </div>
+
         <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100">
           <h4 className="text-sm font-bold text-slate-900 mb-4">Default Milestone Template</h4>
           <div className="space-y-4">

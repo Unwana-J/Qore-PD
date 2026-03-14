@@ -5,14 +5,17 @@ import { Search, Filter, MoreHorizontal, Calendar, User, ChevronRight } from 'lu
 import { motion } from 'motion/react';
 import { PROJECT_STATES } from '../constants';
 import { getThemeClasses } from '../lib/theme';
+import { differenceInDays, parseISO } from 'date-fns';
+import { AlertCircle } from 'lucide-react';
 
 interface ProjectListProps {
   projects: Project[];
   onSelectProject: (project: Project) => void;
   themeColor?: string;
+  staleThresholdDays: number;
 }
 
-export const ProjectList: React.FC<ProjectListProps> = ({ projects, onSelectProject, themeColor = 'teal' }) => {
+export const ProjectList: React.FC<ProjectListProps> = ({ projects, onSelectProject, themeColor = 'teal', staleThresholdDays }) => {
   const [search, setSearch] = useState('');
   const [stateFilter, setStateFilter] = useState<ProjectState | 'All'>('All');
 
@@ -80,6 +83,12 @@ export const ProjectList: React.FC<ProjectListProps> = ({ projects, onSelectProj
                   <div className="flex items-center gap-2">
                     <PriorityBadge priority={project.priority} />
                     <StateBadge state={project.state} themeColor={themeColor} />
+                    {differenceInDays(new Date(), parseISO(project.updatedAt)) >= staleThresholdDays && (
+                      <span className="flex items-center gap-1 px-1.5 py-0.5 bg-red-100 text-red-600 rounded text-[10px] font-bold border border-red-200">
+                        <AlertCircle className="w-3 h-3" />
+                        STALE
+                      </span>
+                    )}
                   </div>
                 </div>
                 <p className="text-sm text-slate-500 font-medium">{project.packageName}</p>
