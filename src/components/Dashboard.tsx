@@ -89,7 +89,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ projects, themeColor = 'te
             <Activity className={cn("w-5 h-5", theme.text)} />
             <h2 className="text-lg font-semibold text-slate-900">Project Status</h2>
           </div>
-          <div className="h-[300px]">
+          <div className="h-[250px]">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
@@ -136,7 +136,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ projects, themeColor = 'te
             <Layers className={cn("w-5 h-5", theme.text)} />
             <h2 className="text-lg font-semibold text-slate-900">Product Line Distribution</h2>
           </div>
-          <div className="h-[300px]">
+          <div className="h-[250px]">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={productLineData}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />

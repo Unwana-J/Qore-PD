@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Project, ProjectState } from '../types';
 import { formatCurrency, cn } from '../lib/utils';
 import { Search, Filter, MoreHorizontal, Calendar, User, ChevronRight } from 'lucide-react';
+import { motion } from 'motion/react';
 import { PROJECT_STATES } from '../constants';
 import { getThemeClasses } from '../lib/theme';
 
@@ -62,11 +63,13 @@ export const ProjectList: React.FC<ProjectListProps> = ({ projects, onSelectProj
 
       <div className="grid grid-cols-1 gap-4">
         {filteredProjects.map(project => (
-          <div 
+          <motion.div 
             key={project.id}
             onClick={() => onSelectProject(project)}
+            whileHover={{ y: -2, boxShadow: "0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)" }}
+            transition={{ duration: 0.2 }}
             className={cn(
-              "bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-all cursor-pointer group",
+              "bg-white p-5 rounded-2xl border border-slate-200 shadow-sm cursor-pointer group",
               theme.hoverBorder
             )}
           >
@@ -104,7 +107,7 @@ export const ProjectList: React.FC<ProjectListProps> = ({ projects, onSelectProj
                 </span>
               ))}
             </div>
-          </div>
+          </motion.div>
         ))}
 
         {filteredProjects.length === 0 && (

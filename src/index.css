@@ -10,6 +10,14 @@
   body {
     @apply antialiased text-slate-900 bg-slate-50;
   }
+
+  /* Accessibility Overrides: Darkening text for better contrast */
+  .text-slate-400 {
+    color: var(--color-slate-500); /* mapping 400 to 500 */
+  }
+  .text-slate-500 {
+    color: var(--color-slate-600); /* mapping 500 to 600 */
+  }
 }
 
 /* Custom Scrollbar */
