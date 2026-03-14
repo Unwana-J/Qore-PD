@@ -9,7 +9,7 @@ import { MilestoneView } from './components/MilestoneView';
 import { RisksTable } from './components/RisksTable';
 import { SettingsView } from './components/SettingsView';
 import { INITIAL_CONFIG } from './mockData';
-import { Role, AppConfig } from './types';
+import { Role, AppConfig, SettingsTab, Project } from './types';
 import { useProjects } from './hooks/useProjects';
 
 type View = 'dashboard' | 'projects' | 'risks' | 'settings';
@@ -19,6 +19,7 @@ export default function App() {
   const [userRole, setUserRole] = useState<Role>('Manager');
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [activeSettingsTab, setActiveSettingsTab] = useState<SettingsTab>('account');
   const [config, setConfig] = useState<AppConfig>(INITIAL_CONFIG);
 
   const {
@@ -59,8 +60,10 @@ export default function App() {
           setIsSidebarOpen={setIsSidebarOpen}
           selectedProject={selectedProject}
           currentView={currentView}
+          activeSettingsTab={activeSettingsTab}
           themeColor={config.brand.themeColor}
           userRole={userRole}
+          onNavigateBack={() => setSelectedProject(null)}
           setIsModalOpen={setIsModalOpen}
         />
 
@@ -103,13 +106,15 @@ export default function App() {
                       <RisksTable projects={filteredProjects} />
                     )}
                     {currentView === 'settings' && (
-                      <SettingsView 
-                        userRole={userRole} 
-                        projects={projects} 
-                        onUpdateProjects={() => {}} // This should be handled by the hook in a real app
-                        config={config}
-                        onUpdateConfig={setConfig}
-                      />
+                        <SettingsView 
+                          userRole={userRole} 
+                          projects={projects} 
+                          onUpdateProjects={() => {}} 
+                          config={config}
+                          onUpdateConfig={setConfig}
+                          activeTab={activeSettingsTab}
+                          setActiveTab={setActiveSettingsTab}
+                        />
                     )}
                   </>
                 )}

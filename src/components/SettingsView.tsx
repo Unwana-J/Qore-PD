@@ -27,7 +27,8 @@ import {
   AppConfig, 
   WeightHistory, 
   PackageConfig,
-  Project
+  Project,
+  SettingsTab
 } from '../types';
 import { PACKAGES, PROJECT_STATES } from '../constants';
 import { cn } from '../lib/utils';
@@ -40,18 +41,19 @@ interface SettingsViewProps {
   onUpdateProjects: (projects: Project[]) => void;
   config: AppConfig;
   onUpdateConfig: (config: AppConfig) => void;
+  activeTab: SettingsTab;
+  setActiveTab: (tab: SettingsTab) => void;
 }
 
-type SettingsTab = 'performance' | 'users' | 'project' | 'priority' | 'revenue' | 'audit' | 'account' | 'brand';
-
 export const SettingsView: React.FC<SettingsViewProps> = ({ 
-  userRole, 
-  projects, 
+  userRole,
+  projects,
   onUpdateProjects,
   config,
-  onUpdateConfig
+  onUpdateConfig,
+  activeTab,
+  setActiveTab
 }) => {
-  const [activeTab, setActiveTab] = useState<SettingsTab>('account');
   const [users, setUsers] = useState<User[]>(MOCK_USERS);
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>(MOCK_AUDIT_LOGS);
   const [weightHistory, setWeightHistory] = useState<WeightHistory[]>(MOCK_WEIGHT_HISTORY);

@@ -105,6 +105,8 @@ export interface BrandConfig {
   companyName: string;
 }
 
+export type SettingsTab = 'performance' | 'users' | 'project' | 'priority' | 'revenue' | 'audit' | 'account' | 'brand';
+
 export interface AppConfig {
   atRiskThresholdDays: number;
   staleThresholdDays: number;
