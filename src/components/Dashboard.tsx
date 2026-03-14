@@ -189,31 +189,34 @@ export const Dashboard: React.FC<DashboardProps> = ({ projects, workloadThreshol
               <thead>
                 <tr className="border-b border-slate-100">
                   <th className="pb-3 text-sm font-semibold text-slate-500 uppercase tracking-wider">Project Manager</th>
-                  <th className="pb-3 text-sm font-semibold text-slate-500 uppercase tracking-wider">Total Projects</th>
-                  <th className="pb-3 text-sm font-semibold text-slate-500 uppercase tracking-wider">Completed</th>
-                  <th className="pb-3 text-sm font-semibold text-slate-500 uppercase tracking-wider">Weighted Score</th>
-                  <th className="pb-3 text-sm font-semibold text-slate-500 uppercase tracking-wider">Progress</th>
+                  <th className="pb-3 text-sm font-semibold text-slate-500 uppercase tracking-wider text-center">Projects</th>
+                  <th className="pb-3 text-sm font-semibold text-slate-500 uppercase tracking-wider">Active Workload</th>
+                  <th className="pb-3 text-sm font-semibold text-slate-500 uppercase tracking-wider text-right">Score</th>
+                  <th className="pb-3 text-sm font-semibold text-slate-500 uppercase tracking-wider text-right">Progress</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
                 {pmStats.map((stat, i) => (
                   <tr key={i} className="group hover:bg-slate-50 transition-colors">
                     <td className="py-4 font-medium text-slate-900">{stat.name}</td>
-                    <td className="py-4 text-slate-600">{stat.projects}</td>
+                    <td className="py-4 text-slate-600 text-center">{stat.projects}</td>
                     <td className="py-4 font-bold text-slate-700">
-                      <div className="flex flex-col gap-1.5 min-w-[150px]">
+                      <div className="flex flex-col gap-1.5 min-w-[180px]">
                         <WorkloadBar label="P1" current={stat.workload.P1} max={workloadThresholds.P1} color="bg-red-500" />
                         <WorkloadBar label="P2" current={stat.workload.P2} max={workloadThresholds.P2} color="bg-amber-500" />
                         <WorkloadBar label="P3" current={stat.workload.P3} max={workloadThresholds.P3} color="bg-sky-500" />
                       </div>
                     </td>
-                    <td className={cn("py-4 font-bold", theme.text)}>{stat.score.toFixed(1)}</td>
-                    <td className="py-4">
-                      <div className="w-32 h-2 bg-slate-100 rounded-full overflow-hidden">
-                        <div 
-                          className={cn("h-full rounded-full", theme.bg)} 
-                          style={{ width: `${(stat.completed / stat.projects) * 100}%` }}
-                        />
+                    <td className={cn("py-4 font-bold text-right", theme.text)}>{stat.score.toFixed(1)}</td>
+                    <td className="py-4 text-right">
+                      <div className="flex items-center justify-end gap-3">
+                        <span className="text-xs font-bold text-slate-500">{stat.completed}/{stat.projects}</span>
+                        <div className="w-24 h-2 bg-slate-100 rounded-full overflow-hidden">
+                          <div 
+                            className={cn("h-full rounded-full", theme.bg)} 
+                            style={{ width: `${(stat.completed / stat.projects) * 100}%` }}
+                          />
+                        </div>
                       </div>
                     </td>
                   </tr>
