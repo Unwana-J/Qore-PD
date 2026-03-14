@@ -404,18 +404,18 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
                     <div className="px-2 py-0.5 bg-slate-100 rounded text-[10px] font-black text-slate-600">{curr}</div>
                     <div className="h-px flex-1 bg-slate-100" />
                   </div>
-                  <div className="grid grid-cols-3 gap-2">
-                    <div>
-                      <p className="text-[10px] font-bold text-slate-400 uppercase">Intake</p>
-                      <p className="text-sm font-black text-slate-900">{formatCurrency(intake, curr)}</p>
+                  <div className="space-y-4">
+                    <div className="flex justify-between items-center text-xs">
+                      <p className="font-bold text-slate-400 uppercase tracking-widest text-[9px]">Intake</p>
+                      <p className="font-black text-slate-900">{formatCurrency(intake, curr)}</p>
                     </div>
-                    <div>
-                      <p className="text-[10px] font-bold text-slate-400 uppercase">Pending</p>
-                      <p className="text-sm font-black text-slate-900">{formatCurrency(pending, curr)}</p>
+                    <div className="flex justify-between items-center text-xs">
+                      <p className="font-bold text-slate-400 uppercase tracking-widest text-[9px]">Pending</p>
+                      <p className="font-black text-slate-700">{formatCurrency(pending, curr)}</p>
                     </div>
-                     <div>
-                      <p className="text-[10px] font-bold text-slate-400 uppercase text-emerald-600">Achieved</p>
-                      <p className="text-sm font-black text-emerald-600">{formatCurrency(achieved, curr)}</p>
+                    <div className="flex justify-between items-center text-xs p-2 bg-emerald-50 rounded-xl border border-emerald-100">
+                      <p className="font-bold text-emerald-600 uppercase tracking-widest text-[9px]">Achieved</p>
+                      <p className="font-black text-emerald-700">{formatCurrency(achieved, curr)}</p>
                     </div>
                   </div>
                 </div>
