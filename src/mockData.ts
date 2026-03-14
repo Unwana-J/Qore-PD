@@ -187,6 +187,44 @@ export const MOCK_PROJECTS: Project[] = [
     priority: 'P3',
     updatedAt: format(subDays(now, 1), 'yyyy-MM-dd'),
     activities: []
+  },
+  {
+    id: '9',
+    clientName: 'Legacy Corp',
+    packageName: 'Legacy Migration',
+    services: ['CBA'],
+    productLines: ['Bankone'],
+    assignedPM: 'Deactivated User',
+    startDate: format(subDays(now, 120), 'yyyy-MM-dd'),
+    value: 50000,
+    currency: 'NGN',
+    state: 'Active',
+    createdAt: format(subDays(now, 125), 'yyyy-MM-dd'),
+    milestones: [],
+    comments: [],
+    risks: [],
+    priority: 'P2',
+    updatedAt: format(subDays(now, 50), 'yyyy-MM-dd'),
+    activities: []
+  },
+  {
+    id: '10',
+    clientName: 'Old School Fin',
+    packageName: 'Digital Onboarding',
+    services: ['Mobile'],
+    productLines: ['Channels'],
+    assignedPM: 'Deactivated User',
+    startDate: format(subDays(now, 150), 'yyyy-MM-dd'),
+    value: 30000,
+    currency: 'USD',
+    state: 'Delayed',
+    createdAt: format(subDays(now, 155), 'yyyy-MM-dd'),
+    milestones: [],
+    comments: [],
+    risks: [],
+    priority: 'P1',
+    updatedAt: format(subDays(now, 60), 'yyyy-MM-dd'),
+    activities: []
   }
 ];
 export const MOCK_USERS: User[] = [
@@ -197,7 +235,7 @@ export const MOCK_USERS: User[] = [
   { id: 'u5', name: 'Finance Lead', email: 'finance@qore.com', role: 'Finance', status: 'Active', avatar: 'FL' },
   { id: 'u6', name: 'Exec Director', email: 'exec@qore.com', role: 'Executive', status: 'Active', avatar: 'ED' },
   { id: 'u7', name: 'James Wilson', email: 'j.wilson@qore.com', role: 'Manager', status: 'Active', avatar: 'JW' },
-  { id: 'u8', name: 'Pending User', email: 'pending@qore.com', role: 'PM', status: 'Invited', avatar: 'PU', invitedAt: format(subDays(now, 1), 'yyyy-MM-dd HH:mm') },
+  { id: 'u8', name: 'Deactivated User', email: 'deactivated@qore.com', role: 'PM', status: 'Inactive', avatar: 'DU', invitedAt: format(subDays(now, 100), 'yyyy-MM-dd HH:mm') },
 ];
 
 export const MOCK_AUDIT_LOGS: AuditLog[] = [

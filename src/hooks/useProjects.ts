@@ -191,6 +191,33 @@ export function useProjects(userRole: Role, config: AppConfig) {
     return updateProject(updatedProject);
   };
 
+  const reassignProject = async (projectId: string, newPmName: string, reason?: string) => {
+    const project = projects.find(p => p.id === projectId);
+    if (!project) return;
+
+    const previousPm = project.assignedPM;
+    const now = new Date();
+    const formattedNow = format(now, 'yyyy-MM-dd HH:mm');
+    const userName = userRole === 'PM' ? 'Sarah Jenkins' : 'Admin User';
+
+    const updatedProject: Project = {
+      ...project,
+      assignedPM: newPmName,
+      activities: [
+        {
+          id: Math.random().toString(36).substr(2, 9),
+          type: 'System',
+          user: userName,
+          description: `Project reassigned from ${previousPm} to ${newPmName}${reason ? ` · Reason: ${reason}` : ''}`,
+          timestamp: formattedNow
+        },
+        ...(project.activities || [])
+      ]
+    };
+
+    return updateProject(updatedProject);
+  };
+
   return {
     projects,
     filteredProjects,
@@ -199,6 +226,7 @@ export function useProjects(userRole: Role, config: AppConfig) {
     addProject,
     updateProject,
     billProject,
+    reassignProject,
     getPMWorkload,
     loading
   };

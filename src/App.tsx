@@ -6,10 +6,11 @@ import { Dashboard } from './components/Dashboard';
 import { FinanceDashboard } from './components/FinanceDashboard';
 import { ProjectList } from './components/ProjectList';
 import { ProjectModal } from './components/ProjectModal';
+import { ReassignModal } from './components/ReassignModal';
 import { MilestoneView } from './components/MilestoneView';
 import { RisksTable } from './components/RisksTable';
 import { SettingsView } from './components/SettingsView';
-import { INITIAL_CONFIG } from './mockData';
+import { INITIAL_CONFIG, MOCK_USERS } from './mockData';
 import { Role, AppConfig, SettingsTab, Project } from './types';
 import { useProjects } from './hooks/useProjects';
 
@@ -22,6 +23,7 @@ export default function App() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [activeSettingsTab, setActiveSettingsTab] = useState<SettingsTab>('account');
   const [config, setConfig] = useState<AppConfig>(INITIAL_CONFIG);
+  const [projectToReassign, setProjectToReassign] = useState<Project | null>(null);
 
   const {
     filteredProjects,
@@ -31,6 +33,7 @@ export default function App() {
     addProject,
     updateProject,
     billProject,
+    reassignProject,
     getPMWorkload,
     loading
   } = useProjects(userRole, config);
@@ -87,6 +90,7 @@ export default function App() {
                     userRole={userRole}
                     currencies={config.currencies}
                     themeColor={config.brand.themeColor}
+                    onReassign={() => setProjectToReassign(selectedProject)}
                   />
                 ) : (
                   <>
@@ -104,6 +108,8 @@ export default function App() {
                           workloadThresholds={config.workloadThresholds}
                           currencies={config.currencies}
                           themeColor={config.brand.themeColor} 
+                          userRole={userRole}
+                          onReassignProject={setProjectToReassign}
                         />
                       )
                     )}
@@ -113,6 +119,9 @@ export default function App() {
                         onSelectProject={setSelectedProject} 
                         themeColor={config.brand.themeColor}
                         staleThresholdDays={config.staleThresholdDays}
+                        userRole={userRole}
+                        users={MOCK_USERS}
+                        onReassignProject={setProjectToReassign}
                       />
                     )}
                     {currentView === 'risks' && (
@@ -146,7 +155,21 @@ export default function App() {
         workloadThresholds={config.workloadThresholds}
         currencies={config.currencies}
         themeColor={config.brand.themeColor}
+        users={MOCK_USERS}
       />
+
+      {projectToReassign && (
+        <ReassignModal 
+          isOpen={!!projectToReassign}
+          onClose={() => setProjectToReassign(null)}
+          project={projectToReassign}
+          users={MOCK_USERS}
+          getPMWorkload={getPMWorkload}
+          workloadThresholds={config.workloadThresholds}
+          onReassign={reassignProject}
+          themeColor={config.brand.themeColor}
+        />
+      )}
     </div>
   );
 }

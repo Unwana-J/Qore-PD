@@ -27,9 +27,10 @@ interface MilestoneViewProps {
   userRole: Role;
   currencies: any[];
   themeColor?: string;
+  onReassign?: () => void;
 }
 
-export const MilestoneView: React.FC<MilestoneViewProps> = ({ project, onBack, onUpdateProject, userRole, currencies = [], themeColor = 'teal' }) => {
+export const MilestoneView: React.FC<MilestoneViewProps> = ({ project, onBack, onUpdateProject, userRole, currencies = [], themeColor = 'teal', onReassign }) => {
   const [activeTab, setActiveTab] = useState<'overview' | 'activity'>('overview');
   const [commentText, setCommentText] = useState('');
   const [isAddingRisk, setIsAddingRisk] = useState(false);
@@ -100,6 +101,7 @@ export const MilestoneView: React.FC<MilestoneViewProps> = ({ project, onBack, o
   const canEditValue = (userRole === 'Superadmin' || userRole === 'Manager' || userRole === 'Finance') && 
                        (project.state === 'Active' || project.state === 'Delayed' || project.state === 'Suspended');
   const canEditCurrency = userRole === 'Superadmin' || userRole === 'Manager';
+  const canReassign = ['Superadmin', 'Manager', 'Team Lead'].includes(userRole);
 
   return (
     <div className="p-6 space-y-8 animate-in slide-in-from-right-4 duration-300">
@@ -116,6 +118,18 @@ export const MilestoneView: React.FC<MilestoneViewProps> = ({ project, onBack, o
             <div className="flex items-center gap-3 mt-1">
               <StateBadge state={project.state} themeColor={themeColor} />
               <span className="text-sm text-slate-500 font-medium">{project.packageName}</span>
+              {canReassign && (
+                <button 
+                  onClick={onReassign}
+                  className={cn(
+                    "ml-2 flex items-center gap-1.5 px-3 py-1 bg-white border border-slate-200 rounded-lg text-xs font-bold transition-all",
+                    theme.text, theme.hoverBg, "hover:text-white hover:border-transparent"
+                  )}
+                >
+                  <RefreshCw className="w-3.5 h-3.5" />
+                  Reassign Project
+                </button>
+              )}
             </div>
           </div>
         </div>

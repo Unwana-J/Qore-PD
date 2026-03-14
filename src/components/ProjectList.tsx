@@ -6,26 +6,44 @@ import { motion } from 'motion/react';
 import { PROJECT_STATES } from '../constants';
 import { getThemeClasses } from '../lib/theme';
 import { differenceInDays, parseISO } from 'date-fns';
-import { AlertCircle } from 'lucide-react';
+import { AlertCircle, AlertTriangle } from 'lucide-react';
+import { Role } from '../types';
 
 interface ProjectListProps {
   projects: Project[];
   onSelectProject: (project: Project) => void;
   themeColor?: string;
   staleThresholdDays: number;
+  userRole: Role;
+  users: any[];
+  onReassignProject: (project: Project) => void;
 }
 
-export const ProjectList: React.FC<ProjectListProps> = ({ projects, onSelectProject, themeColor = 'teal', staleThresholdDays }) => {
+export const ProjectList: React.FC<ProjectListProps> = ({ projects, onSelectProject, userRole, users, onReassignProject, themeColor = 'teal', staleThresholdDays }) => {
   const [search, setSearch] = useState('');
   const [stateFilter, setStateFilter] = useState<ProjectState | 'All'>('All');
 
   const theme = getThemeClasses(themeColor);
+  const canReassign = ['Superadmin', 'Manager', 'Team Lead'].includes(userRole);
+
+  const getPMStatus = (pmName: string) => {
+    const pm = users.find(u => u.name === pmName);
+    return pm?.status || 'Active';
+  };
 
   const filteredProjects = projects.filter(p => {
     const matchesSearch = p.clientName.toLowerCase().includes(search.toLowerCase()) || 
                           p.assignedPM.toLowerCase().includes(search.toLowerCase());
     const matchesState = stateFilter === 'All' || p.state === stateFilter;
     return matchesSearch && matchesState;
+  }).sort((a, b) => {
+    // Managers see inactive PM projects at the top
+    if (canReassign) {
+      const aInactive = getPMStatus(a.assignedPM) === 'Inactive' ? 1 : 0;
+      const bInactive = getPMStatus(b.assignedPM) === 'Inactive' ? 1 : 0;
+      if (aInactive !== bInactive) return bInactive - aInactive;
+    }
+    return 0;
   });
 
   return (
@@ -88,6 +106,12 @@ export const ProjectList: React.FC<ProjectListProps> = ({ projects, onSelectProj
                         STALE
                       </span>
                     )}
+                    {getPMStatus(project.assignedPM) === 'Inactive' && (
+                      <span className="flex items-center gap-1 px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded text-[10px] font-bold border border-amber-200 animate-pulse">
+                        <AlertTriangle className="w-3 h-3" />
+                        PM INACTIVE — REASSIGNMENT REQUIRED
+                      </span>
+                    )}
                   </div>
                 </div>
                 <p className="text-sm text-slate-500 font-medium">{project.packageName}</p>
@@ -105,6 +129,14 @@ export const ProjectList: React.FC<ProjectListProps> = ({ projects, onSelectProj
                 <div className="flex items-center gap-2 text-slate-900 font-bold">
                   <span className="text-sm">{formatCurrency(project.value, project.currency)}</span>
                 </div>
+                {canReassign && (
+                  <button 
+                    onClick={(e) => { e.stopPropagation(); onReassignProject(project); }}
+                    className={cn("px-4 py-2 text-xs font-bold border-2 rounded-xl transition-all", theme.border, theme.text, theme.hoverBg, "hover:text-white")}
+                  >
+                    Reassign
+                  </button>
+                )}
                 <button className="p-2 hover:bg-slate-100 rounded-lg transition-colors">
                   <ChevronRight className="w-5 h-5 text-slate-400" />
                 </button>

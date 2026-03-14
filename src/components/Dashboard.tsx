@@ -1,11 +1,11 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
   PieChart, Pie, Cell, Legend 
 } from 'recharts';
-import { Project, ProductLine } from '../types';
+import { Project, ProductLine, Role } from '../types';
 import { formatCurrency } from '../lib/utils';
-import { TrendingUp, Briefcase, Layers, Award, DollarSign, Activity, Clock } from 'lucide-react';
+import { TrendingUp, Briefcase, Layers, Award, DollarSign, Activity, Clock, RefreshCw } from 'lucide-react';
 import { getThemeClasses } from '../lib/theme';
 
 interface DashboardProps {
@@ -13,9 +13,11 @@ interface DashboardProps {
   workloadThresholds: Record<string, number>;
   currencies: any[];
   themeColor?: string;
+  userRole?: Role;
+  onReassignProject?: (project: Project) => void;
 }
 
-export const Dashboard: React.FC<DashboardProps> = ({ projects, workloadThresholds, themeColor = 'teal' }) => {
+export const Dashboard: React.FC<DashboardProps> = ({ projects, workloadThresholds, themeColor = 'teal', userRole, onReassignProject }) => {
   const theme = getThemeClasses(themeColor);
 
   // Revenue Stats Grouped by Currency
@@ -190,37 +192,51 @@ export const Dashboard: React.FC<DashboardProps> = ({ projects, workloadThreshol
                 <tr className="border-b border-slate-100">
                   <th className="pb-3 text-sm font-semibold text-slate-500 uppercase tracking-wider">Project Manager</th>
                   <th className="pb-3 text-sm font-semibold text-slate-500 uppercase tracking-wider text-center">Projects</th>
-                  <th className="pb-3 text-sm font-semibold text-slate-500 uppercase tracking-wider">Active Workload</th>
                   <th className="pb-3 text-sm font-semibold text-slate-500 uppercase tracking-wider text-right">Score</th>
                   <th className="pb-3 text-sm font-semibold text-slate-500 uppercase tracking-wider text-right">Progress</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
-                {pmStats.map((stat, i) => (
-                  <tr key={i} className="group hover:bg-slate-50 transition-colors">
-                    <td className="py-4 font-medium text-slate-900">{stat.name}</td>
-                    <td className="py-4 text-slate-600 text-center">{stat.projects}</td>
-                    <td className="py-4 font-bold text-slate-700">
-                      <div className="flex flex-col gap-1.5 min-w-[180px]">
-                        <WorkloadBar label="P1" current={stat.workload.P1} max={workloadThresholds.P1} color="bg-red-500" />
-                        <WorkloadBar label="P2" current={stat.workload.P2} max={workloadThresholds.P2} color="bg-amber-500" />
-                        <WorkloadBar label="P3" current={stat.workload.P3} max={workloadThresholds.P3} color="bg-sky-500" />
-                      </div>
-                    </td>
-                    <td className={cn("py-4 font-bold text-right", theme.text)}>{stat.score.toFixed(1)}</td>
-                    <td className="py-4 text-right">
-                      <div className="flex items-center justify-end gap-3">
-                        <span className="text-xs font-bold text-slate-500">{stat.completed}/{stat.projects}</span>
-                        <div className="w-24 h-2 bg-slate-100 rounded-full overflow-hidden">
-                          <div 
-                            className={cn("h-full rounded-full", theme.bg)} 
-                            style={{ width: `${(stat.completed / stat.projects) * 100}%` }}
-                          />
+                  {pmStats.map((stat: any, i) => (
+                    <tr key={i} className="border-b border-slate-50 last:border-0 hover:bg-slate-50/50 transition-colors">
+                      <td className="py-4">
+                        <div className="flex items-center gap-3">
+                          <div className={cn("w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white", theme.bg)}>
+                            {stat.name.split(' ').map((n: string) => n[0]).join('')}
+                          </div>
+                          <div>
+                            <p className="text-sm font-bold text-slate-900">{stat.name}</p>
+                            <div className="flex gap-2 mt-0.5">
+                              <span className="text-[10px] font-bold text-slate-400">P1: {stat.workload.P1}</span>
+                              <span className="text-[10px] font-bold text-slate-400">P2: {stat.workload.P2}</span>
+                              <span className="text-[10px] font-bold text-slate-400">P3: {stat.workload.P3}</span>
+                            </div>
+                          </div>
                         </div>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                      </td>
+                      <td className="py-4 text-slate-600 text-center font-medium">{stat.projects}</td>
+                      <td className={cn("py-4 font-bold text-right", theme.text)}>{stat.score.toFixed(1)}</td>
+                      <td className="py-4 text-right">
+                        <div className="flex items-center justify-end gap-3">
+                          <span className="text-xs font-bold text-slate-500">{stat.completed}/{stat.projects}</span>
+                          <div className="w-24 h-2 bg-slate-100 rounded-full overflow-hidden">
+                            <div 
+                              className={cn("h-full rounded-full", theme.bg)} 
+                              style={{ width: `${(stat.completed / stat.projects) * 100}%` }}
+                            />
+                          </div>
+                          {['Superadmin', 'Manager', 'Team Lead'].includes(userRole as string) && onReassignProject && (
+                            <PMReassignButton 
+                              pmName={stat.name} 
+                              pmProjects={projects.filter(p => p.assignedPM === stat.name && ['Active', 'Delayed', 'Suspended'].includes(p.state))}
+                              onSelectProject={onReassignProject}
+                              theme={theme}
+                            />
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
               </tbody>
             </table>
           </div>
@@ -265,10 +281,56 @@ const StatCard = ({ label, value, values, subValue, icon, color = 'theme', theme
   );
 };
 
+const PMReassignButton = ({ pmName, pmProjects, onSelectProject, theme }: { pmName: string, pmProjects: Project[], onSelectProject: (p: Project) => void, theme: any }) => {
+  const [isOpen, setIsOpen] = useState(false);
+
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className={cn("p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 transition-colors", isOpen && "bg-slate-100 text-slate-600")}
+        title="Reassign projects from this PM"
+      >
+        <RefreshCw className="w-4 h-4" />
+      </button>
+
+      {isOpen && (
+        <>
+          <div className="fixed inset-0 z-[50]" onClick={() => setIsOpen(false)} />
+          <div className="absolute right-0 top-full mt-2 w-64 bg-white border border-slate-200 rounded-2xl shadow-xl z-[60] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+            <div className="px-4 py-3 bg-slate-50 border-b border-slate-100">
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Reassign from {pmName}</p>
+            </div>
+            <div className="max-h-60 overflow-y-auto">
+              {pmProjects.length > 0 ? pmProjects.map(p => (
+                <button
+                  key={p.id}
+                  onClick={() => {
+                    onSelectProject(p);
+                    setIsOpen(false);
+                  }}
+                  className="w-full px-4 py-3 text-left hover:bg-slate-50 border-b border-slate-50 last:border-0 group"
+                >
+                  <p className="text-sm font-bold text-slate-900 group-hover:text-teal-600 transition-colors">{p.clientName}</p>
+                  <p className="text-[10px] text-slate-500">{p.packageName}</p>
+                </button>
+              )) : (
+                <div className="px-4 py-6 text-center text-xs text-slate-400 italic">
+                  No active projects to reassign
+                </div>
+              )}
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+};
+
 const WorkloadBar = ({ label, current, max, color }: { label: string, current: number, max: number, color: string }) => {
   const percentage = Math.min((current / max) * 100, 100);
   const isOver = current > max;
-  
+
   return (
     <div className="space-y-0.5">
       <div className="flex justify-between text-[10px] items-center">
