@@ -44,14 +44,13 @@ export const MOCK_PROJECTS: Project[] = [
     services: ['Core Banking Application (CBA)'],
     productLines: ['Bankone'],
     assignedPM: 'Michael Chen',
-    startDate: format(subDays(now, 10), 'yyyy-MM-dd'),
+    startDate: format(subDays(now, 40), 'yyyy-MM-dd'),
     value: 85000,
     currency: 'USD',
     state: 'Delayed',
-    createdAt: format(subDays(now, 15), 'yyyy-MM-dd'),
+    createdAt: format(subDays(now, 45), 'yyyy-MM-dd'),
     milestones: [
-      { id: 'm1', name: 'PIM', targetDate: format(subDays(now, 5), 'yyyy-MM-dd'), status: 'In Progress' },
-      { id: 'm2', name: 'Pre-requisites', targetDate: format(subDays(now, -10), 'yyyy-MM-dd'), status: 'Pending' },
+      { id: 'm1', name: 'Sign Off', targetDate: format(subDays(now, 32), 'yyyy-MM-dd'), status: 'Pending' },
     ],
     comments: [],
     risks: [
@@ -194,7 +193,7 @@ export const MOCK_PROJECTS: Project[] = [
     packageName: 'Legacy Migration',
     services: ['CBA'],
     productLines: ['Bankone'],
-    assignedPM: 'Deactivated User',
+    assignedPM: 'Abisoye Adeyemi',
     startDate: format(subDays(now, 120), 'yyyy-MM-dd'),
     value: 50000,
     currency: 'NGN',
@@ -213,13 +212,15 @@ export const MOCK_PROJECTS: Project[] = [
     packageName: 'Digital Onboarding',
     services: ['Mobile'],
     productLines: ['Channels'],
-    assignedPM: 'Deactivated User',
+    assignedPM: 'Abisoye Adeyemi',
     startDate: format(subDays(now, 150), 'yyyy-MM-dd'),
     value: 30000,
     currency: 'USD',
     state: 'Delayed',
     createdAt: format(subDays(now, 155), 'yyyy-MM-dd'),
-    milestones: [],
+    milestones: [
+        { id: 'm1', name: 'Sign Off', targetDate: format(subDays(now, 20), 'yyyy-MM-dd'), status: 'Pending' }
+    ],
     comments: [],
     risks: [],
     priority: 'P1',
@@ -241,7 +242,7 @@ export const MOCK_PROJECTS: Project[] = [
     updatedAt: format(subDays(now, 10), 'yyyy-MM-dd'),
     priority: 'P1',
     milestones: [
-      { id: 'm1', name: 'Sign Off', targetDate: '2026-03-25', status: 'Pending' }
+      { id: 'm1', name: 'Sign Off', targetDate: format(subDays(now, 16), 'yyyy-MM-dd'), status: 'Pending' }
     ],
     comments: [], risks: [], activities: []
   },
@@ -317,7 +318,6 @@ export const MOCK_PROJECTS: Project[] = [
   }
 ];
 
-
 export const MOCK_REVENUE_TREND: RevenueTrend[] = [
   { month: 'Apr 2025', intakeNGN: 25000000, achievedNGN: 15000000, intakeUSD: 12000, achievedUSD: 8000 },
   { month: 'May 2025', intakeNGN: 35000000, achievedNGN: 20000000, intakeUSD: 15000, achievedUSD: 10000 },
@@ -341,7 +341,7 @@ export const MOCK_USERS: User[] = [
   { id: 'u5', name: 'Finance Lead', email: 'finance@qore.com', role: 'Finance', status: 'Active', avatar: 'FL' },
   { id: 'u6', name: 'Exec Director', email: 'exec@qore.com', role: 'Executive', status: 'Active', avatar: 'ED' },
   { id: 'u7', name: 'James Wilson', email: 'j.wilson@qore.com', role: 'Manager', status: 'Active', avatar: 'JW' },
-  { id: 'u8', name: 'Deactivated User', email: 'deactivated@qore.com', role: 'PM', status: 'Inactive', avatar: 'DU', invitedAt: format(subDays(now, 100), 'yyyy-MM-dd HH:mm') },
+  { id: 'u8', name: 'Abisoye Adeyemi', email: 'a.adeyemi@qore.com', role: 'PM', status: 'Inactive', avatar: 'AA', invitedAt: format(subDays(now, 100), 'yyyy-MM-dd HH:mm') },
 ];
 
 export const MOCK_AUDIT_LOGS: AuditLog[] = [
@@ -376,4 +376,3 @@ export const INITIAL_CONFIG: AppConfig = [
 export const MOCK_WEIGHT_HISTORY: WeightHistory[] = [
   { id: 'wh1', packageName: 'Digital Transformation Program', oldWeight: 1.0, newWeight: 1.2, updatedBy: 'Admin User', timestamp: format(subDays(now, 5), 'yyyy-MM-dd HH:mm') }
 ];
-

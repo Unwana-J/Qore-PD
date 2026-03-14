@@ -6,16 +6,17 @@ import {
 import { 
   TrendingUp, Activity, Award, AlertTriangle, Clock, 
   Layers, DollarSign, Target, Zap, ShieldAlert,
-  ChevronRight, Calendar, User, Briefcase
+  ChevronRight, Calendar, User as UserIcon, Briefcase
 } from 'lucide-react';
 import { format } from 'date-fns';
-import { Project, Role, RevenueTrend, ProjectState, ProjectPriority } from '../types';
+import { Project, Role, RevenueTrend, ProjectState, ProjectPriority, User } from '../types';
 import { MOCK_REVENUE_TREND } from '../mockData';
 import { formatCurrency, cn } from '../lib/utils';
 import { getThemeClasses } from '../lib/theme';
 
 interface ExecutiveDashboardProps {
   projects: Project[];
+  users: User[];
   themeColor?: string;
   onSelectProject: (p: Project) => void;
   staleThresholdDays: number;
@@ -23,6 +24,7 @@ interface ExecutiveDashboardProps {
 
 export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({ 
   projects, 
+  users,
   themeColor = 'teal', 
   onSelectProject,
   staleThresholdDays
@@ -601,6 +603,9 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
               {atRiskProjects.length > 0 ? atRiskProjects.map(p => {
                 const delayed = getDaysDelayed(p);
                 const currMilestone = p.milestones.find(m => m.status === 'In Progress') || p.milestones.find(m => m.status === 'Pending') || { name: 'N/A' };
+                const pm = users.find(u => u.name === p.assignedPM);
+                const isInactive = pm?.status === 'Inactive';
+
                 return (
                   <tr 
                     key={p.id} 
@@ -617,7 +622,16 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
                         p.priority === 'P1' ? "bg-red-50 text-red-600 border-red-100" : "bg-slate-100 text-slate-600 border-slate-200"
                       )}>{p.priority}</span>
                     </td>
-                    <td className="px-4 py-5 font-bold text-sm text-slate-600">{p.assignedPM}</td>
+                    <td className="px-4 py-5 font-bold text-sm text-slate-600">
+                      <div className="flex flex-col">
+                        <span>{p.assignedPM}</span>
+                        {isInactive && (
+                          <span className="text-[9px] font-black text-red-500 uppercase tracking-tighter bg-red-50 border border-red-100 rounded px-1.5 w-fit mt-0.5">
+                            Inactive
+                          </span>
+                        )}
+                      </div>
+                    </td>
                     <td className="px-4 py-5 text-right font-black text-sm text-slate-900">
                       {formatCurrency(p.value, p.currency)}
                     </td>

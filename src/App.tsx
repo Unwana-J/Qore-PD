@@ -119,6 +119,7 @@ export default function App() {
                       ) : userRole === 'Executive' ? (
                         <ExecutiveDashboard 
                           projects={filteredProjects}
+                          users={MOCK_USERS}
                           themeColor={config.brand.themeColor}
                           onSelectProject={setSelectedProject}
                           staleThresholdDays={config.staleThresholdDays}
