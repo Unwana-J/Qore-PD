@@ -15,6 +15,8 @@ import { getThemeClasses } from '../../lib/theme';
 interface HeaderProps {
   isSidebarOpen: boolean;
   setIsSidebarOpen: (isOpen: boolean) => void;
+  isSidebarCollapsed: boolean;
+  setIsSidebarCollapsed: (isCollapsed: boolean) => void;
   selectedProject: Project | null;
   currentView: string;
   activeSettingsTab?: string;
@@ -27,6 +29,8 @@ interface HeaderProps {
 export const Header: React.FC<HeaderProps> = ({
   isSidebarOpen,
   setIsSidebarOpen,
+  isSidebarCollapsed,
+  setIsSidebarCollapsed,
   selectedProject,
   currentView,
   activeSettingsTab,
@@ -127,22 +131,39 @@ export const Header: React.FC<HeaderProps> = ({
   };
 
   return (
-    <header className="h-20 bg-white border-b border-slate-200 flex items-center justify-between px-6 sticky top-0 z-30">
-      <div className="flex items-center gap-6">
+    <header className="h-20 bg-white border-b border-slate-200 flex items-center justify-between px-6 sticky top-0 z-30 transition-all duration-300">
+      <div className="flex items-center gap-4">
         <button 
           onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-          className="lg:hidden p-2 hover:bg-slate-100 rounded-lg"
+          className="lg:hidden p-2 text-slate-500 hover:bg-slate-100 rounded-lg transition-colors"
         >
           {isSidebarOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
         </button>
+
+        <button 
+          onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+          className="hidden lg:flex p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-lg transition-all"
+          title={isSidebarCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
+        >
+          <Menu className={cn("w-5 h-5 transition-transform duration-300", isSidebarCollapsed && "rotate-180")} />
+        </button>
         
-        {renderHeaderContent()}
+        <div className="ml-2">
+          {renderHeaderContent()}
+        </div>
       </div>
 
       <div className="flex items-center gap-4">
-        <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-400">
-          <Search className="w-4 h-4" />
-          <input type="text" placeholder="Global search..." className="bg-transparent text-xs outline-none w-32 focus:w-48 transition-all" />
+        <div className="hidden md:flex items-center gap-2 pl-3 pr-1 py-1.5 bg-slate-100 border border-slate-200 rounded-xl text-slate-500 group focus-within:ring-2 focus-within:ring-slate-200 focus-within:bg-white transition-all">
+          <Search className="w-4 h-4 text-slate-400 group-focus-within:text-slate-600" />
+          <input 
+            type="text" 
+            placeholder="Search everything..." 
+            className="bg-transparent text-[13px] font-medium outline-none w-40 focus:w-60 transition-all" 
+          />
+          <div className="px-1.5 py-0.5 bg-white border border-slate-200 rounded text-[10px] font-bold text-slate-400">
+            ⌘K
+          </div>
         </div>
         <button className={cn("p-2 text-slate-400 rounded-lg transition-all relative", theme.hoverText, theme.hoverLightBg)}>
           <Bell className="w-5 h-5" />

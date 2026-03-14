@@ -93,7 +93,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ projects, workloadThreshol
           <DollarSign className={cn("w-5 h-5", theme.text)} />
           <h2 className="text-xl font-semibold text-slate-900">Revenue Overview</h2>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
           <StatCard label="Total Intake" values={intakeGroups} subValue="All time revenue" icon={<TrendingUp className="w-4 h-4" />} themeColor={themeColor} />
           <StatCard 
             label="Active Priorities" 
@@ -114,7 +114,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ projects, workloadThreshol
             <Activity className={cn("w-5 h-5", theme.text)} />
             <h2 className="text-lg font-semibold text-slate-900">Project Status</h2>
           </div>
-          <div className="h-[250px]">
+          <div className="h-[220px]">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
@@ -124,8 +124,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ projects, workloadThreshol
                     { name: 'Suspended', value: suspendedCount },
                     { name: 'Closed', value: closedCount },
                   ]}
-                  innerRadius={60}
-                  outerRadius={80}
+                  innerRadius={55}
+                  outerRadius={75}
                   paddingAngle={5}
                   dataKey="value"
                 >
@@ -138,8 +138,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ projects, workloadThreshol
                     <Cell key={`cell-${index}`} fill={color} />
                   ))}
                 </Pie>
-                <Tooltip />
-                <Legend verticalAlign="bottom" height={36}/>
+                <Tooltip 
+                  contentStyle={{borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)'}}
+                />
+                <Legend verticalAlign="bottom" height={36} iconType="circle" />
               </PieChart>
             </ResponsiveContainer>
           </div>
@@ -257,26 +259,29 @@ const StatCard = ({ label, value, values, subValue, icon, color = 'theme', theme
   };
 
   return (
-    <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
-      <div className="flex justify-between items-start mb-2">
-        <p className="text-sm font-medium text-slate-500">{label}</p>
-        <div className={cn("p-2 rounded-lg border", colors[color])}>
+    <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md hover:border-slate-300 transition-all duration-300 group cursor-default">
+      <div className="flex justify-between items-start mb-3">
+        <p className="text-xs font-bold text-slate-600 uppercase tracking-wider">{label}</p>
+        <div className={cn("p-2 rounded-xl border transition-colors group-hover:scale-110", colors[color])}>
           {icon}
         </div>
       </div>
       <div className="space-y-1">
         {values ? (
           Object.entries(values).map(([code, amount]: any) => (
-            <p key={code} className="text-xl font-bold text-slate-900 leading-none">
+            <p key={code} className="text-2xl font-extrabold text-slate-900 tracking-tight">
               {formatCurrency(amount, code)}
             </p>
           ))
         ) : (
-          <p className="text-2xl font-bold text-slate-900">{value}</p>
+          <p className="text-3xl font-extrabold text-slate-900 tracking-tight">{value}</p>
         )}
-        {values && Object.keys(values).length === 0 && <p className="text-xl font-bold text-slate-900">-</p>}
+        {values && Object.keys(values).length === 0 && <p className="text-2xl font-extrabold text-slate-900">-</p>}
       </div>
-      <p className="text-xs text-slate-400 mt-2">{subValue}</p>
+      <p className="text-[11px] font-bold text-slate-500 mt-3 flex items-center gap-1">
+        <div className={cn("w-1.5 h-1.5 rounded-full", color === 'emerald' ? "bg-emerald-500" : theme.bg)} />
+        {subValue}
+      </p>
     </div>
   );
 };

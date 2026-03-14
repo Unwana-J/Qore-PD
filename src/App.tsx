@@ -10,6 +10,7 @@ import { ReassignModal } from './components/ReassignModal';
 import { MilestoneView } from './components/MilestoneView';
 import { RisksTable } from './components/RisksTable';
 import { SettingsView } from './components/SettingsView';
+import { ExecutiveDashboard } from './components/ExecutiveDashboard';
 import { INITIAL_CONFIG, MOCK_USERS } from './mockData';
 import { Role, AppConfig, SettingsTab, Project } from './types';
 import { useProjects } from './hooks/useProjects';
@@ -19,7 +20,8 @@ type View = 'dashboard' | 'projects' | 'risks' | 'settings';
 export default function App() {
   const [currentView, setCurrentView] = useState<View>('dashboard');
   const [userRole, setUserRole] = useState<Role>('Manager');
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [activeSettingsTab, setActiveSettingsTab] = useState<SettingsTab>('account');
   const [config, setConfig] = useState<AppConfig>(INITIAL_CONFIG);
@@ -40,8 +42,15 @@ export default function App() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600"></div>
+      <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 gap-6">
+        <div className="relative">
+          <div className="w-16 h-16 border-4 border-slate-200 rounded-2xl animate-[pulse_2s_infinite]"></div>
+          <div className="absolute inset-0 w-16 h-16 border-t-4 border-teal-600 rounded-2xl animate-spin"></div>
+        </div>
+        <div className="text-center">
+          <h2 className="text-lg font-extrabold text-slate-900 tracking-tight">Qore Tracker</h2>
+          <p className="text-[10px] text-slate-500 font-bold uppercase tracking-[0.2em] mt-1 pulse opacity-70">Synchronizing Data...</p>
+        </div>
       </div>
     );
   }
@@ -57,12 +66,17 @@ export default function App() {
         setUserRole={setUserRole}
         config={config}
         isSidebarOpen={isSidebarOpen}
+        setIsSidebarOpen={setIsSidebarOpen}
+        isSidebarCollapsed={isSidebarCollapsed}
+        setIsSidebarCollapsed={setIsSidebarCollapsed}
       />
 
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
         <Header 
           isSidebarOpen={isSidebarOpen}
           setIsSidebarOpen={setIsSidebarOpen}
+          isSidebarCollapsed={isSidebarCollapsed}
+          setIsSidebarCollapsed={setIsSidebarCollapsed}
           selectedProject={selectedProject}
           currentView={currentView}
           activeSettingsTab={activeSettingsTab}
@@ -101,6 +115,13 @@ export default function App() {
                           onBillProject={billProject}
                           currencies={config.currencies}
                           themeColor={config.brand.themeColor}
+                        />
+                      ) : userRole === 'Executive' ? (
+                        <ExecutiveDashboard 
+                          projects={filteredProjects}
+                          themeColor={config.brand.themeColor}
+                          onSelectProject={setSelectedProject}
+                          staleThresholdDays={config.staleThresholdDays}
                         />
                       ) : (
                         <Dashboard 

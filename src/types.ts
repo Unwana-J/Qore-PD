@@ -135,3 +135,11 @@ export interface WeightHistory {
   updatedBy: string;
   timestamp: string;
 }
+
+export interface RevenueTrend {
+  month: string;
+  intakeNGN: number;
+  achievedNGN: number;
+  intakeUSD: number;
+  achievedUSD: number;
+}

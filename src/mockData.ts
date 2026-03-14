@@ -1,4 +1,4 @@
-import { Project, User, AuditLog, AppConfig, WeightHistory } from './types';
+import { Project, User, AuditLog, AppConfig, WeightHistory, RevenueTrend } from './types';
 import { subDays, format } from 'date-fns';
 
 const now = new Date();
@@ -225,8 +225,114 @@ export const MOCK_PROJECTS: Project[] = [
     priority: 'P1',
     updatedAt: format(subDays(now, 60), 'yyyy-MM-dd'),
     activities: []
+  },
+  {
+    id: '11',
+    clientName: 'Future Bank',
+    packageName: 'Cloud Core Migration',
+    services: ['Cloud', 'API'],
+    productLines: ['Bankone'],
+    assignedPM: 'Sarah Jenkins',
+    startDate: format(subDays(now, 20), 'yyyy-MM-dd'),
+    value: 45000000,
+    currency: 'NGN',
+    state: 'Delayed',
+    createdAt: format(subDays(now, 25), 'yyyy-MM-dd'),
+    updatedAt: format(subDays(now, 10), 'yyyy-MM-dd'),
+    priority: 'P1',
+    milestones: [
+      { id: 'm1', name: 'Sign Off', targetDate: '2026-03-25', status: 'Pending' }
+    ],
+    comments: [], risks: [], activities: []
+  },
+  {
+    id: '12',
+    clientName: 'Eco Save',
+    packageName: 'Green Wallet',
+    services: ['Mobile'],
+    productLines: ['Channels'],
+    assignedPM: 'Michael Chen',
+    startDate: format(subDays(now, 15), 'yyyy-MM-dd'),
+    value: 12000,
+    currency: 'USD',
+    state: 'Delayed',
+    createdAt: format(subDays(now, 20), 'yyyy-MM-dd'),
+    updatedAt: format(subDays(now, 5), 'yyyy-MM-dd'),
+    priority: 'P2',
+    milestones: [
+      { id: 'm1', name: 'Sign Off', targetDate: '2026-03-30', status: 'Pending' }
+    ],
+    comments: [], risks: [], activities: []
+  },
+  {
+    id: '13',
+    clientName: 'Fast Collect',
+    packageName: 'Collections Pro',
+    services: ['USSD'],
+    productLines: ['Recova'],
+    assignedPM: 'David Okoro',
+    startDate: format(subDays(now, 10), 'yyyy-MM-dd'),
+    value: 25000000,
+    currency: 'NGN',
+    state: 'Active',
+    createdAt: format(subDays(now, 12), 'yyyy-MM-dd'),
+    updatedAt: format(subDays(now, 1), 'yyyy-MM-dd'),
+    priority: 'P3',
+    milestones: [],
+    comments: [], risks: [], activities: []
+  },
+  {
+    id: '14',
+    clientName: 'Silver Lining',
+    packageName: 'Lending Suite',
+    services: ['Web'],
+    productLines: ['Cluster'],
+    assignedPM: 'Sarah Jenkins',
+    startDate: format(subDays(now, 100), 'yyyy-MM-dd'),
+    value: 55000,
+    currency: 'USD',
+    state: 'Suspended',
+    createdAt: format(subDays(now, 110), 'yyyy-MM-dd'),
+    updatedAt: format(subDays(now, 20), 'yyyy-MM-dd'),
+    priority: 'P1',
+    milestones: [],
+    comments: [], risks: [], activities: []
+  },
+  {
+    id: '15',
+    clientName: 'Naira Flow',
+    packageName: 'Payment Gateway',
+    services: ['APIs'],
+    productLines: ['Bankone'],
+    assignedPM: 'Michael Chen',
+    startDate: format(subDays(now, 200), 'yyyy-MM-dd'),
+    value: 75000000,
+    currency: 'NGN',
+    state: 'Billed',
+    createdAt: format(subDays(now, 210), 'yyyy-MM-dd'),
+    updatedAt: format(subDays(now, 150), 'yyyy-MM-dd'),
+    priority: 'P2',
+    milestones: [],
+    comments: [], risks: [], activities: []
   }
 ];
+
+
+export const MOCK_REVENUE_TREND: RevenueTrend[] = [
+  { month: 'Apr 2025', intakeNGN: 25000000, achievedNGN: 15000000, intakeUSD: 12000, achievedUSD: 8000 },
+  { month: 'May 2025', intakeNGN: 35000000, achievedNGN: 20000000, intakeUSD: 15000, achievedUSD: 10000 },
+  { month: 'Jun 2025', intakeNGN: 45000000, achievedNGN: 25000000, intakeUSD: 18000, achievedUSD: 12000 },
+  { month: 'Jul 2025', intakeNGN: 30000000, achievedNGN: 30000000, intakeUSD: 20000, achievedUSD: 15000 },
+  { month: 'Aug 2025', intakeNGN: 55000000, achievedNGN: 35000000, intakeUSD: 25000, achievedUSD: 20000 },
+  { month: 'Sep 2025', intakeNGN: 40000000, achievedNGN: 40000000, intakeUSD: 22000, achievedUSD: 18000 },
+  { month: 'Oct 2025', intakeNGN: 65000000, achievedNGN: 45000000, intakeUSD: 30000, achievedUSD: 25000 },
+  { month: 'Nov 2025', intakeNGN: 50000000, achievedNGN: 50000000, intakeUSD: 28000, achievedUSD: 22000 },
+  { month: 'Dec 2025', intakeNGN: 80000000, achievedNGN: 55000000, intakeUSD: 35000, achievedUSD: 30000 },
+  { month: 'Jan 2026', intakeNGN: 45000000, achievedNGN: 60000000, intakeUSD: 20000, achievedUSD: 28000 },
+  { month: 'Feb 2026', intakeNGN: 60000000, achievedNGN: 60000000, intakeUSD: 25000, achievedUSD: 25000 },
+  { month: 'Mar 2026', intakeNGN: 70000000, achievedNGN: 50000000, intakeUSD: 30000, achievedUSD: 20000 },
+];
+
 export const MOCK_USERS: User[] = [
   { id: 'u1', name: 'Sarah Jenkins', email: 'sarah.j@qore.com', role: 'PM', status: 'Active', avatar: 'SJ' },
   { id: 'u2', name: 'Michael Chen', email: 'm.chen@qore.com', role: 'PM', status: 'Active', avatar: 'MC' },
@@ -244,27 +350,30 @@ export const MOCK_AUDIT_LOGS: AuditLog[] = [
   { id: 'l3', action: 'State Change', user: 'Michael Chen', details: 'Apex Microfinance moved to Delayed', timestamp: format(subDays(now, 2), 'yyyy-MM-dd HH:mm'), category: 'Project' },
 ];
 
-export const INITIAL_CONFIG: AppConfig = {
-  atRiskThresholdDays: 7,
-  staleThresholdDays: 14,
-  currencies: [
-    { code: 'NGN', symbol: '₦', name: 'Nigerian Naira', isActive: true },
-    { code: 'USD', symbol: '$', name: 'US Dollar', isActive: true },
-  ],
-  defaultMilestones: ['PIM', 'Pre-requisites', 'Implementation', 'Sign Off'],
-  allowPostIntakeRevenueEdit: true,
-  workloadThresholds: {
-    P1: 3,
-    P2: 10,
-    P3: 50
-  },
-  brand: {
-    themeColor: 'teal',
-    companyName: 'SD Project Dashboard',
-    logoUrl: undefined
+export const INITIAL_CONFIG: AppConfig = [
+  {
+    atRiskThresholdDays: 7,
+    staleThresholdDays: 14,
+    currencies: [
+      { code: 'NGN', symbol: '₦', name: 'Nigerian Naira', isActive: true },
+      { code: 'USD', symbol: '$', name: 'US Dollar', isActive: true },
+    ],
+    defaultMilestones: ['PIM', 'Pre-requisites', 'Implementation', 'Sign Off'],
+    allowPostIntakeRevenueEdit: true,
+    workloadThresholds: {
+      P1: 3,
+      P2: 10,
+      P3: 50
+    },
+    brand: {
+      themeColor: 'teal',
+      companyName: 'SD Project Dashboard',
+      logoUrl: undefined
+    }
   }
-};
+][0];
 
 export const MOCK_WEIGHT_HISTORY: WeightHistory[] = [
   { id: 'wh1', packageName: 'Digital Transformation Program', oldWeight: 1.0, newWeight: 1.2, updatedBy: 'Admin User', timestamp: format(subDays(now, 5), 'yyyy-MM-dd HH:mm') }
 ];
+
