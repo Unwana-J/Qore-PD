@@ -17,7 +17,8 @@ import {
   Palette,
   Globe,
   Filter,
-  Image as ImageIcon
+  Image as ImageIcon,
+  Activity
 } from 'lucide-react';
 import { 
   Role, 
@@ -41,7 +42,7 @@ interface SettingsViewProps {
   onUpdateConfig: (config: AppConfig) => void;
 }
 
-type SettingsTab = 'performance' | 'users' | 'project' | 'revenue' | 'audit' | 'account' | 'brand';
+type SettingsTab = 'performance' | 'users' | 'project' | 'priority' | 'revenue' | 'audit' | 'account' | 'brand';
 
 export const SettingsView: React.FC<SettingsViewProps> = ({ 
   userRole, 
@@ -60,7 +61,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const canAccess = (tab: SettingsTab) => {
     if (userRole === 'Superadmin') return true;
     if (userRole === 'Manager' || userRole === 'Team Lead') {
-      return tab !== 'revenue'; // Managers can't access revenue settings unless also Finance
+      return tab !== 'revenue' && tab !== 'brand'; 
     }
     if (tab === 'brand' && userRole === 'Superadmin') return true;
     if (tab === 'account') return true;
@@ -107,6 +108,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             <SidebarItem id="performance" icon={Shield} label="Package & Performance" />
             <SidebarItem id="users" icon={Users} label="User Management" />
             <SidebarItem id="project" icon={SettingsIcon} label="Project Config" />
+            <SidebarItem id="priority" icon={Activity} label="Priority & Workload" />
             <SidebarItem id="revenue" icon={DollarSign} label="Revenue Settings" />
           </div>
 
@@ -131,6 +133,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           {activeTab === 'performance' && <PerformanceSettings config={config} setConfig={onUpdateConfig} packages={packages} setPackages={setPackages} weightHistory={weightHistory} setWeightHistory={setWeightHistory} userRole={userRole} />}
           {activeTab === 'users' && <UserManagement users={users} setUsers={setUsers} projects={projects} onUpdateProjects={onUpdateProjects} currentUserRole={userRole} config={config} />}
           {activeTab === 'project' && <ProjectConfig config={config} setConfig={onUpdateConfig} userRole={userRole} />}
+          {activeTab === 'priority' && <PrioritySettings config={config} setConfig={onUpdateConfig} userRole={userRole} />}
           {activeTab === 'revenue' && <RevenueSettings config={config} setConfig={onUpdateConfig} userRole={userRole} />}
           {activeTab === 'audit' && <AuditLogViewer logs={auditLogs} />}
           {activeTab === 'account' && <AccountPreferences config={config} />}
@@ -887,6 +890,90 @@ const AccountPreferences = ({ config }: { config: AppConfig }) => {
               </select>
             </div>
           </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const PrioritySettings = ({ config, setConfig }: { config: AppConfig, setConfig: (c: AppConfig) => void, userRole: Role }) => {
+  const theme = getThemeClasses(config.brand.themeColor);
+  const [thresholds, setThresholds] = useState(config.workloadThresholds);
+  const [hasChanges, setHasChanges] = useState(false);
+
+  const handleUpdate = (priority: string, val: string) => {
+    const num = parseInt(val) || 1;
+    setThresholds({ ...thresholds, [priority as 'P1' | 'P2' | 'P3']: num });
+    setHasChanges(true);
+  };
+
+  const handleSave = () => {
+    if (window.confirm("Updating thresholds will apply immediately to all new project assignments. Proceed?")) {
+      setConfig({ ...config, workloadThresholds: thresholds });
+      setHasChanges(false);
+    }
+  };
+
+  return (
+    <div className="p-8 space-y-8 animate-in fade-in duration-300">
+      <div className="flex justify-between items-center">
+        <div>
+          <h3 className="text-lg font-bold text-slate-900">Priority & Workload</h3>
+          <p className="text-sm text-slate-500">Configure global project limits per PM per priority tier.</p>
+        </div>
+        {hasChanges && (
+          <button 
+            type="button"
+            onClick={handleSave}
+            className={cn("px-6 py-2 text-white font-bold rounded-xl text-sm transition-all shadow-lg", theme.bg, theme.shadow)}
+          >
+            Save Changes
+          </button>
+        )}
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {(['P1', 'P2', 'P3'] as const).map((p) => (
+          <div key={p} className="bg-slate-50 p-6 rounded-2xl border border-slate-100 space-y-4">
+            <div className="flex justify-between items-center">
+              <span className={cn(
+                "px-2.5 py-0.5 rounded text-[10px] font-black uppercase tracking-widest border",
+                p === 'P1' ? "bg-red-50 text-red-600 border-red-100" :
+                p === 'P2' ? "bg-amber-50 text-amber-600 border-amber-100" : "bg-sky-50 text-sky-600 border-sky-100"
+              )}>
+                {p} Tier
+              </span>
+            </div>
+            <div>
+              <label className="text-xs font-bold text-slate-500 uppercase block mb-1.5">Max Active Projects</label>
+              <input 
+                type="number" 
+                min="1"
+                className={cn(
+                  "w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-lg font-bold outline-none focus:ring-2 transition-all",
+                  theme.ring, theme.focusBorder
+                )}
+                value={thresholds[p]}
+                onChange={(e) => handleUpdate(p, e.target.value)}
+              />
+            </div>
+            <p className="text-[10px] text-slate-400 italic">
+              {p === 'P1' ? 'Strategic engagements' : p === 'P2' ? 'Core delivery projects' : 'Routine engagements'}
+            </p>
+          </div>
+        ))}
+      </div>
+
+      <div className="bg-blue-50 p-6 rounded-2xl border border-blue-100 flex gap-4">
+        <div className="p-2 bg-blue-100 rounded-lg h-fit">
+          <Shield className="w-5 h-5 text-blue-600" />
+        </div>
+        <div className="space-y-1">
+          <h4 className="text-sm font-bold text-blue-900">Threshold Enforcement Rule</h4>
+          <p className="text-sm text-blue-700/80 leading-relaxed">
+            Thresholds are evaluated against "Active", "Delayed", "Suspended", and "Ready for Billing" states only. 
+            Managers and Superadmins can override these limits with a confirmation prompt.
+          </p>
         </div>
       </div>
     </div>

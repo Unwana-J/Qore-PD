@@ -10,10 +10,11 @@ import { getThemeClasses } from '../lib/theme';
 
 interface DashboardProps {
   projects: Project[];
+  workloadThresholds: Record<string, number>;
   themeColor?: string;
 }
 
-export const Dashboard: React.FC<DashboardProps> = ({ projects, themeColor = 'teal' }) => {
+export const Dashboard: React.FC<DashboardProps> = ({ projects, workloadThresholds, themeColor = 'teal' }) => {
   const theme = getThemeClasses(themeColor);
 
   // Revenue Stats
@@ -31,6 +32,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ projects, themeColor = 'te
   const suspendedCount = projects.filter(p => p.state === 'Suspended').length;
   const closedCount = projects.filter(p => p.state === 'Closed').length;
   const atRiskCount = delayedCount + suspendedCount;
+  
+  // Priority Stats
+  const p1Count = projects.filter(p => p.priority === 'P1' && ['Active', 'Delayed', 'Suspended'].includes(p.state)).length;
+  const p2Count = projects.filter(p => p.priority === 'P2' && ['Active', 'Delayed', 'Suspended'].includes(p.state)).length;
+  const p3Count = projects.filter(p => p.priority === 'P3' && ['Active', 'Delayed', 'Suspended'].includes(p.state)).length;
 
   // Product Line Stats
   const productLineData = (['Bankone', 'Channels', 'Recova', 'Cluster'] as ProductLine[]).map(pl => {
@@ -45,10 +51,15 @@ export const Dashboard: React.FC<DashboardProps> = ({ projects, themeColor = 'te
   // Performance Stats (Simplified for POC)
   const pmStats = Array.from(new Set(projects.map(p => p.assignedPM))).map(pm => {
     const pmProjects = projects.filter(p => p.assignedPM === pm);
+    const activeProjects = pmProjects.filter(p => ['Active', 'Delayed', 'Suspended', 'Ready for Billing'].includes(p.state));
+    const workload = {
+      P1: activeProjects.filter(p => p.priority === 'P1').length,
+      P2: activeProjects.filter(p => p.priority === 'P2').length,
+      P3: activeProjects.filter(p => p.priority === 'P3').length,
+    };
     const completed = pmProjects.filter(p => p.state === 'Closed').length;
-    // Mock weighted score calculation
     const score = pmProjects.reduce((acc, p) => acc + (p.state === 'Closed' ? 2.5 : 0.5), 0);
-    return { name: pm, projects: pmProjects.length, completed, score };
+    return { name: pm, projects: pmProjects.length, completed, score, workload };
   });
 
   // Color mapping for Recharts
@@ -77,7 +88,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ projects, themeColor = 'te
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <StatCard label="Total Intake" value={formatCurrency(totalIntake)} subValue="All time revenue" icon={<TrendingUp className="w-4 h-4" />} themeColor={themeColor} />
-          <StatCard label="Total Pending" value={formatCurrency(totalPending)} subValue="Work in progress" icon={<Briefcase className="w-4 h-4" />} color="amber" themeColor={themeColor} />
+          <StatCard 
+            label="Active Priorities" 
+            value={`${p1Count} / ${p2Count} / ${p3Count}`} 
+            subValue="P1 / P2 / P3 Active" 
+            icon={<Activity className="w-4 h-4" />} 
+            color="theme" 
+            themeColor={themeColor} 
+          />
           <StatCard label="Total Achieved" value={formatCurrency(totalAchieved)} subValue="Billed & Closed" icon={<Award className="w-4 h-4" />} color="emerald" themeColor={themeColor} />
         </div>
       </section>
@@ -177,7 +195,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ projects, themeColor = 'te
                   <tr key={i} className="group hover:bg-slate-50 transition-colors">
                     <td className="py-4 font-medium text-slate-900">{stat.name}</td>
                     <td className="py-4 text-slate-600">{stat.projects}</td>
-                    <td className="py-4 text-slate-600">{stat.completed}</td>
+                    <td className="py-4 font-bold text-slate-700">
+                      <div className="flex flex-col gap-1.5 min-w-[150px]">
+                        <WorkloadBar label="P1" current={stat.workload.P1} max={workloadThresholds.P1} color="bg-red-500" />
+                        <WorkloadBar label="P2" current={stat.workload.P2} max={workloadThresholds.P2} color="bg-amber-500" />
+                        <WorkloadBar label="P3" current={stat.workload.P3} max={workloadThresholds.P3} color="bg-sky-500" />
+                      </div>
+                    </td>
                     <td className={cn("py-4 font-bold", theme.text)}>{stat.score.toFixed(1)}</td>
                     <td className="py-4">
                       <div className="w-32 h-2 bg-slate-100 rounded-full overflow-hidden">
@@ -218,6 +242,28 @@ const StatCard = ({ label, value, subValue, icon, color = 'theme', themeColor = 
       </div>
       <p className="text-2xl font-bold text-slate-900">{value}</p>
       <p className="text-xs text-slate-400 mt-1">{subValue}</p>
+    </div>
+  );
+};
+
+const WorkloadBar = ({ label, current, max, color }: { label: string, current: number, max: number, color: string }) => {
+  const percentage = Math.min((current / max) * 100, 100);
+  const isOver = current > max;
+  
+  return (
+    <div className="space-y-0.5">
+      <div className="flex justify-between text-[10px] items-center">
+        <span className="font-bold text-slate-500">{label}</span>
+        <span className={cn("font-medium", isOver ? "text-red-600" : "text-slate-400")}>
+          {current}/{max}
+        </span>
+      </div>
+      <div className="w-full h-1 bg-slate-100 rounded-full overflow-hidden">
+        <div 
+          className={cn("h-full rounded-full transition-all duration-500", isOver ? "bg-red-600" : color)} 
+          style={{ width: `${percentage}%` }}
+        />
+      </div>
     </div>
   );
 };

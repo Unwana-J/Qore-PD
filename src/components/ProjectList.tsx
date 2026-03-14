@@ -77,7 +77,10 @@ export const ProjectList: React.FC<ProjectListProps> = ({ projects, onSelectProj
               <div className="space-y-1">
                 <div className="flex items-center gap-3">
                   <h3 className={cn("text-lg font-bold text-slate-900 transition-colors", theme.groupHoverText)}>{project.clientName}</h3>
-                  <StateBadge state={project.state} themeColor={themeColor} />
+                  <div className="flex items-center gap-2">
+                    <PriorityBadge priority={project.priority} />
+                    <StateBadge state={project.state} themeColor={themeColor} />
+                  </div>
                 </div>
                 <p className="text-sm text-slate-500 font-medium">{project.packageName}</p>
               </div>
@@ -136,6 +139,20 @@ export const StateBadge = ({ state, themeColor = 'teal' }: { state: ProjectState
   return (
     <span className={cn("px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-tight border", styles[state])}>
       {state}
+    </span>
+  );
+};
+
+export const PriorityBadge = ({ priority }: { priority: string }) => {
+  const styles: Record<string, string> = {
+    'P1': 'bg-red-50 text-red-600 border-red-100',
+    'P2': 'bg-amber-50 text-amber-600 border-amber-100',
+    'P3': 'bg-sky-50 text-sky-600 border-sky-100',
+  };
+
+  return (
+    <span className={cn("px-2 py-0.5 rounded text-[10px] font-bold border", styles[priority] || styles['P2'])}>
+      {priority}
     </span>
   );
 };

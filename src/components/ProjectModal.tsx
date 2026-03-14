@@ -8,8 +8,10 @@ import { getThemeClasses } from '../lib/theme';
 interface ProjectModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (project: Partial<Project>) => void;
+  onSubmit: (project: Partial<Project>, force?: boolean) => Promise<any>;
   userRole: Role;
+  getPMWorkload: (pmName: string) => Record<string, number>;
+  workloadThresholds: Record<string, number>;
   themeColor?: string;
 }
 
@@ -20,7 +22,11 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({ isOpen, onClose, onS
     assignedPM: userRole === 'PM' ? 'Sarah Jenkins' : '',
     startDate: '',
     value: '',
+    priority: 'P2' as any,
   });
+
+  const [error, setError] = useState<string | null>(null);
+  const [warning, setWarning] = useState<string | null>(null);
 
   const [selectedServices, setSelectedServices] = useState<string[]>([]);
   const theme = getThemeClasses(themeColor);
@@ -55,8 +61,10 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({ isOpen, onClose, onS
     );
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent, force: boolean = false) => {
     e.preventDefault();
+    setError(null);
+    setWarning(null);
     
     const pkg = PACKAGES.find(p => p.name === formData.packageName);
     const milestones: Milestone[] = DEFAULT_MILESTONES.map((m, i) => ({
@@ -66,18 +74,27 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({ isOpen, onClose, onS
       status: 'Pending'
     }));
 
-    onSubmit({
-      ...formData,
-      value: Number(formData.value),
-      services: selectedServices,
-      productLines: pkg?.productLines || [],
-      state: 'Active',
-      milestones,
-      comments: [],
-      risks: []
-    });
-    
-    onClose();
+    try {
+      const result = await onSubmit({
+        ...formData,
+        value: Number(formData.value),
+        services: selectedServices,
+        productLines: pkg?.productLines || [],
+        state: 'Active',
+        milestones,
+        comments: [],
+        risks: []
+      }, force);
+
+      if (result?.warning) {
+        setWarning(result.warning);
+        return;
+      }
+
+      onClose();
+    } catch (err: any) {
+      setError(err.message);
+    }
   };
 
   const toggleService = (service: string) => {
@@ -136,6 +153,22 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({ isOpen, onClose, onS
                 value={formData.assignedPM}
                 onChange={e => setFormData({...formData, assignedPM: e.target.value})}
               />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-slate-500 uppercase">Priority</label>
+              <select 
+                required
+                className={cn(
+                  "w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 outline-none transition-all",
+                  theme.ring, theme.focusBorder
+                )}
+                value={formData.priority}
+                onChange={e => setFormData({...formData, priority: e.target.value as any})}
+              >
+                <option value="P1">P1 - Highest Priority</option>
+                <option value="P2">P2 - Standard Priority</option>
+                <option value="P3">P3 - Lower Priority</option>
+              </select>
             </div>
             <div className="space-y-1.5">
               <label className="text-xs font-bold text-slate-500 uppercase">Start Date</label>
@@ -232,6 +265,25 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({ isOpen, onClose, onS
               </div>
             </div>
           </div>
+
+          {error && (
+            <div className="px-4 py-3 bg-red-50 border border-red-100 rounded-xl text-xs font-bold text-red-600 animate-in slide-in-from-top-2 duration-200">
+              ⚠️ {error}
+            </div>
+          )}
+
+          {warning && (
+            <div className="px-4 py-3 bg-amber-50 border border-amber-100 rounded-xl text-xs font-bold text-amber-700 animate-in slide-in-from-top-2 duration-200 flex flex-col gap-2">
+              <p>⚠️ {warning}</p>
+              <button 
+                type="button"
+                onClick={(e) => handleSubmit(e, true)}
+                className="px-4 py-1.5 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors"
+              >
+                Confirm Override
+              </button>
+            </div>
+          )}
 
           <div className="pt-4 flex gap-3">
             <button 

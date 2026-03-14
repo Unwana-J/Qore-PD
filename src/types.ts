@@ -10,6 +10,8 @@ export type ProjectState =
 
 export type MilestoneStatus = 'Pending' | 'In Progress' | 'Completed';
 
+export type ProjectPriority = 'P1' | 'P2' | 'P3';
+
 export interface Milestone {
   id: string;
   name: string;
@@ -48,6 +50,7 @@ export interface Project {
   milestones: Milestone[];
   comments: Comment[];
   risks: Risk[];
+  priority: ProjectPriority;
   createdAt: string;
 }
 
@@ -95,6 +98,7 @@ export interface AppConfig {
   currency: string;
   defaultMilestones: string[];
   allowPostIntakeRevenueEdit: boolean;
+  workloadThresholds: Record<ProjectPriority, number>;
   brand: BrandConfig;
 }
 

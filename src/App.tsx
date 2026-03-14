@@ -28,8 +28,9 @@ export default function App() {
     setSelectedProject,
     addProject,
     updateProject,
+    getPMWorkload,
     loading
-  } = useProjects(userRole);
+  } = useProjects(userRole, config);
 
   if (loading) {
     return (
@@ -83,7 +84,13 @@ export default function App() {
                   />
                 ) : (
                   <>
-                    {currentView === 'dashboard' && <Dashboard projects={filteredProjects} themeColor={config.brand.themeColor} />}
+                    {currentView === 'dashboard' && (
+                      <Dashboard 
+                        projects={filteredProjects} 
+                        workloadThresholds={config.workloadThresholds}
+                        themeColor={config.brand.themeColor} 
+                      />
+                    )}
                     {currentView === 'projects' && (
                       <ProjectList 
                         projects={filteredProjects} 
@@ -116,6 +123,8 @@ export default function App() {
         onClose={() => setIsModalOpen(false)} 
         onSubmit={addProject} 
         userRole={userRole}
+        getPMWorkload={getPMWorkload}
+        workloadThresholds={config.workloadThresholds}
         themeColor={config.brand.themeColor}
       />
     </div>

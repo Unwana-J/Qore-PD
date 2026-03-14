@@ -26,7 +26,8 @@ export const MOCK_PROJECTS: Project[] = [
     ],
     risks: [
       { id: 'r1', description: 'Delayed API documentation from client', impact: 'Medium', status: 'Open', createdAt: format(subDays(now, 10), 'yyyy-MM-dd') }
-    ]
+    ],
+    priority: 'P1'
   },
   {
     id: '2',
@@ -46,7 +47,8 @@ export const MOCK_PROJECTS: Project[] = [
     comments: [],
     risks: [
       { id: 'r2', description: 'Server infrastructure not ready', impact: 'High', status: 'Open', createdAt: format(subDays(now, 2), 'yyyy-MM-dd') }
-    ]
+    ],
+    priority: 'P2'
   },
   {
     id: '3',
@@ -66,7 +68,8 @@ export const MOCK_PROJECTS: Project[] = [
       { id: 'm4', name: 'Sign Off', targetDate: format(subDays(now, 5), 'yyyy-MM-dd'), completionDate: format(subDays(now, 2), 'yyyy-MM-dd'), status: 'Completed' },
     ],
     comments: [],
-    risks: []
+    risks: [],
+    priority: 'P2'
   },
   {
     id: '4',
@@ -83,7 +86,8 @@ export const MOCK_PROJECTS: Project[] = [
       { id: 'm1', name: 'PIM', targetDate: format(now, 'yyyy-MM-dd'), status: 'In Progress' },
     ],
     comments: [],
-    risks: []
+    risks: [],
+    priority: 'P3'
   },
   {
     id: '5',
@@ -101,7 +105,8 @@ export const MOCK_PROJECTS: Project[] = [
       { id: 'm4', name: 'Sign Off', targetDate: format(subDays(now, 10), 'yyyy-MM-dd'), completionDate: format(subDays(now, 5), 'yyyy-MM-dd'), status: 'Completed' },
     ],
     comments: [],
-    risks: []
+    risks: [],
+    priority: 'P1'
   }
 ];
 export const MOCK_USERS: User[] = [
@@ -126,6 +131,11 @@ export const INITIAL_CONFIG: AppConfig = {
   currency: 'USD',
   defaultMilestones: ['PIM', 'Pre-requisites', 'Implementation', 'Sign Off'],
   allowPostIntakeRevenueEdit: true,
+  workloadThresholds: {
+    P1: 3,
+    P2: 10,
+    P3: 50
+  },
   brand: {
     themeColor: 'teal',
     companyName: 'Qore PD',
