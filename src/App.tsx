@@ -83,6 +83,7 @@ export default function App() {
                     onBack={() => setSelectedProject(null)} 
                     onUpdateProject={updateProject}
                     userRole={userRole}
+                    currencies={config.currencies}
                     themeColor={config.brand.themeColor}
                   />
                 ) : (
@@ -91,6 +92,7 @@ export default function App() {
                       <Dashboard 
                         projects={filteredProjects} 
                         workloadThresholds={config.workloadThresholds}
+                        currencies={config.currencies}
                         themeColor={config.brand.themeColor} 
                       />
                     )}
@@ -131,6 +133,7 @@ export default function App() {
         userRole={userRole}
         getPMWorkload={getPMWorkload}
         workloadThresholds={config.workloadThresholds}
+        currencies={config.currencies}
         themeColor={config.brand.themeColor}
       />
     </div>

@@ -25,10 +25,11 @@ interface MilestoneViewProps {
   onBack: () => void;
   onUpdateProject: (project: Project) => void;
   userRole: Role;
+  currencies: any[];
   themeColor?: string;
 }
 
-export const MilestoneView: React.FC<MilestoneViewProps> = ({ project, onBack, onUpdateProject, userRole, themeColor = 'teal' }) => {
+export const MilestoneView: React.FC<MilestoneViewProps> = ({ project, onBack, onUpdateProject, userRole, currencies = [], themeColor = 'teal' }) => {
   const [activeTab, setActiveTab] = useState<'overview' | 'activity'>('overview');
   const [commentText, setCommentText] = useState('');
   const [isAddingRisk, setIsAddingRisk] = useState(false);
@@ -98,6 +99,7 @@ export const MilestoneView: React.FC<MilestoneViewProps> = ({ project, onBack, o
   const canChangeState = userRole === 'Superadmin' || userRole === 'Manager' || userRole === 'Team Lead' || (userRole === 'PM' && isOwner) || userRole === 'Finance';
   const canEditValue = (userRole === 'Superadmin' || userRole === 'Manager' || userRole === 'Finance') && 
                        (project.state === 'Active' || project.state === 'Delayed' || project.state === 'Suspended');
+  const canEditCurrency = userRole === 'Superadmin' || userRole === 'Manager';
 
   return (
     <div className="p-6 space-y-8 animate-in slide-in-from-right-4 duration-300">
@@ -387,20 +389,39 @@ export const MilestoneView: React.FC<MilestoneViewProps> = ({ project, onBack, o
                   <Briefcase className="w-4 h-4" />
                 </div>
                 <div className="flex-1">
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider leading-none">Value</p>
-                  {canEditValue ? (
-                    <input 
-                      type="number"
-                      className={cn(
-                        "w-full text-sm font-semibold text-slate-900 mt-1 bg-slate-50 border border-slate-100 rounded px-2 py-1 outline-none focus:ring-1",
-                        theme.ringStatic
-                      )}
-                      value={project.value}
-                      onChange={(e) => onUpdateProject({ ...project, value: parseFloat(e.target.value) })}
-                    />
-                  ) : (
-                    <p className="text-sm font-semibold text-slate-900 mt-1">{formatCurrency(project.value)}</p>
-                  )}
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider leading-none">Value & Currency</p>
+                  <div className="flex gap-2 mt-1">
+                    {canEditValue ? (
+                      <input 
+                        type="number"
+                        className={cn(
+                          "flex-1 text-sm font-semibold text-slate-900 bg-slate-50 border border-slate-100 rounded px-2 py-1 outline-none focus:ring-1",
+                          theme.ringStatic
+                        )}
+                        value={project.value}
+                        onChange={(e) => onUpdateProject({ ...project, value: parseFloat(e.target.value) })}
+                      />
+                    ) : (
+                      <p className="text-sm font-semibold text-slate-900 py-1">{formatCurrency(project.value, project.currency)}</p>
+                    )}
+                    
+                    {canEditCurrency ? (
+                      <select
+                        className={cn(
+                          "text-[10px] font-bold uppercase bg-slate-50 border border-slate-100 rounded px-1 py-1 outline-none focus:ring-1",
+                          theme.ringStatic
+                        )}
+                        value={project.currency}
+                        onChange={(e) => onUpdateProject({ ...project, currency: e.target.value })}
+                      >
+                        {currencies.map(c => (
+                          <option key={c.code} value={c.code}>{c.code}</option>
+                        ))}
+                      </select>
+                    ) : (
+                       canEditValue && <span className="text-xs font-bold text-slate-500 py-1">{project.currency}</span>
+                    )}
+                  </div>
                 </div>
               </div>
 

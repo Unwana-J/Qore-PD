@@ -103,7 +103,7 @@ export const ProjectList: React.FC<ProjectListProps> = ({ projects, onSelectProj
                   <span className="text-sm">{project.startDate}</span>
                 </div>
                 <div className="flex items-center gap-2 text-slate-900 font-bold">
-                  <span className="text-sm">{formatCurrency(project.value)}</span>
+                  <span className="text-sm">{formatCurrency(project.value, project.currency)}</span>
                 </div>
                 <button className="p-2 hover:bg-slate-100 rounded-lg transition-colors">
                   <ChevronRight className="w-5 h-5 text-slate-400" />

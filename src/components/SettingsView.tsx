@@ -112,6 +112,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             <SidebarItem id="project" icon={SettingsIcon} label="Project Config" />
             <SidebarItem id="priority" icon={Activity} label="Priority & Workload" />
             <SidebarItem id="revenue" icon={DollarSign} label="Revenue Settings" />
+            <SidebarItem id="currencies" icon={Globe} label="Currency Config" />
           </div>
 
           <div className="space-y-1 pt-4">
@@ -140,6 +141,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           {activeTab === 'audit' && <AuditLogViewer logs={auditLogs} />}
           {activeTab === 'account' && <AccountPreferences config={config} />}
           {activeTab === 'brand' && <BrandSettings config={config} setConfig={onUpdateConfig} />}
+          {activeTab === 'currencies' && <CurrencySettings config={config} setConfig={onUpdateConfig} userRole={userRole} />}
         </div>
       </div>
     </div>
@@ -993,6 +995,121 @@ const PrioritySettings = ({ config, setConfig }: { config: AppConfig, setConfig:
             Managers and Superadmins can override these limits with a confirmation prompt.
           </p>
         </div>
+      </div>
+    </div>
+  );
+};
+const CurrencySettings = ({ config, setConfig, userRole }: any) => {
+  const theme = getThemeClasses(config.brand.themeColor);
+  const [newCurrency, setNewCurrency] = useState({ code: '', symbol: '', name: '' });
+  const canManage = userRole === 'Superadmin' || userRole === 'Manager';
+
+  const addCurrency = () => {
+    if (!newCurrency.code || !newCurrency.symbol || !newCurrency.name) return;
+    const updated = {
+      ...config,
+      currencies: [...config.currencies, { ...newCurrency, isActive: true }]
+    };
+    setConfig(updated);
+    setNewCurrency({ code: '', symbol: '', name: '' });
+  };
+
+  const toggleCurrency = (code: string) => {
+    const updated = {
+      ...config,
+      currencies: config.currencies.map((c: any) => 
+        c.code === code ? { ...c, isActive: !c.isActive } : c
+      )
+    };
+    setConfig(updated);
+  };
+
+  return (
+    <div className="p-8 space-y-8 animate-in fade-in slide-in-from-bottom-4">
+      <div>
+        <h3 className="text-xl font-bold text-slate-900">Supported Currencies</h3>
+        <p className="text-sm text-slate-500 mt-1">Manage active currencies for project intake and reporting.</p>
+      </div>
+
+      {canManage && (
+        <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200">
+          <h4 className="text-sm font-bold text-slate-900 mb-4">Add New Currency</h4>
+          <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+            <input 
+              placeholder="Code (e.g. GBP)"
+              className="px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm outline-none w-full"
+              value={newCurrency.code}
+              onChange={e => setNewCurrency({ ...newCurrency, code: e.target.value.toUpperCase() })}
+            />
+            <input 
+              placeholder="Symbol (e.g. £)"
+              className="px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm outline-none w-full"
+              value={newCurrency.symbol}
+              onChange={e => setNewCurrency({ ...newCurrency, symbol: e.target.value })}
+            />
+            <input 
+              placeholder="Full Name (e.g. British Pound)"
+              className="px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm outline-none w-full"
+              value={newCurrency.name}
+              onChange={e => setNewCurrency({ ...newCurrency, name: e.target.value })}
+            />
+            <button 
+              onClick={addCurrency}
+              className={cn("px-4 py-2 text-white font-bold rounded-xl text-sm shadow-md", theme.bg)}
+            >
+              Add Currency
+            </button>
+          </div>
+        </div>
+      )}
+
+      <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+        <table className="w-full text-left">
+          <thead>
+            <tr className="bg-slate-50 border-b border-slate-200">
+              <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest">Currency</th>
+              <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest">Symbol</th>
+              <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest">Status</th>
+              <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100">
+            {config.currencies.map((c: any) => (
+              <tr key={c.code} className="hover:bg-slate-50/50 transition-colors">
+                <td className="px-6 py-4">
+                  <div>
+                    <p className="text-sm font-bold text-slate-900">{c.code}</p>
+                    <p className="text-xs text-slate-500">{c.name}</p>
+                  </div>
+                </td>
+                <td className="px-6 py-4">
+                  <span className="text-lg font-bold text-slate-900">{c.symbol}</span>
+                </td>
+                <td className="px-6 py-4">
+                  <span className={cn(
+                    "px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider",
+                    c.isActive ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-400"
+                  )}>
+                    {c.isActive ? 'Active' : 'Inactive'}
+                  </span>
+                </td>
+                <td className="px-6 py-4 text-right">
+                  <button 
+                    onClick={() => toggleCurrency(c.code)}
+                    disabled={!canManage}
+                    className={cn(
+                      "text-xs font-bold transition-colors",
+                      !canManage ? "text-slate-300 cursor-not-allowed" :
+                      c.isActive ? "text-red-500 hover:text-red-600" : "text-emerald-500 hover:text-emerald-600"
+                    )}
+                  >
+                    {c.isActive ? 'Deactivate' : 'Activate'}
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     </div>
   );

@@ -13,6 +13,7 @@ export const MOCK_PROJECTS: Project[] = [
     assignedPM: 'Sarah Jenkins',
     startDate: format(subDays(now, 45), 'yyyy-MM-dd'),
     value: 250000,
+    currency: 'NGN',
     state: 'Active',
     createdAt: format(subDays(now, 50), 'yyyy-MM-dd'),
     milestones: [
@@ -45,6 +46,7 @@ export const MOCK_PROJECTS: Project[] = [
     assignedPM: 'Michael Chen',
     startDate: format(subDays(now, 10), 'yyyy-MM-dd'),
     value: 85000,
+    currency: 'USD',
     state: 'Delayed',
     createdAt: format(subDays(now, 15), 'yyyy-MM-dd'),
     milestones: [
@@ -68,6 +70,7 @@ export const MOCK_PROJECTS: Project[] = [
     assignedPM: 'Sarah Jenkins',
     startDate: format(subDays(now, 60), 'yyyy-MM-dd'),
     value: 120000,
+    currency: 'USD',
     state: 'Billed',
     createdAt: format(subDays(now, 65), 'yyyy-MM-dd'),
     milestones: [
@@ -91,6 +94,7 @@ export const MOCK_PROJECTS: Project[] = [
     assignedPM: 'David Okoro',
     startDate: format(subDays(now, 5), 'yyyy-MM-dd'),
     value: 45000,
+    currency: 'USD',
     state: 'Active',
     createdAt: format(subDays(now, 10), 'yyyy-MM-dd'),
     milestones: [
@@ -111,6 +115,7 @@ export const MOCK_PROJECTS: Project[] = [
     assignedPM: 'Michael Chen',
     startDate: format(subDays(now, 90), 'yyyy-MM-dd'),
     value: 180000,
+    currency: 'USD',
     state: 'Closed',
     createdAt: format(subDays(now, 95), 'yyyy-MM-dd'),
     milestones: [
@@ -144,7 +149,10 @@ export const MOCK_AUDIT_LOGS: AuditLog[] = [
 export const INITIAL_CONFIG: AppConfig = {
   atRiskThresholdDays: 7,
   staleThresholdDays: 14,
-  currency: 'USD',
+  currencies: [
+    { code: 'NGN', symbol: '₦', name: 'Nigerian Naira', isActive: true },
+    { code: 'USD', symbol: '$', name: 'US Dollar', isActive: true },
+  ],
   defaultMilestones: ['PIM', 'Pre-requisites', 'Implementation', 'Sign Off'],
   allowPostIntakeRevenueEdit: true,
   workloadThresholds: {

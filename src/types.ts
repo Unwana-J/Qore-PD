@@ -47,6 +47,13 @@ export interface Risk {
   createdAt: string;
 }
 
+export interface Currency {
+  code: string;
+  symbol: string;
+  name: string;
+  isActive: boolean;
+}
+
 export interface Project {
   id: string;
   clientName: string;
@@ -56,6 +63,7 @@ export interface Project {
   assignedPM: string;
   startDate: string;
   value: number;
+  currency: string;
   state: ProjectState;
   milestones: Milestone[];
   comments: Comment[];
@@ -105,12 +113,12 @@ export interface BrandConfig {
   companyName: string;
 }
 
-export type SettingsTab = 'performance' | 'users' | 'project' | 'priority' | 'revenue' | 'audit' | 'account' | 'brand';
+export type SettingsTab = 'performance' | 'users' | 'project' | 'priority' | 'revenue' | 'audit' | 'account' | 'brand' | 'currencies';
 
 export interface AppConfig {
   atRiskThresholdDays: number;
   staleThresholdDays: number;
-  currency: string;
+  currencies: Currency[];
   defaultMilestones: string[];
   allowPostIntakeRevenueEdit: boolean;
   workloadThresholds: Record<ProjectPriority, number>;

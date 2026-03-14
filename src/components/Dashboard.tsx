@@ -11,20 +11,25 @@ import { getThemeClasses } from '../lib/theme';
 interface DashboardProps {
   projects: Project[];
   workloadThresholds: Record<string, number>;
+  currencies: any[];
   themeColor?: string;
 }
 
 export const Dashboard: React.FC<DashboardProps> = ({ projects, workloadThresholds, themeColor = 'teal' }) => {
   const theme = getThemeClasses(themeColor);
 
-  // Revenue Stats
-  const totalIntake = projects.reduce((acc, p) => acc + p.value, 0);
-  const totalPending = projects
-    .filter(p => p.state !== 'Billed' && p.state !== 'Closed')
-    .reduce((acc, p) => acc + p.value, 0);
-  const totalAchieved = projects
-    .filter(p => p.state === 'Billed' || p.state === 'Closed')
-    .reduce((acc, p) => acc + p.value, 0);
+  // Revenue Stats Grouped by Currency
+  const getGroupedRevenue = (filterFn: (p: Project) => boolean) => {
+    const totals: Record<string, number> = {};
+    projects.filter(filterFn).forEach(p => {
+      totals[p.currency] = (totals[p.currency] || 0) + p.value;
+    });
+    return totals;
+  };
+
+  const intakeGroups = getGroupedRevenue(() => true);
+  const pendingGroups = getGroupedRevenue(p => p.state !== 'Billed' && p.state !== 'Closed');
+  const achievedGroups = getGroupedRevenue(p => p.state === 'Billed' || p.state === 'Closed');
 
   // Project Stats
   const activeCount = projects.filter(p => p.state === 'Active').length;
@@ -87,7 +92,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ projects, workloadThreshol
           <h2 className="text-xl font-semibold text-slate-900">Revenue Overview</h2>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <StatCard label="Total Intake" value={formatCurrency(totalIntake)} subValue="All time revenue" icon={<TrendingUp className="w-4 h-4" />} themeColor={themeColor} />
+          <StatCard label="Total Intake" values={intakeGroups} subValue="All time revenue" icon={<TrendingUp className="w-4 h-4" />} themeColor={themeColor} />
           <StatCard 
             label="Active Priorities" 
             value={`${p1Count} / ${p2Count} / ${p3Count}`} 
@@ -96,7 +101,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ projects, workloadThreshol
             color="theme" 
             themeColor={themeColor} 
           />
-          <StatCard label="Total Achieved" value={formatCurrency(totalAchieved)} subValue="Billed & Closed" icon={<Award className="w-4 h-4" />} color="emerald" themeColor={themeColor} />
+          <StatCard label="Total Achieved" values={achievedGroups} subValue="Billed & Closed" icon={<Award className="w-4 h-4" />} color="emerald" themeColor={themeColor} />
         </div>
       </section>
 
@@ -222,7 +227,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ projects, workloadThreshol
   );
 };
 
-const StatCard = ({ label, value, subValue, icon, color = 'theme', themeColor = 'teal' }: any) => {
+const StatCard = ({ label, value, values, subValue, icon, color = 'theme', themeColor = 'teal' }: any) => {
   const theme = getThemeClasses(themeColor);
   
   const colors: any = {
@@ -240,8 +245,19 @@ const StatCard = ({ label, value, subValue, icon, color = 'theme', themeColor = 
           {icon}
         </div>
       </div>
-      <p className="text-2xl font-bold text-slate-900">{value}</p>
-      <p className="text-xs text-slate-400 mt-1">{subValue}</p>
+      <div className="space-y-1">
+        {values ? (
+          Object.entries(values).map(([code, amount]: any) => (
+            <p key={code} className="text-xl font-bold text-slate-900 leading-none">
+              {formatCurrency(amount, code)}
+            </p>
+          ))
+        ) : (
+          <p className="text-2xl font-bold text-slate-900">{value}</p>
+        )}
+        {values && Object.keys(values).length === 0 && <p className="text-xl font-bold text-slate-900">-</p>}
+      </div>
+      <p className="text-xs text-slate-400 mt-2">{subValue}</p>
     </div>
   );
 };

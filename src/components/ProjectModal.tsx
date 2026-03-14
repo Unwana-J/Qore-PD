@@ -12,16 +12,18 @@ interface ProjectModalProps {
   userRole: Role;
   getPMWorkload: (pmName: string) => Record<string, number>;
   workloadThresholds: Record<string, number>;
+  currencies: any[];
   themeColor?: string;
 }
 
-export const ProjectModal: React.FC<ProjectModalProps> = ({ isOpen, onClose, onSubmit, userRole, themeColor = 'teal' }) => {
+export const ProjectModal: React.FC<ProjectModalProps> = ({ isOpen, onClose, onSubmit, userRole, themeColor = 'teal', currencies = [] }) => {
   const [formData, setFormData] = useState({
     clientName: '',
     packageName: '',
     assignedPM: userRole === 'PM' ? 'Sarah Jenkins' : '',
     startDate: '',
     value: '',
+    currency: currencies.find(c => c.isActive)?.code || 'USD',
     priority: 'P2' as any,
   });
 
@@ -184,17 +186,33 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({ isOpen, onClose, onS
               />
             </div>
             <div className="space-y-1.5">
-              <label className="text-xs font-bold text-slate-500 uppercase">Project Value ($)</label>
-              <input 
-                required
-                type="number"
-                className={cn(
-                  "w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 outline-none transition-all font-mono",
-                  theme.ring, theme.focusBorder
-                )}
-                value={formData.value}
-                onChange={e => setFormData({...formData, value: e.target.value})}
-              />
+              <label className="text-xs font-bold text-slate-500 uppercase">Project Value</label>
+              <div className="flex gap-2">
+                <input 
+                  required
+                  type="number"
+                  placeholder="0.00"
+                  className={cn(
+                    "flex-1 px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 outline-none transition-all font-mono",
+                    theme.ring, theme.focusBorder
+                  )}
+                  value={formData.value}
+                  onChange={e => setFormData({...formData, value: e.target.value})}
+                />
+                <select
+                  required
+                  className={cn(
+                    "w-32 px-2 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 outline-none transition-all font-bold",
+                    theme.ring, theme.focusBorder
+                  )}
+                  value={formData.currency}
+                  onChange={e => setFormData({...formData, currency: e.target.value})}
+                >
+                  {currencies.filter(c => c.isActive).map(c => (
+                    <option key={c.code} value={c.code}>{c.symbol} {c.code}</option>
+                  ))}
+                </select>
+              </div>
             </div>
           </div>
 
