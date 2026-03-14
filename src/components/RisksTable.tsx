@@ -20,7 +20,6 @@ export const RisksTable: React.FC<RisksTableProps> = ({ projects }) => {
   return (
     <div className="p-6 space-y-6">
       <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold text-slate-900">Risks & Issues Registry</h2>
         <div className="flex gap-2">
           <div className="flex items-center gap-2 px-3 py-1 bg-red-50 text-red-600 rounded-lg text-xs font-bold border border-red-100">
             <AlertTriangle className="w-3 h-3" />

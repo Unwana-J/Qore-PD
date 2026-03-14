@@ -31,7 +31,6 @@ export const ProjectList: React.FC<ProjectListProps> = ({ projects, onSelectProj
   return (
     <div className="p-6 space-y-6">
       <div className="flex flex-col md:flex-row gap-4 justify-between items-start md:items-center">
-        <h2 className="text-2xl font-bold text-slate-900">Projects</h2>
         
         <div className="flex flex-wrap gap-3 w-full md:w-auto">
           <div className="relative flex-1 md:w-64">

@@ -71,7 +71,9 @@ export const Header: React.FC<HeaderProps> = ({
             Projects
           </button>
           <ChevronRight className="w-3 h-3 text-slate-300" />
-          <span className="text-slate-900">{selectedProject.clientName}</span>
+          <span className="text-slate-400">{selectedProject.clientName}</span>
+          <ChevronRight className="w-3 h-3 text-slate-300" />
+          <span className="text-slate-900">Milestones</span>
         </div>
       );
     }
