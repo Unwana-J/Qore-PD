@@ -229,7 +229,7 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
       </div>
 
       {/* Row 1: KPI Strip */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
         <KPIBox 
           label="Total Portfolio Revenue" 
           ngn={kpiStats.total.NGN} 
@@ -702,8 +702,8 @@ const KPIBox = ({ label, ngn, usd, val, subtitle, variant = 'neutral', themeColo
   const Icon = IconMap[variant];
 
   return (
-    <div className={cn("p-4 rounded-3xl border shadow-sm flex flex-col justify-between transition-all hover:shadow-md", styles[variant])}>
-      <div className="flex justify-between items-start mb-4">
+    <div className={cn("p-3.5 rounded-3xl border shadow-sm flex flex-col justify-between transition-all hover:shadow-md h-full", styles[variant])}>
+      <div className="flex justify-between items-start mb-3">
         <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-tight">{label}</p>
         <Icon className="w-4 h-4 text-slate-300" />
       </div>
@@ -711,18 +711,22 @@ const KPIBox = ({ label, ngn, usd, val, subtitle, variant = 'neutral', themeColo
         {val !== undefined ? (
           <p className="text-3xl font-black tracking-tighter">{val}</p>
         ) : (
-          <div className="space-y-0.5">
+          <div className="space-y-0.5 overflow-hidden">
             {(currencyFilter === 'All' || currencyFilter === 'NGN') && (
               <p className={cn(
-                "font-black leading-none",
-                currencyFilter === 'NGN' ? "text-2xl" : "text-lg"
-              )}>{formatCurrency(ngn, 'NGN')}</p>
+                "font-black leading-none tracking-tighter truncate",
+                currencyFilter === 'NGN' ? "text-xl sm:text-2xl" : "text-base sm:text-lg"
+              )}>
+                {formatCurrency(ngn, 'NGN')}
+              </p>
             )}
             {(currencyFilter === 'All' || currencyFilter === 'USD') && (
               <p className={cn(
-                "font-black",
-                currencyFilter === 'USD' ? "text-2xl" : "text-sm text-slate-400"
-              )}>{formatCurrency(usd, 'USD')}</p>
+                "font-black tracking-tighter truncate",
+                currencyFilter === 'USD' ? "text-xl sm:text-2xl" : "text-xs sm:text-sm text-slate-400"
+              )}>
+                {formatCurrency(usd, 'USD')}
+              </p>
             )}
           </div>
         )}
