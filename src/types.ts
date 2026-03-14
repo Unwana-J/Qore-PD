@@ -71,6 +71,8 @@ export interface Project {
   priority: ProjectPriority;
   createdAt: string;
   updatedAt: string;
+  readyForBillingAt?: string;
+  billedAt?: string;
   activities: ProjectActivity[];
 }
 

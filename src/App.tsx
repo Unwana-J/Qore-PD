@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Sidebar } from './components/layout/Sidebar';
 import { Header } from './components/layout/Header';
 import { Dashboard } from './components/Dashboard';
+import { FinanceDashboard } from './components/FinanceDashboard';
 import { ProjectList } from './components/ProjectList';
 import { ProjectModal } from './components/ProjectModal';
 import { MilestoneView } from './components/MilestoneView';
@@ -29,6 +30,7 @@ export default function App() {
     setSelectedProject,
     addProject,
     updateProject,
+    billProject,
     getPMWorkload,
     loading
   } = useProjects(userRole, config);
@@ -89,12 +91,21 @@ export default function App() {
                 ) : (
                   <>
                     {currentView === 'dashboard' && (
-                      <Dashboard 
-                        projects={filteredProjects} 
-                        workloadThresholds={config.workloadThresholds}
-                        currencies={config.currencies}
-                        themeColor={config.brand.themeColor} 
-                      />
+                      userRole === 'Finance' ? (
+                        <FinanceDashboard 
+                          projects={filteredProjects}
+                          onBillProject={billProject}
+                          currencies={config.currencies}
+                          themeColor={config.brand.themeColor}
+                        />
+                      ) : (
+                        <Dashboard 
+                          projects={filteredProjects} 
+                          workloadThresholds={config.workloadThresholds}
+                          currencies={config.currencies}
+                          themeColor={config.brand.themeColor} 
+                        />
+                      )
                     )}
                     {currentView === 'projects' && (
                       <ProjectList 

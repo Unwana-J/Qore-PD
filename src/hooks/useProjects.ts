@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
+import { format } from 'date-fns';
 import { Project, Role, AppConfig, ProjectPriority, ProjectActivity, ActivityType } from '../types';
 import { api } from '../lib/api';
 
@@ -88,6 +89,11 @@ export function useProjects(userRole: Role, config: AppConfig) {
           description: `Changed project state from "${oldProject.state}" to "${project.state}"`,
           timestamp: now
         });
+
+        // Set readyForBillingAt if moving to that state
+        if (project.state === 'Ready for Billing' && !project.readyForBillingAt) {
+          project.readyForBillingAt = new Date().toISOString().split('T')[0];
+        }
       }
 
       // Detect Milestone Change
@@ -158,6 +164,32 @@ export function useProjects(userRole: Role, config: AppConfig) {
       console.error('Failed to update project', error);
     }
   };
+  const billProject = async (projectId: string) => {
+    const project = projects.find(p => p.id === projectId);
+    if (!project) return;
+
+    const now = new Date();
+    const formattedNow = format(now, 'yyyy-MM-dd HH:mm');
+    const userName = userRole === 'PM' ? 'Sarah Jenkins' : 'Admin User';
+
+    const updatedProject: Project = {
+      ...project,
+      state: 'Billed',
+      billedAt: format(now, 'yyyy-MM-dd'),
+      activities: [
+        {
+          id: Math.random().toString(36).substr(2, 9),
+          type: 'StateChange',
+          user: userName,
+          description: `Project marked as Billed by Finance`,
+          timestamp: formattedNow
+        },
+        ...(project.activities || [])
+      ]
+    };
+
+    return updateProject(updatedProject);
+  };
 
   return {
     projects,
@@ -166,6 +198,7 @@ export function useProjects(userRole: Role, config: AppConfig) {
     setSelectedProject,
     addProject,
     updateProject,
+    billProject,
     getPMWorkload,
     loading
   };
