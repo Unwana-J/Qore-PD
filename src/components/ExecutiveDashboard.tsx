@@ -235,6 +235,7 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
           ngn={kpiStats.total.NGN} 
           usd={kpiStats.total.USD} 
           subtitle="All contracted revenue"
+          currencyFilter={currencyFilter}
         />
         <KPIBox 
           label="Achieved Revenue" 
@@ -242,6 +243,7 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
           usd={kpiStats.achieved.USD} 
           subtitle="Billed & closed"
           variant="green"
+          currencyFilter={currencyFilter}
         />
         <KPIBox 
           label="At-Risk Revenue" 
@@ -249,6 +251,7 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
           usd={kpiStats.atRisk.USD} 
           subtitle="Revenue in delayed projects"
           variant="red"
+          currencyFilter={currencyFilter}
         />
         <KPIBox 
           label="Active Projects" 
@@ -396,7 +399,9 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
             <h2 className="text-lg font-black text-slate-900">Revenue by Currency</h2>
           </div>
           <div className="space-y-6">
-            {(['NGN', 'USD'] as const).map(curr => {
+            {(['NGN', 'USD'] as const)
+              .filter(curr => currencyFilter === 'All' || currencyFilter === curr)
+              .map(curr => {
               const intake = projects.filter(p => p.currency === curr).reduce((acc, p) => acc + p.value, 0);
               const achieved = projects.filter(p => p.currency === curr && (p.state === 'Billed' || p.state === 'Closed')).reduce((acc, p) => acc + p.value, 0);
               const pending = intake - achieved;
@@ -438,15 +443,19 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
               <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
                 <p className="text-[11px] font-black text-slate-500 uppercase tracking-widest mb-2">Q1 2026 Pipeline</p>
                 <div className="space-y-3">
-                  <div>
-                    <p className="text-xl font-black text-slate-900">{formatCurrency(projectedRevenue.ngn.val, 'NGN')}</p>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase">Across {projectedRevenue.ngn.count} projects</p>
-                  </div>
-                  <div className="h-px bg-slate-200" />
-                  <div>
-                    <p className="text-xl font-black text-slate-900">{formatCurrency(projectedRevenue.usd.val, 'USD')}</p>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase">Across {projectedRevenue.usd.count} projects</p>
-                  </div>
+                  {(currencyFilter === 'All' || currencyFilter === 'NGN') && (
+                    <div>
+                      <p className="text-xl font-black text-slate-900">{formatCurrency(projectedRevenue.ngn.val, 'NGN')}</p>
+                      <p className="text-[10px] font-bold text-slate-400 uppercase">Across {projectedRevenue.ngn.count} projects</p>
+                    </div>
+                  )}
+                  {currencyFilter === 'All' && <div className="h-px bg-slate-200" />}
+                  {(currencyFilter === 'All' || currencyFilter === 'USD') && (
+                    <div>
+                      <p className="text-xl font-black text-slate-900">{formatCurrency(projectedRevenue.usd.val, 'USD')}</p>
+                      <p className="text-[10px] font-bold text-slate-400 uppercase">Across {projectedRevenue.usd.count} projects</p>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -673,7 +682,7 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
 
 /* --- Helpers --- */
 
-const KPIBox = ({ label, ngn, usd, val, subtitle, variant = 'neutral', themeColor = 'teal' }: any) => {
+const KPIBox = ({ label, ngn, usd, val, subtitle, variant = 'neutral', themeColor = 'teal', currencyFilter = 'All' }: any) => {
   const theme = getThemeClasses(themeColor);
   const styles: any = {
     neutral: "bg-white border-slate-200 text-slate-900 icon-bg-slate-50 icon-text-slate-400",
@@ -703,8 +712,18 @@ const KPIBox = ({ label, ngn, usd, val, subtitle, variant = 'neutral', themeColo
           <p className="text-3xl font-black tracking-tighter">{val}</p>
         ) : (
           <div className="space-y-0.5">
-            <p className="text-lg font-black leading-none">{formatCurrency(ngn, 'NGN')}</p>
-            <p className="text-sm font-black text-slate-400">{formatCurrency(usd, 'USD')}</p>
+            {(currencyFilter === 'All' || currencyFilter === 'NGN') && (
+              <p className={cn(
+                "font-black leading-none",
+                currencyFilter === 'NGN' ? "text-2xl" : "text-lg"
+              )}>{formatCurrency(ngn, 'NGN')}</p>
+            )}
+            {(currencyFilter === 'All' || currencyFilter === 'USD') && (
+              <p className={cn(
+                "font-black",
+                currencyFilter === 'USD' ? "text-2xl" : "text-sm text-slate-400"
+              )}>{formatCurrency(usd, 'USD')}</p>
+            )}
           </div>
         )}
         <p className="text-[10px] font-bold text-slate-400 uppercase mt-2">{subtitle}</p>
