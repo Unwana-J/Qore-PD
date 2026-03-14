@@ -222,7 +222,7 @@ export const INITIAL_CONFIG: AppConfig = {
   },
   brand: {
     themeColor: 'teal',
-    companyName: 'Qore PD',
+    companyName: 'SD Project Dashboard',
     logoUrl: undefined
   }
 };
