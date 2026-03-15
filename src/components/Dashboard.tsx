@@ -4,7 +4,7 @@ import {
   PieChart, Pie, Cell, Legend 
 } from 'recharts';
 import { Project, ProductLine, Role } from '../types';
-import { formatCurrency } from '../lib/utils';
+import { cn, formatCurrency } from '../lib/utils';
 import { TrendingUp, Briefcase, Layers, Award, DollarSign, Activity, Clock, RefreshCw } from 'lucide-react';
 import { getThemeClasses } from '../lib/theme';
 
@@ -93,7 +93,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ projects, workloadThreshol
           <DollarSign className={cn("w-5 h-5", theme.text)} />
           <h2 className="text-xl font-semibold text-slate-900">Revenue Overview</h2>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
           <StatCard label="Total Intake" values={intakeGroups} subValue="All time revenue" icon={<TrendingUp className="w-4 h-4" />} themeColor={themeColor} />
           <StatCard 
             label="Active Priorities" 
@@ -259,24 +259,29 @@ const StatCard = ({ label, value, values, subValue, icon, color = 'theme', theme
   };
 
   return (
-    <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md hover:border-slate-300 transition-all duration-300 group cursor-default">
+    <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md hover:border-slate-300 transition-all duration-300 group cursor-default">
       <div className="flex justify-between items-start mb-3">
         <p className="text-xs font-bold text-slate-600 uppercase tracking-wider">{label}</p>
         <div className={cn("p-2 rounded-xl border transition-colors group-hover:scale-110", colors[color])}>
           {icon}
         </div>
       </div>
-      <div className="space-y-1">
+      <div className="space-y-1 mt-1">
         {values ? (
-          Object.entries(values).map(([code, amount]: any) => (
-            <p key={code} className="text-2xl font-extrabold text-slate-900 tracking-tight">
-              {formatCurrency(amount, code)}
-            </p>
-          ))
+          <div className="flex flex-col">
+            {Object.entries(values).map(([code, amount]: any, idx) => (
+              <p key={code} className={cn(
+                "font-black tracking-tighter text-slate-900 leading-none",
+                Object.keys(values).length > 1 ? "text-lg first:text-xl" : "text-3xl"
+              )}>
+                {formatCurrency(amount, code)}
+              </p>
+            ))}
+            {Object.keys(values).length === 0 && <p className="text-3xl font-black text-slate-900">-</p>}
+          </div>
         ) : (
-          <p className="text-3xl font-extrabold text-slate-900 tracking-tight">{value}</p>
+          <p className="text-3xl font-black text-slate-900 tracking-tighter">{value}</p>
         )}
-        {values && Object.keys(values).length === 0 && <p className="text-2xl font-extrabold text-slate-900">-</p>}
       </div>
       <p className="text-[11px] font-bold text-slate-500 mt-3 flex items-center gap-1">
         <div className={cn("w-1.5 h-1.5 rounded-full", color === 'emerald' ? "bg-emerald-500" : theme.bg)} />
@@ -354,6 +359,3 @@ const WorkloadBar = ({ label, current, max, color }: { label: string, current: n
   );
 };
 
-function cn(...inputs: any[]) {
-  return inputs.filter(Boolean).join(' ');
-}

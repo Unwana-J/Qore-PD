@@ -183,7 +183,10 @@ export default function App() {
                       />
                     )}
                     {currentView === 'risks' && (
-                      <RisksTable projects={filteredProjects} />
+                      <RisksTable 
+                        projects={filteredProjects} 
+                        onSelectProject={setSelectedProject} 
+                      />
                     )}
                     {currentView === 'settings' && (
                         <SettingsView 

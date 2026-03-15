@@ -90,7 +90,7 @@ export const ProjectList: React.FC<ProjectListProps> = ({ projects, onSelectProj
             whileHover={{ y: -2, boxShadow: "0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)" }}
             transition={{ duration: 0.2 }}
             className={cn(
-              "bg-white p-5 rounded-2xl border border-slate-200 shadow-sm cursor-pointer group",
+              "bg-white p-6 rounded-2xl border border-slate-200 shadow-sm cursor-pointer group",
               theme.hoverBorder
             )}
           >
@@ -102,15 +102,15 @@ export const ProjectList: React.FC<ProjectListProps> = ({ projects, onSelectProj
                     <PriorityBadge priority={project.priority} />
                     <StateBadge state={project.state} />
                     {differenceInDays(new Date(), parseISO(project.updatedAt)) >= staleThresholdDays && (
-                      <span className="flex items-center gap-1.5 px-2 py-1 bg-red-50 text-red-600 rounded-lg text-[10px] font-extrabold border border-red-100 shadow-sm">
-                        <AlertCircle className="w-3.5 h-3.5" />
-                        STALE
+                      <span className="flex items-center gap-1.5 px-2 py-0.5 bg-red-500/10 text-red-600 rounded-md text-[9px] font-black uppercase tracking-tighter border border-red-200/50 backdrop-blur-sm shadow-sm ring-4 ring-red-500/5">
+                        <AlertCircle className="w-3 h-3 animate-pulse" />
+                        Needs Update
                       </span>
                     )}
                     {getPMStatus(project.assignedPM) === 'Inactive' && (
-                      <span className="flex items-center gap-1.5 px-2 py-1 bg-amber-50 text-amber-700 rounded-lg text-[10px] font-extrabold border border-amber-200 shadow-sm animate-pulse">
-                        <AlertTriangle className="w-3.5 h-3.5" />
-                        ORPHANED — REASSIGN
+                      <span className="flex items-center gap-1.5 px-2 py-0.5 bg-amber-500/10 text-amber-700 rounded-md text-[9px] font-black uppercase tracking-tighter border border-amber-200/50 backdrop-blur-sm shadow-sm ring-4 ring-amber-500/5">
+                        <AlertTriangle className="w-3 h-3 animate-bounce" />
+                        In-Active PM
                       </span>
                     )}
                   </div>

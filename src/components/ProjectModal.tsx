@@ -146,8 +146,8 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({ isOpen, onClose, onS
             </button>
           </div>
 
-          <form onSubmit={handleSubmit} className="p-6 space-y-6 max-h-[80vh] overflow-y-auto">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <form onSubmit={handleSubmit} className="p-6 space-y-6 max-h-[85vh] overflow-y-auto">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-1.5">
                 <label className="text-xs font-bold text-slate-500 uppercase">Client Name</label>
                 <input 
@@ -307,17 +307,16 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({ isOpen, onClose, onS
             </div>
           </div>
 
-          <div className="space-y-4">
+          <div className="pt-6 border-t border-slate-100 flex flex-col gap-4">
             <div className="flex justify-between items-center">
               <label className="text-xs font-bold text-slate-500 uppercase">Services in Scope</label>
-              <span className={cn("text-[10px] font-bold px-2 py-0.5 rounded", theme.lightText, theme.lightBg)}>
-                {selectedServices.length} Services Selected
+              <span className={cn("text-[10px] font-black px-2 py-0.5 rounded uppercase tracking-tighter", theme.lightText, theme.lightBg)}>
+                {selectedServices.length} Selected
               </span>
             </div>
             
-            <div className="space-y-4">
+            <div className="max-h-[160px] overflow-y-auto px-1 pr-2 space-y-4 custom-scrollbar">
               {PRODUCT_LINES.filter(pl => {
-                // Only show product lines that have at least one selected service
                 return pl.services.some(s => selectedServices.includes(s));
               }).map(pl => (
                 <div key={pl.name} className="bg-slate-50 rounded-2xl p-4 border border-slate-100">
@@ -347,30 +346,30 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({ isOpen, onClose, onS
 
               {selectedServices.length === 0 && (
                 <div className="py-10 text-center border-2 border-dashed border-slate-100 rounded-2xl">
-                  <p className="text-sm text-slate-400 italic">No services selected. Select a package to auto-populate.</p>
+                  <p className="text-sm text-slate-400 italic font-medium">No services selected. Select a package to auto-populate.</p>
                 </div>
               )}
-            </div>
 
-            {/* Manual Add Section */}
-            <div className="pt-2">
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Add More Services</p>
-              <div className="flex flex-wrap gap-2">
-                {PRODUCT_LINES.flatMap(pl => pl.services)
-                  .filter(s => !selectedServices.includes(s))
-                  .map(service => (
-                    <button
-                      key={service}
-                      type="button"
-                      onClick={() => toggleService(service)}
-                      className={cn(
-                        "px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-[10px] font-bold text-slate-500 transition-all",
-                        theme.hoverBorder, theme.hoverText
-                      )}
-                    >
-                      + {service}
-                    </button>
-                  ))}
+              {/* Manual Add Section integrated inside scroll area to prevent pushing CTA down */}
+              <div className="pt-2">
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Add More Services</p>
+                <div className="flex flex-wrap gap-2">
+                  {PRODUCT_LINES.flatMap(pl => pl.services)
+                    .filter(s => !selectedServices.includes(s))
+                    .map(service => (
+                      <button
+                        key={service}
+                        type="button"
+                        onClick={() => toggleService(service)}
+                        className={cn(
+                          "px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-[10px] font-bold text-slate-500 transition-all active:scale-95 shadow-sm hover:shadow-md",
+                          theme.hoverBorder, theme.hoverText
+                        )}
+                      >
+                        + {service}
+                      </button>
+                    ))}
+                </div>
               </div>
             </div>
           </div>
@@ -387,25 +386,25 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({ isOpen, onClose, onS
               <button 
                 type="button"
                 onClick={(e) => handleSubmit(e, true)}
-                className="px-4 py-1.5 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors"
+                className="px-4 py-1.5 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors font-bold"
               >
                 Confirm Override
               </button>
             </div>
           )}
 
-          <div className="pt-4 flex gap-3">
+          <div className="pt-6 border-t border-slate-100 flex gap-3">
             <button 
               type="button"
               onClick={onClose}
-              className="flex-1 px-6 py-3 bg-slate-100 text-slate-600 font-bold rounded-xl hover:bg-slate-200 transition-colors"
+              className="flex-1 px-6 py-3.5 bg-slate-100 text-slate-600 font-bold rounded-xl hover:bg-slate-200 transition-colors"
             >
               Cancel
             </button>
             <button 
               type="submit"
               className={cn(
-                "flex-1 px-6 py-3 text-white font-bold rounded-xl transition-all shadow-lg",
+                "flex-1 px-6 py-3.5 text-white font-bold rounded-xl transition-all shadow-lg active:scale-95",
                 theme.bg, theme.hoverBg, theme.shadow
               )}
             >

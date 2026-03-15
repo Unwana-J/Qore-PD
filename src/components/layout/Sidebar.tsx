@@ -50,17 +50,20 @@ export const Sidebar: React.FC<SidebarProps> = ({
         if (window.innerWidth < 1024) setIsSidebarOpen(false);
       }}
       className={cn(
-        "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group relative",
+        "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-300 group relative overflow-hidden",
         currentView === view && !selectedProject
           ? `${theme.bg} text-white shadow-lg ${theme.shadow}` 
-          : "text-slate-600 hover:bg-slate-100 hover:text-slate-900",
-        isSidebarCollapsed && "justify-center px-0 hover:scale-105 active:scale-95"
+          : "text-slate-600 hover:bg-slate-50 hover:text-indigo-600",
+        isSidebarCollapsed && "justify-center px-0 hover:scale-110 active:scale-95"
       )}
       title={isSidebarCollapsed ? label : undefined}
     >
-      <Icon className={cn("w-5 h-5 flex-shrink-0", currentView === view && !selectedProject ? "text-white" : "text-slate-500 group-hover:text-slate-700")} />
-      {!isSidebarCollapsed && <span className="font-semibold text-sm whitespace-nowrap">{label}</span>}
-      {!isSidebarCollapsed && currentView === view && !selectedProject && <ChevronRight className="w-4 h-4 ml-auto opacity-70" />}
+      {currentView === view && !selectedProject && (
+        <span className="absolute left-0 top-0 bottom-0 w-1 bg-white rounded-full my-3 animate-pulse" />
+      )}
+      <Icon className={cn("w-5 h-5 flex-shrink-0 transition-transform duration-300 group-hover:scale-110", currentView === view && !selectedProject ? "text-white" : "text-slate-400 group-hover:text-indigo-600")} />
+      {!isSidebarCollapsed && <span className="font-bold text-[13px] tracking-tight whitespace-nowrap">{label}</span>}
+      {!isSidebarCollapsed && currentView === view && !selectedProject && <ChevronRight className="w-4 h-4 ml-auto opacity-50 group-hover:translate-x-0.5 transition-transform" />}
       
       {/* Tooltip for collapsed state */}
       {isSidebarCollapsed && (
@@ -113,7 +116,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <nav className="flex-1 space-y-1.5 px-1">
             <NavItem icon={LayoutDashboard} label="Dashboard" view="dashboard" />
             <NavItem icon={Briefcase} label="Projects" view="projects" />
-            {userRole !== 'Executive' && (
+            {userRole !== 'Executive' && userRole !== 'Finance' && (
               <>
                 <NavItem icon={AlertTriangle} label="Risks & Issues" view="risks" />
                 <NavItem icon={Settings} label="Settings" view="settings" />
