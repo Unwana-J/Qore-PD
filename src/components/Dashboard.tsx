@@ -130,10 +130,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ projects, workloadThreshol
                   dataKey="value"
                 >
                   {[
-                    themeHex,
-                    '#f59e0b', // Amber for Delayed
-                    '#64748b', // Slate for Suspended
-                    '#10b981', // Emerald for Closed
+                    '#3b82f6', // Active - Blue
+                    '#ef4444', // Delayed - Red
+                    '#0f172a', // Suspended - Slate
+                    '#10b981', // Closed - Emerald
                   ].map((color, index) => (
                     <Cell key={`cell-${index}`} fill={color} />
                   ))}

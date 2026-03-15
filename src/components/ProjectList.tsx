@@ -1,14 +1,12 @@
 import React, { useState } from 'react';
 import { Project, ProjectState } from '../types';
 import { formatCurrency, cn } from '../lib/utils';
-import { Search, Filter, MoreHorizontal, Calendar, User, ChevronRight } from 'lucide-react';
 import { motion } from 'motion/react';
 import { PROJECT_STATES } from '../constants';
-import { getThemeClasses } from '../lib/theme';
+import { PROJECT_STATE_COLORS, PRIORITY_COLORS, getThemeClasses } from '../lib/theme';
 import { differenceInDays, parseISO } from 'date-fns';
-import { AlertCircle, AlertTriangle } from 'lucide-react';
+import { AlertCircle, AlertTriangle, DollarSign, Search, Filter, MoreHorizontal, Calendar, User, ChevronRight } from 'lucide-react';
 import { Role } from '../types';
-import { DollarSign } from 'lucide-react';
 
 interface ProjectListProps {
   projects: Project[];
@@ -80,10 +78,6 @@ export const ProjectList: React.FC<ProjectListProps> = ({ projects, onSelectProj
                 <option key={state} value={state}>{state}</option>
               ))}
             </select>
-
-            <button className="p-3 bg-white border-2 border-slate-100 rounded-2xl text-slate-500 hover:text-slate-900 hover:border-slate-200 transition-all">
-              <Filter className="w-5 h-5" />
-            </button>
           </div>
         </div>
       </div>
@@ -106,7 +100,7 @@ export const ProjectList: React.FC<ProjectListProps> = ({ projects, onSelectProj
                   <h3 className={cn("text-xl font-extrabold text-slate-900 transition-colors truncate", theme.groupHoverText)}>{project.clientName}</h3>
                   <div className="flex flex-wrap items-center gap-2">
                     <PriorityBadge priority={project.priority} />
-                    <StateBadge state={project.state} themeColor={themeColor} />
+                    <StateBadge state={project.state} />
                     {differenceInDays(new Date(), parseISO(project.updatedAt)) >= staleThresholdDays && (
                       <span className="flex items-center gap-1.5 px-2 py-1 bg-red-50 text-red-600 rounded-lg text-[10px] font-extrabold border border-red-100 shadow-sm">
                         <AlertCircle className="w-3.5 h-3.5" />
@@ -198,34 +192,24 @@ export const ProjectList: React.FC<ProjectListProps> = ({ projects, onSelectProj
   );
 };
 
-export const StateBadge = ({ state, themeColor = 'teal' }: { state: ProjectState, themeColor?: string }) => {
-  const theme = getThemeClasses(themeColor);
-  
-  const styles: Record<ProjectState, string> = {
-    'Active': 'bg-blue-50 text-blue-600 border-blue-100',
-    'Delayed': 'bg-red-50 text-red-600 border-red-100 ring-2 ring-red-100',
-    'Suspended': 'bg-slate-900 text-white border-slate-900 ring-2 ring-slate-100',
-    'Ready for Billing': `${theme.lightBg} ${theme.lightText} ${theme.lightBorder}`,
-    'Billed': 'bg-emerald-50 text-emerald-600 border-emerald-100',
-    'Closed': 'bg-slate-100 text-slate-500 border-slate-200 grayscale',
-  };
+export const StateBadge = ({ state }: { state: ProjectState }) => {
+  const styles = PROJECT_STATE_COLORS[state];
 
   return (
-    <span className={cn("px-3 py-1 rounded-lg text-[10px] font-extrabold uppercase tracking-widest border shadow-sm transition-all", styles[state])}>
+    <span className={cn(
+      "px-3 py-1 rounded-lg text-[10px] font-extrabold uppercase tracking-widest border shadow-sm transition-all",
+      styles.bg, styles.text, styles.border, styles.ring
+    )}>
       {state}
     </span>
   );
 };
 
 export const PriorityBadge = ({ priority }: { priority: string }) => {
-  const styles: Record<string, string> = {
-    'P1': 'bg-red-50 text-red-600 border-red-100',
-    'P2': 'bg-amber-50 text-amber-600 border-amber-100',
-    'P3': 'bg-sky-50 text-sky-600 border-sky-100',
-  };
+  const styles = PRIORITY_COLORS[priority] || PRIORITY_COLORS['P2'];
 
   return (
-    <span className={cn("px-2 py-0.5 rounded text-[10px] font-bold border", styles[priority] || styles['P2'])}>
+    <span className={cn("px-2 py-0.5 rounded text-[10px] font-bold border", styles.bg, styles.text, styles.border)}>
       {priority}
     </span>
   );

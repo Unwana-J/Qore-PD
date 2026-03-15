@@ -116,7 +116,7 @@ export const MilestoneView: React.FC<MilestoneViewProps> = ({ project, onBack, o
           <div>
             <h2 className="text-2xl font-bold text-slate-900">{project.clientName}</h2>
             <div className="flex items-center gap-3 mt-1">
-              <StateBadge state={project.state} themeColor={themeColor} />
+              <StateBadge state={project.state} />
               <span className="text-sm text-slate-500 font-medium">{project.packageName}</span>
               {canReassign && (
                 <button 

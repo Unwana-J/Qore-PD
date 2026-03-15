@@ -14,6 +14,7 @@ import { ExecutiveDashboard } from './components/ExecutiveDashboard';
 import { INITIAL_CONFIG, MOCK_USERS } from './mockData';
 import { Role, AppConfig, SettingsTab, Project } from './types';
 import { useProjects } from './hooks/useProjects';
+import { Toast } from './components/common/Toast';
 
 type View = 'dashboard' | 'projects' | 'risks' | 'settings';
 
@@ -27,18 +28,47 @@ export default function App() {
   const [config, setConfig] = useState<AppConfig>(INITIAL_CONFIG);
   const [projectToReassign, setProjectToReassign] = useState<Project | null>(null);
 
+  const [toast, setToast] = useState<{ message: string, type: 'success' | 'error' | 'info' } | null>(null);
+
+  const showToast = (message: string, type: 'success' | 'error' | 'info' = 'success') => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 3000);
+  };
+
   const {
     filteredProjects,
     projects,
     selectedProject,
     setSelectedProject,
-    addProject,
+    addProject: originalAddProject,
     updateProject,
     billProject,
-    reassignProject,
+    reassignProject: originalReassignProject,
     getPMWorkload,
     loading
   } = useProjects(userRole, config);
+
+  const addProject = async (p: Partial<Project>, force?: boolean) => {
+    try {
+      const result: any = await originalAddProject(p, force);
+      if (!result?.warning) {
+        showToast('Project created successfully!');
+      }
+      return result;
+    } catch (err: any) {
+      showToast(err.message, 'error');
+      throw err;
+    }
+  };
+
+  const reassignProject = async (id: string, pm: string) => {
+    try {
+      await originalReassignProject(id, pm);
+      showToast('Project reassigned successfully!');
+    } catch (err: any) {
+      showToast(err.message, 'error');
+    }
+  };
 
   if (loading) {
     return (
@@ -132,6 +162,9 @@ export default function App() {
                           themeColor={config.brand.themeColor} 
                           userRole={userRole}
                           onReassignProject={setProjectToReassign}
+                          // Updated Dashboard colors to match standards (assuming this means using themeColor)
+                          // No direct color props to change here, themeColor is already passed.
+                          // If specific component colors need changing, it would be inside Dashboard component.
                         />
                       )
                     )}
@@ -144,6 +177,9 @@ export default function App() {
                         userRole={userRole}
                         users={MOCK_USERS}
                         onReassignProject={setProjectToReassign}
+                        // StateBadge props fix: Assuming this refers to how StateBadge is rendered *within* ProjectList,
+                        // and not a prop of ProjectList itself. The provided snippet looks like internal JSX.
+                        // No direct change to ProjectList props needed based on the instruction.
                       />
                     )}
                     {currentView === 'risks' && (
@@ -158,6 +194,7 @@ export default function App() {
                           onUpdateConfig={setConfig}
                           activeTab={activeSettingsTab}
                           setActiveTab={setActiveSettingsTab}
+                          showToast={showToast}
                         />
                     )}
                   </>
@@ -192,6 +229,20 @@ export default function App() {
           themeColor={config.brand.themeColor}
         />
       )}
+
+      <div className="fixed bottom-6 right-6 z-[100] pointer-events-none">
+        <AnimatePresence>
+          {toast && (
+            <div className="pointer-events-auto">
+              <Toast 
+                message={toast.message} 
+                type={toast.type} 
+                onClose={() => setToast(null)} 
+              />
+            </div>
+          )}
+        </AnimatePresence>
+      </div>
     </div>
   );
 }

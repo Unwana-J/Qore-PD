@@ -30,7 +30,7 @@ export interface ProjectActivity {
   timestamp: string;
 }
 
-export type ProductLine = 'Bankone' | 'Channels' | 'Recova' | 'Cluster';
+export type ProductLine = 'Bankone' | 'Channels' | 'Recova' | 'Cluster' | 'Paypoint';
 
 export interface Comment {
   id: string;

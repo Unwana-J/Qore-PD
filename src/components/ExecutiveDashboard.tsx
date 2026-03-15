@@ -6,13 +6,13 @@ import {
 import { 
   TrendingUp, Activity, Award, AlertTriangle, Clock, 
   Layers, DollarSign, Target, Zap, ShieldAlert,
-  ChevronRight, Calendar, User as UserIcon, Briefcase
+  ChevronRight, Calendar, User as UserIcon, Briefcase, AlertCircle
 } from 'lucide-react';
-import { format } from 'date-fns';
+import { format, differenceInDays, parseISO } from 'date-fns';
 import { Project, Role, RevenueTrend, ProjectState, ProjectPriority, User } from '../types';
 import { MOCK_REVENUE_TREND } from '../mockData';
 import { formatCurrency, cn } from '../lib/utils';
-import { getThemeClasses } from '../lib/theme';
+import { PROJECT_STATE_COLORS, PRIORITY_COLORS, getThemeClasses } from '../lib/theme';
 
 interface ExecutiveDashboardProps {
   projects: Project[];
@@ -22,10 +22,10 @@ interface ExecutiveDashboardProps {
   staleThresholdDays: number;
 }
 
-export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({ 
-  projects, 
+export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
+  projects,
   users,
-  themeColor = 'teal', 
+  themeColor = 'teal',
   onSelectProject,
   staleThresholdDays
 }) => {
@@ -44,7 +44,7 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
   const kpiStats = useMemo(() => {
     const totalNGN = projects.filter(p => p.currency === 'NGN').reduce((acc, p) => acc + p.value, 0);
     const totalUSD = projects.filter(p => p.currency === 'USD').reduce((acc, p) => acc + p.value, 0);
-    
+
     const achievedNGN = projects.filter(p => p.currency === 'NGN' && (p.state === 'Billed' || p.state === 'Closed')).reduce((acc, p) => acc + p.value, 0);
     const achievedUSD = projects.filter(p => p.currency === 'USD' && (p.state === 'Billed' || p.state === 'Closed')).reduce((acc, p) => acc + p.value, 0);
 
@@ -170,7 +170,7 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
   const utilisation = useMemo(() => {
     // Mock Capacity Calculation
     // Total PMs could be the number of active PMs in MOCK_USERS
-    const totalPMs = 3; 
+    const totalPMs = 3;
     const thresholds = { P1: 3, P2: 10, P3: 50 }; // from config
     return {
       P1: { used: projects.filter(p => p.priority === 'P1' && ['Active', 'Delayed', 'Suspended'].includes(p.state)).length, max: totalPMs * thresholds.P1 },
@@ -190,16 +190,16 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
   const getDaysDelayed = (p: Project) => {
     const signOff = p.milestones.find(m => m.name === 'Sign Off');
     if (!signOff) return 0;
-    const target = new Date(signOff.targetDate);
+    const target = parseISO(signOff.targetDate);
     if (target < now && signOff.status !== 'Completed') {
-      return Math.floor((now.getTime() - target.getTime()) / (1000 * 3600 * 24));
+      return differenceInDays(now, target);
     }
     return 0;
   };
 
   return (
     <div className="p-6 space-y-8 max-w-7xl mx-auto pb-20">
-      
+
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-6 mb-2">
         <div>
@@ -217,8 +217,8 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
               onClick={() => setCurrencyFilter(c)}
               className={cn(
                 "px-4 py-2 rounded-xl text-xs font-black transition-all",
-                currencyFilter === c 
-                  ? "bg-white text-slate-900 shadow-sm" 
+                currencyFilter === c
+                  ? "bg-white text-slate-900 shadow-sm"
                   : "text-slate-500 hover:text-slate-700"
               )}
             >
@@ -230,38 +230,38 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
 
       {/* Row 1: KPI Strip */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
-        <KPIBox 
-          label="Total Portfolio Revenue" 
-          ngn={kpiStats.total.NGN} 
-          usd={kpiStats.total.USD} 
+        <KPIBox
+          label="Total Portfolio Revenue"
+          ngn={kpiStats.total.NGN}
+          usd={kpiStats.total.USD}
           subtitle="All contracted revenue"
           currencyFilter={currencyFilter}
         />
-        <KPIBox 
-          label="Achieved Revenue" 
-          ngn={kpiStats.achieved.NGN} 
-          usd={kpiStats.achieved.USD} 
+        <KPIBox
+          label="Achieved Revenue"
+          ngn={kpiStats.achieved.NGN}
+          usd={kpiStats.achieved.USD}
           subtitle="Billed & closed"
           variant="green"
           currencyFilter={currencyFilter}
         />
-        <KPIBox 
-          label="At-Risk Revenue" 
-          ngn={kpiStats.atRisk.NGN} 
-          usd={kpiStats.atRisk.USD} 
+        <KPIBox
+          label="At-Risk Revenue"
+          ngn={kpiStats.atRisk.NGN}
+          usd={kpiStats.atRisk.USD}
           subtitle="Revenue in delayed projects"
           variant="red"
           currencyFilter={currencyFilter}
         />
-        <KPIBox 
-          label="Active Projects" 
+        <KPIBox
+          label="Active Projects"
           val={kpiStats.activeCount}
           subtitle="Currently in delivery"
           variant="teal"
           themeColor={themeColor}
         />
-        <KPIBox 
-          label="Delayed + Suspended" 
+        <KPIBox
+          label="Delayed + Suspended"
           val={kpiStats.attentionCount}
           subtitle="Needs attention"
           variant="amber"
@@ -336,9 +336,19 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
                   paddingAngle={5}
                   dataKey="value"
                 >
-                  {healthData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={stateColors[entry.name as ProjectState]} />
-                  ))}
+                  {healthData.map((entry, index) => {
+                    const stateStyles: any = {
+                      'Active': '#3b82f6',
+                      'Delayed': '#ef4444',
+                      'Suspended': '#0f172a',
+                      'Ready for Billing': '#6366f1',
+                      'Billed': '#10b981',
+                      'Closed': '#94a3b8'
+                    };
+                    return (
+                      <Cell key={`cell-${index}`} fill={stateStyles[entry.name as ProjectState]} />
+                    );
+                  })}
                 </Pie>
                 <Tooltip 
                   contentStyle={{borderRadius: '20px', border: 'none', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)'}}
@@ -351,12 +361,22 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
             </div>
           </div>
           <div className="grid grid-cols-2 gap-y-2 mt-4">
-            {healthData.map((d) => (
-              <div key={d.name} className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full" style={{backgroundColor: stateColors[d.name as ProjectState]}} />
-                <span className="text-[10px] font-bold text-slate-600 truncate">{d.name} ({Math.round(d.value / projects.length * 100)}%)</span>
-              </div>
-            ))}
+            {healthData.map((d) => {
+               const stateStyles: any = {
+                  'Active': '#3b82f6',
+                  'Delayed': '#ef4444',
+                  'Suspended': '#0f172a',
+                  'Ready for Billing': '#6366f1',
+                  'Billed': '#10b981',
+                  'Closed': '#94a3b8'
+                };
+              return (
+                <div key={d.name} className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full" style={{backgroundColor: stateStyles[d.name as ProjectState]}} />
+                  <span className="text-[10px] font-bold text-slate-600 truncate">{d.name} ({Math.round(d.value / projects.length * 100)}%)</span>
+                </div>
+              );
+            })}
           </div>
         </div>
       </div>
@@ -647,7 +667,7 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
                     <td className="px-4 py-5 text-center">
                       <span className={cn(
                         "font-black text-sm",
-                        delayed > 14 ? "text-red-600" : "text-amber-600"
+                        delayed > 29 ? "text-red-600" : delayed > 14 ? "text-amber-600" : "text-slate-500"
                       )}>{delayed}d</span>
                     </td>
                     <td className="px-4 py-5">
@@ -688,7 +708,7 @@ const KPIBox = ({ label, ngn, usd, val, subtitle, variant = 'neutral', themeColo
     neutral: "bg-white border-slate-200 text-slate-900 icon-bg-slate-50 icon-text-slate-400",
     green: "bg-white border-emerald-100 text-slate-900 icon-bg-emerald-50 icon-text-emerald-500 border-b-4 border-b-emerald-500",
     red: "bg-white border-red-100 text-slate-900 icon-bg-red-50 icon-text-red-500 border-b-4 border-b-red-500",
-    teal: `bg-white border-teal-100 text-slate-900 icon-bg-teal-50 icon-text-teal-600 border-b-4 border-b-teal-500`,
+    teal: cn("bg-white border-slate-200 text-slate-900 border-b-4", theme.borderB),
     amber: "bg-white border-amber-100 text-slate-900 icon-bg-amber-50 icon-text-amber-500 border-b-4 border-b-amber-500",
   };
 
@@ -702,10 +722,12 @@ const KPIBox = ({ label, ngn, usd, val, subtitle, variant = 'neutral', themeColo
   const Icon = IconMap[variant];
 
   return (
-    <div className={cn("p-3.5 rounded-3xl border shadow-sm flex flex-col justify-between transition-all hover:shadow-md h-full", styles[variant])}>
-      <div className="flex justify-between items-start mb-3">
+    <div className={cn("p-4 rounded-3xl border shadow-sm flex flex-col justify-between transition-all hover:shadow-md h-full", styles[variant])}>
+      <div className="flex justify-between items-start mb-4">
         <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-tight">{label}</p>
-        <Icon className="w-4 h-4 text-slate-300" />
+        <div className={cn("p-2 rounded-xl", variant === 'teal' ? theme.lightBg : "bg-slate-50")}>
+          <Icon className={cn("w-4 h-4", variant === 'teal' ? theme.text : "text-slate-400")} />
+        </div>
       </div>
       <div>
         {val !== undefined ? (
@@ -713,18 +735,24 @@ const KPIBox = ({ label, ngn, usd, val, subtitle, variant = 'neutral', themeColo
         ) : (
           <div className="space-y-0.5 overflow-hidden">
             {(currencyFilter === 'All' || currencyFilter === 'NGN') && (
-              <p className={cn(
-                "font-black leading-none tracking-tighter truncate",
-                currencyFilter === 'NGN' ? "text-xl sm:text-2xl" : "text-base sm:text-lg"
-              )}>
+              <p 
+                title={formatCurrency(ngn, 'NGN')}
+                className={cn(
+                  "font-black leading-none tracking-tighter truncate",
+                  currencyFilter === 'NGN' ? "text-2xl" : "text-sm sm:text-base"
+                )}
+              >
                 {formatCurrency(ngn, 'NGN')}
               </p>
             )}
             {(currencyFilter === 'All' || currencyFilter === 'USD') && (
-              <p className={cn(
-                "font-black tracking-tighter truncate",
-                currencyFilter === 'USD' ? "text-xl sm:text-2xl" : "text-xs sm:text-sm text-slate-400"
-              )}>
+              <p 
+                title={formatCurrency(usd, 'USD')}
+                className={cn(
+                  "font-black tracking-tighter truncate",
+                  currencyFilter === 'USD' ? "text-2xl" : "text-[10px] sm:text-xs text-slate-400"
+                )}
+              >
                 {formatCurrency(usd, 'USD')}
               </p>
             )}

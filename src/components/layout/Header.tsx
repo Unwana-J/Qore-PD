@@ -87,7 +87,7 @@ export const Header: React.FC<HeaderProps> = ({
       return (
         <div className="flex items-center gap-2 text-xs font-medium">
           <button 
-            onClick={() => {/* This would ideally switch view, but it's handled in App */}}
+            onClick={() => onNavigateBack?.()}
             className="text-slate-400 hover:text-slate-600 transition-colors"
           >
             Settings

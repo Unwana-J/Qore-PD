@@ -200,3 +200,18 @@ export const getThemeClasses = (color: string) => {
 
   return colors[color] || colors.indigo;
 };
+
+export const PROJECT_STATE_COLORS: Record<string, { bg: string, text: string, border: string, ring?: string }> = {
+  'Active': { bg: 'bg-blue-50', text: 'text-blue-600', border: 'border-blue-100' },
+  'Delayed': { bg: 'bg-red-50', text: 'text-red-600', border: 'border-red-100', ring: 'ring-red-100' },
+  'Suspended': { bg: 'bg-slate-900', text: 'text-white', border: 'border-slate-900', ring: 'ring-slate-100' },
+  'Ready for Billing': { bg: 'bg-indigo-50', text: 'text-indigo-600', border: 'border-indigo-100' },
+  'Billed': { bg: 'bg-emerald-50', text: 'text-emerald-600', border: 'border-emerald-100' },
+  'Closed': { bg: 'bg-slate-100', text: 'text-slate-500', border: 'border-slate-200' },
+};
+
+export const PRIORITY_COLORS: Record<string, { bg: string, text: string, border: string }> = {
+  'P1': { bg: 'bg-red-50', text: 'text-red-600', border: 'border-red-100' },
+  'P2': { bg: 'bg-amber-50', text: 'text-amber-600', border: 'border-amber-100' },
+  'P3': { bg: 'bg-sky-50', text: 'text-sky-600', border: 'border-sky-100' },
+};
