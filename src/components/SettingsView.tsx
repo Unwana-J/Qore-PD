@@ -327,7 +327,6 @@ const UserManagement = ({ users, setUsers, projects, onUpdateProjects, currentUs
 };
 
 const ProjectConfig = ({ config, setConfig, theme }: any) => {
-  const [newPhase, setNewPhase] = useState('');
   return (
     <div className="p-8 space-y-8 animate-in fade-in duration-300">
       <div>
@@ -350,23 +349,30 @@ const ProjectConfig = ({ config, setConfig, theme }: any) => {
         </div>
 
         <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100 space-y-4">
-          <h4 className="text-sm font-bold text-slate-900">Phase Template</h4>
-          <div className="space-y-4">
-             {config.defaultPhases.map((m: string) => (
-               <div key={m} className="flex items-center justify-between p-3 bg-white border border-slate-200 rounded-xl">
-                 <span className="text-sm font-semibold text-slate-700">{m}</span>
-                 <button className="text-slate-400 hover:text-red-500"><X className="w-4 h-4" /></button>
+          <h4 className="text-sm font-bold text-slate-900">Project Lifecycle Weights</h4>
+          <p className="text-xs text-slate-500 font-medium pb-2">Set the relative weight of each phase towards total project completion (%)</p>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+             {Object.entries(config.projectLifecycleWeights || {}).map(([phase, weight]) => (
+               <div key={phase} className="space-y-1.5 focus-within:z-10">
+                 <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">
+                   {phase}
+                 </label>
+                 <div className="flex items-center">
+                   <input 
+                     type="number" 
+                     className={cn("w-full px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm font-bold outline-none", theme.focusBorder)}
+                     value={weight as number}
+                     onChange={e => {
+                       const val = parseInt(e.target.value) || 0;
+                       setConfig({
+                         ...config, 
+                         projectLifecycleWeights: { ...config.projectLifecycleWeights, [phase]: val }
+                       })
+                     }}
+                   />
+                 </div>
                </div>
              ))}
-             <div className="flex gap-2">
-               <input 
-                placeholder="New phase..." 
-                className="flex-1 px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm"
-                value={newPhase}
-                onChange={e => setNewPhase(e.target.value)}
-               />
-               <button className={cn("px-4 py-2 text-white font-bold rounded-xl text-sm", theme.bg)}>Add</button>
-             </div>
           </div>
         </div>
       </div>

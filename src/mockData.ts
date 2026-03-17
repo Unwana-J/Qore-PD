@@ -8,7 +8,7 @@ export const MOCK_PROJECTS: Project[] = [
     id: '1',
     clientName: 'Global Trust Bank',
     packageName: 'Digital Transformation Program',
-    services: ['Mobile Banking', 'CBA Integration', 'USSD'],
+    services: ['Mobile', 'CBA', 'USSD'],
     productLines: ['Bankone', 'Channels'],
     assignedPM: 'Sarah Jenkins',
     startDate: format(subDays(now, 60), 'yyyy-MM-dd'),
@@ -27,8 +27,8 @@ export const MOCK_PROJECTS: Project[] = [
     ],
     phaseWeights: { initiation: 10, planning: 10, execution: 60, closure: 20 },
     serviceStates: {
-      'Mobile Banking': 'Closed',
-      'CBA Integration': 'In Progress',
+      'Mobile': 'Closed',
+      'CBA': 'In Progress',
       'USSD': 'Not Started'
     },
     pidSignedOffDate: format(subDays(now, 60), 'yyyy-MM-dd'),
@@ -47,7 +47,7 @@ export const MOCK_PROJECTS: Project[] = [
     id: '2',
     clientName: 'Apex Microfinance',
     packageName: 'Cloud Core Migration',
-    services: ['Cloud Hosting', 'Core Banking'],
+    services: ['Agency', 'Merchant Banking'],
     productLines: ['Bankone'],
     assignedPM: 'Michael Chen',
     startDate: format(subDays(now, 30), 'yyyy-MM-dd'),
@@ -66,8 +66,8 @@ export const MOCK_PROJECTS: Project[] = [
     ],
     phaseWeights: { initiation: 10, planning: 10, execution: 60, closure: 20 },
     serviceStates: {
-      'Cloud Hosting': 'Not Started',
-      'Core Banking': 'Not Started'
+      'Agency': 'Not Started',
+      'Merchant Banking': 'Not Started'
     },
     pidSignedOffDate: format(subDays(now, 28), 'yyyy-MM-dd'),
     comments: [],
@@ -83,7 +83,7 @@ export const MOCK_PROJECTS: Project[] = [
     id: '3',
     clientName: 'Zenith Connect',
     packageName: 'Digital Uplift Program',
-    services: ['USSD', 'Mobile Banking', 'APIs'],
+    services: ['USSD', 'Mobile', 'APIs'],
     productLines: ['Channels'],
     assignedPM: 'Sarah Jenkins',
     startDate: format(subDays(now, 60), 'yyyy-MM-dd'),
@@ -103,7 +103,7 @@ export const MOCK_PROJECTS: Project[] = [
     phaseWeights: { initiation: 10, planning: 10, execution: 60, closure: 20 },
     serviceStates: {
       'USSD': 'Not Started',
-      'Mobile Banking': 'Not Started',
+      'Mobile': 'Not Started',
       'APIs': 'Not Started'
     },
     comments: [],
@@ -447,12 +447,17 @@ export const INITIAL_CONFIG: AppConfig = {
     },
     projectLifecycleWeights: { initiation: 10, planning: 10, execution: 60, closure: 20 },
     serviceBaselines: [
-      { id: 'sb1', name: 'USSD', baselineDays: 10 },
-      { id: 'sb2', name: 'CDR', baselineDays: 40 },
+      { id: 'sb1', name: 'CBA', baselineDays: 20 },
+      { id: 'sb2', name: 'USSD', baselineDays: 5 },
       { id: 'sb3', name: 'Transfers', baselineDays: 10 },
-      { id: 'sb4', name: 'Mobile Banking', baselineDays: 20 },
-      { id: 'sb5', name: 'Cards', baselineDays: 15 },
-      { id: 'sb6', name: 'API Provisioning', baselineDays: 12 },
+      { id: 'sb4', name: 'Mobile', baselineDays: 15 },
+      { id: 'sb5', name: 'Cards', baselineDays: 10 },
+      { id: 'sb6', name: 'APIs', baselineDays: 10 },
+      { id: 'sb7', name: 'CDR', baselineDays: 30 },
+      { id: 'sb8', name: 'CAS', baselineDays: 20 },
+      { id: 'sb9', name: 'Collections and Recovery', baselineDays: 25 },
+      { id: 'sb10', name: 'Agency', baselineDays: 15 },
+      { id: 'sb11', name: 'Merchant Banking', baselineDays: 15 },
     ],
     allowPostIntakeRevenueEdit: false,
     workloadThresholds: {
