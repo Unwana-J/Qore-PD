@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { X } from 'lucide-react';
-import { PACKAGES, PRODUCT_LINES, DEFAULT_MILESTONES } from '../constants';
-import { Project, Milestone, Role } from '../types';
-import { cn } from '../lib/utils';
+import { X, Calendar, Clock } from 'lucide-react';
+import { PACKAGES, PRODUCT_LINES } from '../constants';
+import { Project, Phase, Role, ServiceBaseline } from '../types';
+import { cn, calculateWorkingDays } from '../lib/utils';
 import { getThemeClasses } from '../lib/theme';
 import { ConfirmationModal } from './common/ConfirmationModal';
 
@@ -14,11 +14,16 @@ interface ProjectModalProps {
   getPMWorkload: (pmName: string) => Record<string, number>;
   workloadThresholds: Record<string, number>;
   currencies: any[];
-  users: any[];
   themeColor?: string;
+  users: any[];
+  serviceBaselines: ServiceBaseline[];
 }
 
-export const ProjectModal: React.FC<ProjectModalProps> = ({ isOpen, onClose, onSubmit, userRole, getPMWorkload, workloadThresholds, themeColor = 'teal', currencies = [], users = [] }) => {
+export const ProjectModal: React.FC<ProjectModalProps> = ({ 
+  isOpen, onClose, onSubmit, userRole, getPMWorkload, workloadThresholds, 
+  themeColor = 'teal', currencies = [], users = [],
+  serviceBaselines = [] 
+}) => {
   const currentUserName = userRole === 'PM' ? 'Sarah Jenkins' : 'Admin User'; // In full app this would come from auth
   
   const [formData, setFormData] = useState({
@@ -57,6 +62,13 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({ isOpen, onClose, onS
     }
   }, [formData.packageName]);
 
+  const totalDuration = selectedServices.reduce((acc, s) => {
+    const baseline = serviceBaselines.find(sb => sb.name === s);
+    return acc + (baseline ? baseline.baselineDays : 0);
+  }, 0);
+
+  const expectedEndDate = formData.startDate ? calculateWorkingDays(formData.startDate, totalDuration) : null;
+
   if (!isOpen) return null;
 
   const canCreate = userRole === 'Superadmin' || userRole === 'Manager' || userRole === 'Team Lead' || userRole === 'PM';
@@ -81,12 +93,6 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({ isOpen, onClose, onS
     setWarning(null);
     
     const pkg = PACKAGES.find(p => p.name === formData.packageName);
-    const milestones: Milestone[] = DEFAULT_MILESTONES.map((m, i) => ({
-      id: `m-${Date.now()}-${i}`,
-      name: m,
-      targetDate: formData.startDate,
-      status: 'Pending'
-    }));
 
     try {
       const result = await onSubmit({
@@ -95,7 +101,6 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({ isOpen, onClose, onS
         services: selectedServices,
         productLines: pkg?.productLines || [],
         state: 'Active',
-        milestones,
         comments: [],
         risks: []
       }, force);
@@ -293,7 +298,7 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({ isOpen, onClose, onS
                 <select
                   required
                   className={cn(
-                    "w-32 px-2 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 outline-none transition-all font-bold",
+                    "w-40 flex-shrink-0 px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 outline-none transition-all font-bold",
                     theme.ring, theme.focusBorder
                   )}
                   value={formData.currency}
@@ -305,9 +310,26 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({ isOpen, onClose, onS
                 </select>
               </div>
             </div>
-          </div>
+            </div>
 
-          <div className="pt-6 border-t border-slate-100 flex flex-col gap-4">
+            <div className="grid grid-cols-2 gap-4 p-4 bg-slate-50 rounded-2xl border border-slate-100 shadow-inner">
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Expected Duration</label>
+                <div className="flex items-center gap-2 text-slate-900">
+                  <Clock className={cn("w-4 h-4", theme.text)} />
+                  <span className="text-sm font-bold">{totalDuration} Working Days</span>
+                </div>
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Exp. Completion</label>
+                <div className="flex items-center gap-2 text-slate-900">
+                  <Calendar className={cn("w-4 h-4", theme.text)} />
+                  <span className="text-sm font-bold">{expectedEndDate || '—'}</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="pt-6 border-t border-slate-100 flex flex-col gap-4">
             <div className="flex justify-between items-center">
               <label className="text-xs font-bold text-slate-500 uppercase">Services in Scope</label>
               <span className={cn("text-[10px] font-black px-2 py-0.5 rounded uppercase tracking-tighter", theme.lightText, theme.lightBg)}>

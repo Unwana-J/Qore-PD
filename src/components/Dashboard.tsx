@@ -58,7 +58,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ projects, workloadThreshol
   // Performance Stats (Simplified for POC)
   const pmStats = Array.from(new Set(projects.map(p => p.assignedPM))).map(pm => {
     const pmProjects = projects.filter(p => p.assignedPM === pm);
-    const activeProjects = pmProjects.filter(p => ['Active', 'Delayed', 'Suspended', 'Ready for Billing'].includes(p.state));
+    const activeProjects = pmProjects.filter(p => ['Active', 'Delayed', 'Suspended', 'Signed Off'].includes(p.state));
     const workload = {
       P1: activeProjects.filter(p => p.priority === 'P1').length,
       P2: activeProjects.filter(p => p.priority === 'P2').length,

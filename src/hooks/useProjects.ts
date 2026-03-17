@@ -1,7 +1,8 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { format } from 'date-fns';
-import { Project, Role, AppConfig, ProjectPriority, ProjectActivity, ActivityType } from '../types';
+import { Project, Role, AppConfig, ProjectPriority, ProjectActivity, ActivityType, RebaselineRequest, Phase, ServiceState } from '../types';
 import { api } from '../lib/api';
+import { calculateWorkingDays } from '../lib/utils';
 
 export function useProjects(userRole: Role, config: AppConfig) {
   const [projects, setProjects] = useState<Project[]>([]);
@@ -25,7 +26,7 @@ export function useProjects(userRole: Role, config: AppConfig) {
   const getPMWorkload = useCallback((pmName: string) => {
     const pmProjects = projects.filter(p => 
       p.assignedPM === pmName && 
-      ['Active', 'Delayed', 'Suspended', 'Ready for Billing'].includes(p.state)
+      ['Active', 'Delayed', 'Suspended', 'Signed Off'].includes(p.state)
     );
 
     return {
@@ -56,13 +57,40 @@ export function useProjects(userRole: Role, config: AppConfig) {
       }
       
       if (currentCount >= maxCount && ['Superadmin', 'Manager', 'Team Lead'].includes(userRole)) {
-        // This will be caught by the modal to show a confirmation
         return { warning: `PM is at limit (${currentCount}/${maxCount}). Override?` };
       }
     }
 
     try {
-      const newProject = await api.projects.create(newProjectData);
+      const baselineDays = (newProjectData.services || []).reduce((acc, serviceName) => {
+        const baseline = config.serviceBaselines.find(sb => sb.name === serviceName);
+        return acc + (baseline ? baseline.baselineDays : 0);
+      }, 0);
+
+      const expectedCompletionDate = calculateWorkingDays(newProjectData.startDate || new Date(), baselineDays);
+
+      const phases: Phase[] = [
+        { id: 'Initiation', name: 'Initiation', status: 'Pending' },
+        { id: 'Planning', name: 'Planning', status: 'Locked' },
+        { id: 'Execution', name: 'Execution', status: 'Locked' },
+        { id: 'Closure', name: 'Closure', status: 'Locked' },
+      ];
+
+      const serviceStates: Record<string, ServiceState> = {};
+      (newProjectData.services || []).forEach(s => {
+        serviceStates[s] = 'Not Started';
+      });
+
+      const newProject = await api.projects.create({
+        ...newProjectData,
+        expectedDuration: baselineDays,
+        expectedCompletionDate,
+        currentCompletionDate: expectedCompletionDate,
+        phases,
+        phaseWeights: { ...config.projectLifecycleWeights },
+        serviceStates,
+        rebaselineRequests: []
+      });
       setProjects(prev => [newProject, ...prev]);
       return newProject;
     } catch (error) {
@@ -78,9 +106,8 @@ export function useProjects(userRole: Role, config: AppConfig) {
 
       const newActivities: ProjectActivity[] = [...(project.activities || [])];
       const now = new Date().toLocaleString([], { dateStyle: 'short', timeStyle: 'short' });
-      const userName = userRole === 'PM' ? 'Sarah Jenkins' : 'Admin User'; // Mock user context
+      const userName = userRole === 'PM' ? 'Sarah Jenkins' : 'Admin User';
 
-      // Detect State Change
       if (oldProject.state !== project.state) {
         newActivities.unshift({
           id: Math.random().toString(36).substr(2, 9),
@@ -90,27 +117,24 @@ export function useProjects(userRole: Role, config: AppConfig) {
           timestamp: now
         });
 
-        // Set readyForBillingAt if moving to that state
-        if (project.state === 'Ready for Billing' && !project.readyForBillingAt) {
-          project.readyForBillingAt = new Date().toISOString().split('T')[0];
+        if (project.state === 'Signed Off' && !project.signedOffAt) {
+          project.signedOffAt = new Date().toISOString().split('T')[0];
         }
       }
 
-      // Detect Milestone Change
-      project.milestones.forEach(m => {
-        const oldM = oldProject.milestones.find(om => om.id === m.id);
+      project.phases.forEach(m => {
+        const oldM = oldProject.phases.find(om => om.id === m.id);
         if (oldM && oldM.status !== m.status) {
           newActivities.unshift({
             id: Math.random().toString(36).substr(2, 9),
-            type: 'Milestone',
+            type: 'Phase',
             user: userName,
-            description: `Updated milestone "${m.name}" to "${m.status}"`,
+            description: `Updated phase "${m.name}" to "${m.status}"`,
             timestamp: now
           });
         }
       });
 
-      // Detect New Risk
       if (project.risks.length > oldProject.risks.length) {
         const newestRisk = project.risks[0];
         newActivities.unshift({
@@ -122,7 +146,6 @@ export function useProjects(userRole: Role, config: AppConfig) {
         });
       }
 
-      // Detect Risk status change
       project.risks.forEach(r => {
         const oldR = oldProject.risks.find(or => or.id === r.id);
         if (oldR && oldR.status !== r.status) {
@@ -136,7 +159,6 @@ export function useProjects(userRole: Role, config: AppConfig) {
         }
       });
 
-      // Detect New Comment
       if (project.comments.length > oldProject.comments.length) {
         const newestComment = project.comments[0];
         newActivities.unshift({
@@ -164,6 +186,7 @@ export function useProjects(userRole: Role, config: AppConfig) {
       console.error('Failed to update project', error);
     }
   };
+
   const billProject = async (projectId: string) => {
     const project = projects.find(p => p.id === projectId);
     if (!project) return;
@@ -218,15 +241,110 @@ export function useProjects(userRole: Role, config: AppConfig) {
     return updateProject(updatedProject);
   };
 
+  const submitRebaselineRequest = async (projectId: string, extensionDays: number, comment: string) => {
+    const project = projects.find(p => p.id === projectId);
+    if (!project) return;
+
+    const newDate = calculateWorkingDays(project.currentCompletionDate, extensionDays);
+
+    const request: RebaselineRequest = {
+      id: Math.random().toString(36).substr(2, 9),
+      projectId,
+      projectName: project.clientName,
+      submittedBy: userRole === 'PM' ? 'Sarah Jenkins' : 'Admin User',
+      extensionDays,
+      pmComment: comment,
+      currentCompletionDate: project.currentCompletionDate,
+      newCompletionDate: newDate,
+      status: 'Pending',
+      submittedAt: new Date().toISOString()
+    };
+
+    const updatedProject = {
+      ...project,
+      rebaselineRequests: [request, ...(project.rebaselineRequests || [])]
+    };
+
+    return updateProject(updatedProject);
+  };
+
+  const approveRebaselineRequest = async (projectId: string, requestId: string, reviewerComment?: string) => {
+    const project = projects.find(p => p.id === projectId);
+    if (!project) return;
+
+    const request = project.rebaselineRequests.find(r => r.id === requestId);
+    if (!request) return;
+
+    const userName = userRole === 'PM' ? 'Sarah Jenkins' : 'Admin User';
+    
+    const updatedRequests = project.rebaselineRequests.map(r => 
+      r.id === requestId ? { ...r, status: 'Approved' as const, reviewedBy: userName, reviewedAt: new Date().toISOString(), reviewerComment } : r
+    );
+
+    const updatedProject: Project = {
+      ...project,
+      currentCompletionDate: request.newCompletionDate,
+      rebaselineRequests: updatedRequests,
+      activities: [
+        {
+          id: Math.random().toString(36).substr(2, 9),
+          type: 'Rebaseline',
+          user: userName,
+          description: `Approved rebaseline request: +${request.extensionDays} days. New completion date: ${request.newCompletionDate}`,
+          timestamp: new Date().toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })
+        },
+        ...(project.activities || [])
+      ]
+    };
+
+    return updateProject(updatedProject);
+  };
+
+  const declineRebaselineRequest = async (projectId: string, requestId: string, reviewerComment: string) => {
+    const project = projects.find(p => p.id === projectId);
+    if (!project) return;
+
+    const userName = userRole === 'PM' ? 'Sarah Jenkins' : 'Admin User';
+
+    const updatedRequests = project.rebaselineRequests.map(r => 
+      r.id === requestId ? { ...r, status: 'Declined' as const, reviewedBy: userName, reviewedAt: new Date().toISOString(), reviewerComment } : r
+    );
+
+    const updatedProject: Project = {
+      ...project,
+      rebaselineRequests: updatedRequests,
+      activities: [
+        {
+          id: Math.random().toString(36).substr(2, 9),
+          type: 'Rebaseline',
+          user: userName,
+          description: `Declined rebaseline request. Reason: ${reviewerComment}`,
+          timestamp: new Date().toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })
+        },
+        ...(project.activities || [])
+      ]
+    };
+
+    return updateProject(updatedProject);
+  };
+
+  const allRebaselineRequests = useMemo(() => {
+    return projects.flatMap(p => p.rebaselineRequests || []);
+  }, [projects]);
+
   return {
     projects,
     filteredProjects,
     selectedProject,
     setSelectedProject,
+    allRebaselineRequests,
     addProject,
     updateProject,
     billProject,
     reassignProject,
+    submitRebaselineRequest,
+    approveRebaselineRequest,
+    declineRebaselineRequest,
     getPMWorkload,
     loading
   };

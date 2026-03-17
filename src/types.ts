@@ -4,23 +4,32 @@ export type ProjectState =
   | 'Active' 
   | 'Delayed' 
   | 'Suspended' 
-  | 'Ready for Billing' 
+  | 'Signed Off' 
   | 'Billed' 
   | 'Closed';
 
-export type MilestoneStatus = 'Pending' | 'In Progress' | 'Completed';
+export type PhaseStatus = 'Locked' | 'Pending' | 'In Progress' | 'Completed';
+
+export type PhaseName = 'Initiation' | 'Planning' | 'Execution' | 'Closure';
+export type ServiceState = 'Not Started' | 'In Progress' | 'Closed';
+
+export interface ProjectLifecycleWeights {
+  initiation: number;
+  planning: number;
+  execution: number;
+  closure: number;
+}
 
 export type ProjectPriority = 'P1' | 'P2' | 'P3';
 
-export interface Milestone {
-  id: string;
-  name: string;
-  targetDate: string;
+export interface Phase {
+  id: PhaseName;
+  name: PhaseName;
   completionDate?: string;
-  status: MilestoneStatus;
+  status: PhaseStatus;
 }
 
-export type ActivityType = 'Comment' | 'Risk' | 'Milestone' | 'StateChange' | 'System';
+export type ActivityType = 'Comment' | 'Risk' | 'Phase' | 'StateChange' | 'System' | 'Rebaseline';
 
 export interface ProjectActivity {
   id: string;
@@ -62,18 +71,25 @@ export interface Project {
   productLines: ProductLine[];
   assignedPM: string;
   startDate: string;
+  expectedDuration: number;
+  expectedCompletionDate: string;
+  currentCompletionDate: string;
   value: number;
   currency: string;
   state: ProjectState;
-  milestones: Milestone[];
+  phases: Phase[];
+  phaseWeights: ProjectLifecycleWeights;
+  serviceStates: Record<string, ServiceState>;
+  pidSignedOffDate?: string;
   comments: Comment[];
   risks: Risk[];
   priority: ProjectPriority;
   createdAt: string;
   updatedAt: string;
-  readyForBillingAt?: string;
+  signedOffAt?: string;
   billedAt?: string;
   activities: ProjectActivity[];
+  rebaselineRequests: RebaselineRequest[];
 }
 
 export interface PackageConfig {
@@ -85,6 +101,12 @@ export interface PackageConfig {
 export interface ProductLineConfig {
   name: ProductLine;
   services: string[];
+}
+
+export interface ServiceBaseline {
+  id: string;
+  name: string;
+  baselineDays: number;
 }
 
 export type UserStatus = 'Active' | 'Inactive' | 'Invited' | 'Expired';
@@ -115,13 +137,14 @@ export interface BrandConfig {
   companyName: string;
 }
 
-export type SettingsTab = 'performance' | 'users' | 'project' | 'priority' | 'revenue' | 'audit' | 'account' | 'brand' | 'currencies';
+export type SettingsTab = 'performance' | 'users' | 'project' | 'priority' | 'revenue' | 'audit' | 'account' | 'brand' | 'currencies' | 'packages';
 
 export interface AppConfig {
   atRiskThresholdDays: number;
   staleThresholdDays: number;
   currencies: Currency[];
-  defaultMilestones: string[];
+  projectLifecycleWeights: ProjectLifecycleWeights;
+  serviceBaselines: ServiceBaseline[];
   allowPostIntakeRevenueEdit: boolean;
   workloadThresholds: Record<ProjectPriority, number>;
   brand: BrandConfig;
@@ -134,6 +157,22 @@ export interface WeightHistory {
   newWeight: number;
   updatedBy: string;
   timestamp: string;
+}
+
+export interface RebaselineRequest {
+  id: string;
+  projectId: string;
+  projectName: string;
+  submittedBy: string;
+  reviewedBy?: string;
+  extensionDays: number;
+  pmComment: string;
+  reviewerComment?: string;
+  currentCompletionDate: string;
+  newCompletionDate: string;
+  status: 'Pending' | 'Approved' | 'Declined';
+  submittedAt: string;
+  reviewedAt?: string;
 }
 
 export interface RevenueTrend {

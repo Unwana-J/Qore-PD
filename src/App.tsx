@@ -7,16 +7,17 @@ import { FinanceDashboard } from './components/FinanceDashboard';
 import { ProjectList } from './components/ProjectList';
 import { ProjectModal } from './components/ProjectModal';
 import { ReassignModal } from './components/ReassignModal';
-import { MilestoneView } from './components/MilestoneView';
+import { PhaseView } from './components/PhaseView';
 import { RisksTable } from './components/RisksTable';
 import { SettingsView } from './components/SettingsView';
+import { RebaselineRequestsView } from './components/RebaselineRequestsView';
 import { ExecutiveDashboard } from './components/ExecutiveDashboard';
 import { INITIAL_CONFIG, MOCK_USERS } from './mockData';
 import { Role, AppConfig, SettingsTab, Project } from './types';
 import { useProjects } from './hooks/useProjects';
 import { Toast } from './components/common/Toast';
 
-type View = 'dashboard' | 'projects' | 'risks' | 'settings';
+type View = 'dashboard' | 'projects' | 'risks' | 'settings' | 'rebaseline-requests';
 
 export default function App() {
   const [currentView, setCurrentView] = useState<View>('dashboard');
@@ -44,6 +45,10 @@ export default function App() {
     updateProject,
     billProject,
     reassignProject: originalReassignProject,
+    submitRebaselineRequest,
+    approveRebaselineRequest,
+    declineRebaselineRequest,
+    allRebaselineRequests,
     getPMWorkload,
     loading
   } = useProjects(userRole, config);
@@ -99,6 +104,7 @@ export default function App() {
         setIsSidebarOpen={setIsSidebarOpen}
         isSidebarCollapsed={isSidebarCollapsed}
         setIsSidebarCollapsed={setIsSidebarCollapsed}
+        pendingRebaselineCount={allRebaselineRequests.filter(r => r.status === 'Pending').length}
       />
 
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
@@ -127,7 +133,7 @@ export default function App() {
                 transition={{ duration: 0.2, ease: "easeOut" }}
               >
                 {selectedProject ? (
-                  <MilestoneView 
+                  <PhaseView 
                     project={selectedProject} 
                     onBack={() => setSelectedProject(null)} 
                     onUpdateProject={updateProject}
@@ -135,6 +141,10 @@ export default function App() {
                     currencies={config.currencies}
                     themeColor={config.brand.themeColor}
                     onReassign={() => setProjectToReassign(selectedProject)}
+                    defaultPhases={config.defaultPhases}
+                    onSubmitRebaseline={submitRebaselineRequest}
+                    onApproveRebaseline={approveRebaselineRequest}
+                    onDeclineRebaseline={declineRebaselineRequest}
                   />
                 ) : (
                   <>
@@ -162,9 +172,6 @@ export default function App() {
                           themeColor={config.brand.themeColor} 
                           userRole={userRole}
                           onReassignProject={setProjectToReassign}
-                          // Updated Dashboard colors to match standards (assuming this means using themeColor)
-                          // No direct color props to change here, themeColor is already passed.
-                          // If specific component colors need changing, it would be inside Dashboard component.
                         />
                       )
                     )}
@@ -177,15 +184,21 @@ export default function App() {
                         userRole={userRole}
                         users={MOCK_USERS}
                         onReassignProject={setProjectToReassign}
-                        // StateBadge props fix: Assuming this refers to how StateBadge is rendered *within* ProjectList,
-                        // and not a prop of ProjectList itself. The provided snippet looks like internal JSX.
-                        // No direct change to ProjectList props needed based on the instruction.
                       />
                     )}
                     {currentView === 'risks' && (
                       <RisksTable 
                         projects={filteredProjects} 
                         onSelectProject={setSelectedProject} 
+                      />
+                    )}
+                    {currentView === 'rebaseline-requests' && (
+                      <RebaselineRequestsView 
+                        requests={allRebaselineRequests}
+                        onApprove={approveRebaselineRequest}
+                        onDecline={declineRebaselineRequest}
+                        userRole={userRole}
+                        themeColor={config.brand.themeColor}
                       />
                     )}
                     {currentView === 'settings' && (
@@ -218,6 +231,7 @@ export default function App() {
         currencies={config.currencies}
         themeColor={config.brand.themeColor}
         users={MOCK_USERS}
+        serviceBaselines={config.serviceBaselines}
       />
 
       {projectToReassign && (

@@ -22,14 +22,8 @@ export const PROJECT_STATES: ProjectState[] = [
   'Active',
   'Delayed',
   'Suspended',
-  'Ready for Billing',
+  'Signed Off',
   'Billed',
   'Closed',
 ];
 
-export const DEFAULT_MILESTONES = [
-  'PIM',
-  'Pre-requisites',
-  'Implementation',
-  'Sign Off'
-];

@@ -12,16 +12,26 @@ export const MOCK_PROJECTS: Project[] = [
     productLines: ['Bankone', 'Channels'],
     assignedPM: 'Sarah Jenkins',
     startDate: format(subDays(now, 60), 'yyyy-MM-dd'),
+    expectedDuration: 65,
+    expectedCompletionDate: format(subDays(now, 5), 'yyyy-MM-dd'),
+    currentCompletionDate: format(subDays(now, 5), 'yyyy-MM-dd'),
     value: 120000,
     currency: 'USD',
     state: 'Active',
     createdAt: format(subDays(now, 65), 'yyyy-MM-dd'),
-    milestones: [
-      { id: 'm1', name: 'Requirements', targetDate: format(subDays(now, 45), 'yyyy-MM-dd'), status: 'Completed', completionDate: format(subDays(now, 46), 'yyyy-MM-dd') },
-      { id: 'm2', name: 'Development', targetDate: format(subDays(now, 10), 'yyyy-MM-dd'), status: 'Completed', completionDate: format(subDays(now, 12), 'yyyy-MM-dd') },
-      { id: 'm3', name: 'UAT', targetDate: format(subDays(now, -5), 'yyyy-MM-dd'), status: 'In Progress' },
-      { id: 'm4', name: 'Sign Off', targetDate: format(subDays(now, -15), 'yyyy-MM-dd'), status: 'Pending' },
+    phases: [
+      { id: 'Initiation', name: 'Initiation', status: 'Completed', completionDate: format(subDays(now, 55), 'yyyy-MM-dd') },
+      { id: 'Planning', name: 'Planning', status: 'Completed', completionDate: format(subDays(now, 45), 'yyyy-MM-dd') },
+      { id: 'Execution', name: 'Execution', status: 'In Progress' },
+      { id: 'Closure', name: 'Closure', status: 'Locked' },
     ],
+    phaseWeights: { initiation: 10, planning: 10, execution: 60, closure: 20 },
+    serviceStates: {
+      'Mobile Banking': 'Closed',
+      'CBA Integration': 'In Progress',
+      'USSD': 'Not Started'
+    },
+    pidSignedOffDate: format(subDays(now, 60), 'yyyy-MM-dd'),
     comments: [
       { id: 'c1', author: 'Sarah Jenkins', text: 'Development is ahead of schedule. UAT set to begin Monday.', timestamp: format(subDays(now, 2), 'yyyy-MM-dd HH:mm') }
     ],
@@ -30,7 +40,8 @@ export const MOCK_PROJECTS: Project[] = [
     updatedAt: format(subDays(now, 1), 'yyyy-MM-dd'),
     activities: [
       { id: 'a1', type: 'StateChange', user: 'Sarah Jenkins', description: 'Moved to Active', timestamp: format(subDays(now, 55), 'yyyy-MM-dd HH:mm') }
-    ]
+    ],
+    rebaselineRequests: []
   },
   {
     id: '2',
@@ -40,20 +51,33 @@ export const MOCK_PROJECTS: Project[] = [
     productLines: ['Bankone'],
     assignedPM: 'Michael Chen',
     startDate: format(subDays(now, 30), 'yyyy-MM-dd'),
+    expectedDuration: 45,
+    expectedCompletionDate: format(subDays(now, -15), 'yyyy-MM-dd'),
+    currentCompletionDate: format(subDays(now, -15), 'yyyy-MM-dd'),
     value: 45000000,
     currency: 'NGN',
     state: 'Delayed',
     createdAt: format(subDays(now, 45), 'yyyy-MM-dd'),
-    milestones: [
-      { id: 'm1', name: 'Sign Off', targetDate: format(subDays(now, 32), 'yyyy-MM-dd'), status: 'Pending' },
+    phases: [
+      { id: 'Initiation', name: 'Initiation', status: 'Completed', completionDate: format(subDays(now, 25), 'yyyy-MM-dd') },
+      { id: 'Planning', name: 'Planning', status: 'In Progress' },
+      { id: 'Execution', name: 'Execution', status: 'Locked' },
+      { id: 'Closure', name: 'Closure', status: 'Locked' },
     ],
+    phaseWeights: { initiation: 10, planning: 10, execution: 60, closure: 20 },
+    serviceStates: {
+      'Cloud Hosting': 'Not Started',
+      'Core Banking': 'Not Started'
+    },
+    pidSignedOffDate: format(subDays(now, 28), 'yyyy-MM-dd'),
     comments: [],
     risks: [
       { id: 'r2', description: 'Server infrastructure not ready', impact: 'High', status: 'Open', createdAt: format(subDays(now, 2), 'yyyy-MM-dd') }
     ],
     priority: 'P2',
-    updatedAt: format(subDays(now, 20), 'yyyy-MM-dd'), // Stale
-    activities: []
+    updatedAt: format(subDays(now, 20), 'yyyy-MM-dd'),
+    activities: [],
+    rebaselineRequests: []
   },
   {
     id: '3',
@@ -63,16 +87,31 @@ export const MOCK_PROJECTS: Project[] = [
     productLines: ['Channels'],
     assignedPM: 'Sarah Jenkins',
     startDate: format(subDays(now, 60), 'yyyy-MM-dd'),
+    expectedDuration: 55,
+    expectedCompletionDate: format(subDays(now, 5), 'yyyy-MM-dd'),
+    currentCompletionDate: format(subDays(now, 5), 'yyyy-MM-dd'),
     value: 85000,
     currency: 'USD',
     state: 'Active',
     createdAt: format(subDays(now, 65), 'yyyy-MM-dd'),
-    milestones: [],
+    phases: [
+      { id: 'Initiation', name: 'Initiation', status: 'Pending' },
+      { id: 'Planning', name: 'Planning', status: 'Locked' },
+      { id: 'Execution', name: 'Execution', status: 'Locked' },
+      { id: 'Closure', name: 'Closure', status: 'Locked' },
+    ],
+    phaseWeights: { initiation: 10, planning: 10, execution: 60, closure: 20 },
+    serviceStates: {
+      'USSD': 'Not Started',
+      'Mobile Banking': 'Not Started',
+      'APIs': 'Not Started'
+    },
     comments: [],
     risks: [],
     priority: 'P1',
     updatedAt: format(subDays(now, 3), 'yyyy-MM-dd'),
-    activities: []
+    activities: [],
+    rebaselineRequests: []
   },
   {
     id: '4',
@@ -82,16 +121,29 @@ export const MOCK_PROJECTS: Project[] = [
     productLines: ['Paypoint'],
     assignedPM: 'David Okoro',
     startDate: format(subDays(now, 15), 'yyyy-MM-dd'),
+    expectedDuration: 15,
+    expectedCompletionDate: format(subDays(now, -3), 'yyyy-MM-dd'),
+    currentCompletionDate: format(subDays(now, -3), 'yyyy-MM-dd'),
     value: 20000,
     currency: 'USD',
     state: 'Active',
     createdAt: format(subDays(now, 20), 'yyyy-MM-dd'),
-    milestones: [],
+    phases: [
+      { id: 'Initiation', name: 'Initiation', status: 'Pending' },
+      { id: 'Planning', name: 'Planning', status: 'Locked' },
+      { id: 'Execution', name: 'Execution', status: 'Locked' },
+      { id: 'Closure', name: 'Closure', status: 'Locked' },
+    ],
+    phaseWeights: { initiation: 10, planning: 10, execution: 60, closure: 20 },
+    serviceStates: {
+      'Web': 'Not Started'
+    },
     comments: [],
     risks: [],
     priority: 'P3',
     updatedAt: format(subDays(now, 5), 'yyyy-MM-dd'),
-    activities: []
+    activities: [],
+    rebaselineRequests: []
   },
   {
     id: '5',
@@ -101,16 +153,29 @@ export const MOCK_PROJECTS: Project[] = [
     productLines: ['Channels'],
     assignedPM: 'Michael Chen',
     startDate: format(subDays(now, 10), 'yyyy-MM-dd'),
+    expectedDuration: 25,
+    expectedCompletionDate: format(subDays(now, -15), 'yyyy-MM-dd'),
+    currentCompletionDate: format(subDays(now, -15), 'yyyy-MM-dd'),
     value: 15000,
     currency: 'USD',
     state: 'Suspended',
     createdAt: format(subDays(now, 15), 'yyyy-MM-dd'),
-    milestones: [],
+    phases: [
+       { id: 'Initiation', name: 'Initiation', status: 'Completed' },
+       { id: 'Planning', name: 'Planning', status: 'In Progress' },
+       { id: 'Execution', name: 'Execution', status: 'Locked' },
+       { id: 'Closure', name: 'Closure', status: 'Locked' },
+    ],
+    phaseWeights: { initiation: 10, planning: 10, execution: 60, closure: 20 },
+    serviceStates: {
+      'Mobile': 'Not Started'
+    },
     comments: [],
     risks: [],
     priority: 'P2',
     updatedAt: format(subDays(now, 2), 'yyyy-MM-dd'),
-    activities: []
+    activities: [],
+    rebaselineRequests: []
   },
   {
     id: '6',
@@ -120,16 +185,29 @@ export const MOCK_PROJECTS: Project[] = [
     productLines: ['Recova'],
     assignedPM: 'David Okoro',
     startDate: format(subDays(now, 45), 'yyyy-MM-dd'),
+    expectedDuration: 30,
+    expectedCompletionDate: format(subDays(now, 15), 'yyyy-MM-dd'),
+    currentCompletionDate: format(subDays(now, 15), 'yyyy-MM-dd'),
     value: 35000000,
     currency: 'NGN',
     state: 'Active',
     createdAt: format(subDays(now, 50), 'yyyy-MM-dd'),
-    milestones: [],
+    phases: [
+      { id: 'Initiation', name: 'Initiation', status: 'Completed' },
+      { id: 'Planning', name: 'Planning', status: 'Completed' },
+      { id: 'Execution', name: 'Execution', status: 'In Progress' },
+      { id: 'Closure', name: 'Closure', status: 'Locked' },
+    ],
+    phaseWeights: { initiation: 10, planning: 10, execution: 60, closure: 20 },
+    serviceStates: {
+      'USSD': 'In Progress'
+    },
     comments: [],
     risks: [],
     priority: 'P2',
     updatedAt: format(subDays(now, 10), 'yyyy-MM-dd'),
-    activities: []
+    activities: [],
+    rebaselineRequests: []
   },
   {
     id: '7',
@@ -139,16 +217,29 @@ export const MOCK_PROJECTS: Project[] = [
     productLines: ['Bankone'],
     assignedPM: 'Sarah Jenkins',
     startDate: format(subDays(now, 100), 'yyyy-MM-dd'),
+    expectedDuration: 90,
+    expectedCompletionDate: format(subDays(now, 10), 'yyyy-MM-dd'),
+    currentCompletionDate: format(subDays(now, 10), 'yyyy-MM-dd'),
     value: 200000000,
     currency: 'NGN',
-    state: 'Ready for Billing',
+    state: 'Signed Off',
     createdAt: format(subDays(now, 105), 'yyyy-MM-dd'),
-    milestones: [],
+    phases: [
+      { id: 'Initiation', name: 'Initiation', status: 'Completed' },
+      { id: 'Planning', name: 'Planning', status: 'Completed' },
+      { id: 'Execution', name: 'Execution', status: 'Completed' },
+      { id: 'Closure', name: 'Closure', status: 'Completed' },
+    ],
+    phaseWeights: { initiation: 10, planning: 10, execution: 60, closure: 20 },
+    serviceStates: {
+      'Lending': 'Closed'
+    },
     comments: [],
     risks: [],
     priority: 'P1',
     updatedAt: format(subDays(now, 5), 'yyyy-MM-dd'),
-    activities: []
+    activities: [],
+    rebaselineRequests: []
   },
   {
     id: '8',
@@ -158,17 +249,30 @@ export const MOCK_PROJECTS: Project[] = [
     productLines: ['Paypoint'],
     assignedPM: 'Michael Chen',
     startDate: format(subDays(now, 15), 'yyyy-MM-dd'),
+    expectedDuration: 20,
+    expectedCompletionDate: format(subDays(now, -5), 'yyyy-MM-dd'),
+    currentCompletionDate: format(subDays(now, -5), 'yyyy-MM-dd'),
     value: 15000000,
     currency: 'NGN',
-    state: 'Ready for Billing',
+    state: 'Signed Off',
     createdAt: format(subDays(now, 20), 'yyyy-MM-dd'),
-    readyForBillingAt: format(subDays(now, 1), 'yyyy-MM-dd'),
-    milestones: [],
+    signedOffAt: format(subDays(now, 1), 'yyyy-MM-dd'),
+    phases: [
+      { id: 'Initiation', name: 'Initiation', status: 'Completed' },
+      { id: 'Planning', name: 'Planning', status: 'Completed' },
+      { id: 'Execution', name: 'Execution', status: 'Completed' },
+      { id: 'Closure', name: 'Closure', status: 'Completed' },
+    ],
+    phaseWeights: { initiation: 10, planning: 10, execution: 60, closure: 20 },
+    serviceStates: {
+      'API': 'Closed'
+    },
     comments: [],
     risks: [],
     priority: 'P3',
     updatedAt: format(subDays(now, 1), 'yyyy-MM-dd'),
-    activities: []
+    activities: [],
+    rebaselineRequests: []
   },
   {
     id: '9',
@@ -178,16 +282,29 @@ export const MOCK_PROJECTS: Project[] = [
     productLines: ['Bankone'],
     assignedPM: 'Abisoye Adeyemi',
     startDate: format(subDays(now, 120), 'yyyy-MM-dd'),
+    expectedDuration: 100,
+    expectedCompletionDate: format(subDays(now, 20), 'yyyy-MM-dd'),
+    currentCompletionDate: format(subDays(now, 20), 'yyyy-MM-dd'),
     value: 50000,
     currency: 'NGN',
     state: 'Active',
     createdAt: format(subDays(now, 125), 'yyyy-MM-dd'),
-    milestones: [],
+    phases: [
+      { id: 'Initiation', name: 'Initiation', status: 'Completed' },
+      { id: 'Planning', name: 'Planning', status: 'Completed' },
+      { id: 'Execution', name: 'Execution', status: 'In Progress' },
+      { id: 'Closure', name: 'Closure', status: 'Locked' },
+    ],
+    phaseWeights: { initiation: 10, planning: 10, execution: 60, closure: 20 },
+    serviceStates: {
+      'CBA': 'In Progress'
+    },
     comments: [],
     risks: [],
     priority: 'P2',
     updatedAt: format(subDays(now, 50), 'yyyy-MM-dd'),
-    activities: []
+    activities: [],
+    rebaselineRequests: []
   },
   {
     id: '10',
@@ -197,18 +314,29 @@ export const MOCK_PROJECTS: Project[] = [
     productLines: ['Channels'],
     assignedPM: 'Abisoye Adeyemi',
     startDate: format(subDays(now, 150), 'yyyy-MM-dd'),
+    expectedDuration: 130,
+    expectedCompletionDate: format(subDays(now, 20), 'yyyy-MM-dd'),
+    currentCompletionDate: format(subDays(now, 20), 'yyyy-MM-dd'),
     value: 30000,
     currency: 'USD',
     state: 'Delayed',
     createdAt: format(subDays(now, 155), 'yyyy-MM-dd'),
-    milestones: [
-        { id: 'm1', name: 'Sign Off', targetDate: format(subDays(now, 45), 'yyyy-MM-dd'), status: 'Pending' }
+    phases: [
+      { id: 'Initiation', name: 'Initiation', status: 'Pending' },
+      { id: 'Planning', name: 'Planning', status: 'Locked' },
+      { id: 'Execution', name: 'Execution', status: 'Locked' },
+      { id: 'Closure', name: 'Closure', status: 'Locked' },
     ],
+    phaseWeights: { initiation: 10, planning: 10, execution: 60, closure: 20 },
+    serviceStates: {
+      'Mobile': 'Not Started'
+    },
     comments: [],
     risks: [],
     priority: 'P1',
     updatedAt: format(subDays(now, 60), 'yyyy-MM-dd'),
-    activities: []
+    activities: [],
+    rebaselineRequests: []
   },
   {
     id: '11',
@@ -218,16 +346,28 @@ export const MOCK_PROJECTS: Project[] = [
     productLines: ['Bankone'],
     assignedPM: 'Sarah Jenkins',
     startDate: format(subDays(now, 20), 'yyyy-MM-dd'),
+    expectedDuration: 40,
+    expectedCompletionDate: format(subDays(now, -20), 'yyyy-MM-dd'),
+    currentCompletionDate: format(subDays(now, -20), 'yyyy-MM-dd'),
     value: 45000000,
     currency: 'NGN',
     state: 'Delayed',
     createdAt: format(subDays(now, 25), 'yyyy-MM-dd'),
     updatedAt: format(subDays(now, 10), 'yyyy-MM-dd'),
     priority: 'P1',
-    milestones: [
-      { id: 'm1', name: 'Sign Off', targetDate: format(subDays(now, 16), 'yyyy-MM-dd'), status: 'Pending' }
+    phases: [
+      { id: 'Initiation', name: 'Initiation', status: 'Pending' },
+      { id: 'Planning', name: 'Planning', status: 'Locked' },
+      { id: 'Execution', name: 'Execution', status: 'Locked' },
+      { id: 'Closure', name: 'Closure', status: 'Locked' },
     ],
-    comments: [], risks: [], activities: []
+    phaseWeights: { initiation: 10, planning: 10, execution: 60, closure: 20 },
+    serviceStates: {
+      'Cloud': 'Not Started',
+      'API': 'Not Started'
+    },
+    comments: [], risks: [], activities: [],
+    rebaselineRequests: []
   },
   {
     id: '12',
@@ -237,16 +377,27 @@ export const MOCK_PROJECTS: Project[] = [
     productLines: ['Channels'],
     assignedPM: 'David Okoro',
     startDate: format(subDays(now, 20), 'yyyy-MM-dd'),
+    expectedDuration: 35,
+    expectedCompletionDate: format(subDays(now, -15), 'yyyy-MM-dd'),
+    currentCompletionDate: format(subDays(now, -15), 'yyyy-MM-dd'),
     value: 1200000,
     currency: 'NGN',
     state: 'Delayed',
     createdAt: format(subDays(now, 25), 'yyyy-MM-dd'),
     updatedAt: format(subDays(now, 5), 'yyyy-MM-dd'),
     priority: 'P2',
-    milestones: [
-      { id: 'm1', name: 'Sign Off', targetDate: format(subDays(now, 15), 'yyyy-MM-dd'), status: 'Pending' }
+    phases: [
+      { id: 'Initiation', name: 'Initiation', status: 'Pending' },
+      { id: 'Planning', name: 'Planning', status: 'Locked' },
+      { id: 'Execution', name: 'Execution', status: 'Locked' },
+      { id: 'Closure', name: 'Closure', status: 'Locked' },
     ],
-    comments: [], risks: [], activities: []
+    phaseWeights: { initiation: 10, planning: 10, execution: 60, closure: 20 },
+    serviceStates: {
+      'Advisory': 'Not Started'
+    },
+    comments: [], risks: [], activities: [],
+    rebaselineRequests: []
   }
 ];
 
@@ -294,7 +445,15 @@ export const INITIAL_CONFIG: AppConfig = {
       logoUrl: '',
       themeColor: 'teal'
     },
-    defaultMilestones: ['Intake', 'Requirement Gathering', 'Development', 'UAT', 'Sign Off', 'Billed'],
+    projectLifecycleWeights: { initiation: 10, planning: 10, execution: 60, closure: 20 },
+    serviceBaselines: [
+      { id: 'sb1', name: 'USSD', baselineDays: 10 },
+      { id: 'sb2', name: 'CDR', baselineDays: 40 },
+      { id: 'sb3', name: 'Transfers', baselineDays: 10 },
+      { id: 'sb4', name: 'Mobile Banking', baselineDays: 20 },
+      { id: 'sb5', name: 'Cards', baselineDays: 15 },
+      { id: 'sb6', name: 'API Provisioning', baselineDays: 12 },
+    ],
     allowPostIntakeRevenueEdit: false,
     workloadThresholds: {
         P1: 3,

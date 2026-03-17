@@ -27,13 +27,13 @@ interface FinanceDashboardProps {
   currencies: any[];
 }
 
-type SortField = 'clientName' | 'readyForBillingAt' | 'value' | 'assignedPM';
+type SortField = 'clientName' | 'signedOffAt' | 'value' | 'assignedPM';
 type SortOrder = 'asc' | 'desc';
 
 export const FinanceDashboard: React.FC<FinanceDashboardProps> = ({ projects, onBillProject, themeColor = 'teal', currencies }) => {
   const theme = getThemeClasses(themeColor);
   const [currencyFilter, setCurrencyFilter] = useState<'All' | string>('All');
-  const [sortField, setSortField] = useState<SortField>('readyForBillingAt');
+  const [sortField, setSortField] = useState<SortField>('signedOffAt');
   const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
   const [billingConfirmation, setBillingConfirmation] = useState<Project | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -61,12 +61,12 @@ export const FinanceDashboard: React.FC<FinanceDashboardProps> = ({ projects, on
   
   const readyForBillingQueue = useMemo(() => {
     return projects
-      .filter(p => p.state === 'Ready for Billing')
+      .filter(p => p.state === 'Signed Off')
       .sort((a, b) => {
         let comparison = 0;
         if (sortField === 'clientName') comparison = a.clientName.localeCompare(b.clientName);
-        else if (sortField === 'readyForBillingAt') {
-          comparison = (a.readyForBillingAt || '').localeCompare(b.readyForBillingAt || '');
+        else if (sortField === 'signedOffAt') {
+          comparison = (a.signedOffAt || '').localeCompare(b.signedOffAt || '');
         }
         else if (sortField === 'value') comparison = a.value - b.value;
         else if (sortField === 'assignedPM') comparison = a.assignedPM.localeCompare(b.assignedPM);
@@ -75,7 +75,7 @@ export const FinanceDashboard: React.FC<FinanceDashboardProps> = ({ projects, on
       });
   }, [projects, sortField, sortOrder]);
 
-  const readyForBillingCount = projects.filter(p => p.state === 'Ready for Billing').length;
+  const signedOffCount = projects.filter(p => p.state === 'Signed Off').length;
 
   const handleSort = (field: SortField) => {
     if (sortField === field) setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
@@ -158,36 +158,36 @@ export const FinanceDashboard: React.FC<FinanceDashboardProps> = ({ projects, on
         />
         <div className={cn(
           "p-6 rounded-3xl border shadow-sm flex flex-col justify-between transition-all duration-300",
-          readyForBillingCount > 0 
+          signedOffCount > 0 
             ? "bg-amber-50 border-amber-200" 
             : "bg-emerald-50 border-emerald-200"
         )}>
           <div className="flex justify-between items-start">
             <p className={cn(
               "text-sm font-bold uppercase tracking-wider",
-              readyForBillingCount > 0 ? "text-amber-600" : "text-emerald-600"
-            )}>Ready for Billing</p>
+              signedOffCount > 0 ? "text-amber-600" : "text-emerald-600"
+            )}>Signed Off</p>
             <div className={cn(
               "p-2 rounded-xl border",
-              readyForBillingCount > 0 
+              signedOffCount > 0 
                 ? "bg-amber-100 border-amber-200 text-amber-600" 
                 : "bg-emerald-100 border-emerald-200 text-emerald-600"
             )}>
-              {readyForBillingCount > 0 ? <AlertCircle className="w-5 h-5" /> : <CheckCircle2 className="w-5 h-5" />}
+              {signedOffCount > 0 ? <AlertCircle className="w-5 h-5" /> : <CheckCircle2 className="w-5 h-5" />}
             </div>
           </div>
           <div>
             <p className={cn(
               "text-4xl font-black mt-4",
-              readyForBillingCount > 0 ? "text-amber-700" : "text-emerald-700"
+              signedOffCount > 0 ? "text-amber-700" : "text-emerald-700"
             )}>
-              {readyForBillingCount === 0 ? 'All clear' : readyForBillingCount}
+              {signedOffCount === 0 ? 'All clear' : signedOffCount}
             </p>
             <p className={cn(
               "text-xs font-semibold mt-1",
-              readyForBillingCount > 0 ? "text-amber-500" : "text-emerald-500"
+              signedOffCount > 0 ? "text-amber-500" : "text-emerald-500"
             )}>
-              {readyForBillingCount === 0 ? 'No pending items' : 'Awaiting Finance action'}
+              {signedOffCount === 0 ? 'No pending items' : 'Awaiting Finance action'}
             </p>
           </div>
         </div>
@@ -216,14 +216,14 @@ export const FinanceDashboard: React.FC<FinanceDashboardProps> = ({ projects, on
                   <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Package & Scope</th>
                   <SortableHeader field="value" label="Value" currentField={sortField} order={sortOrder} onSort={handleSort} />
                   <SortableHeader field="assignedPM" label="PM" currentField={sortField} order={sortOrder} onSort={handleSort} />
-                  <SortableHeader field="readyForBillingAt" label="Date Flagged" currentField={sortField} order={sortOrder} onSort={handleSort} />
+                  <SortableHeader field="signedOffAt" label="Date Flagged" currentField={sortField} order={sortOrder} onSort={handleSort} />
                   <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Wait Time</th>
                   <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-right">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {readyForBillingQueue.map((project) => {
-                  const waitTime = differenceInDays(now, parseISO(project.readyForBillingAt || project.updatedAt));
+                  const waitTime = differenceInDays(now, parseISO(project.signedOffAt || project.updatedAt));
                   const isLongWait = waitTime >= 7;
 
                   return (
@@ -265,7 +265,7 @@ export const FinanceDashboard: React.FC<FinanceDashboardProps> = ({ projects, on
                       </td>
                       <td className="px-6 py-5">
                         <p className="text-sm text-slate-600 font-medium">
-                          {project.readyForBillingAt ? format(parseISO(project.readyForBillingAt), 'MMM dd, yyyy') : '-'}
+                          {project.signedOffAt ? format(parseISO(project.signedOffAt), 'MMM dd, yyyy') : '-'}
                         </p>
                       </td>
                       <td className="px-6 py-5">

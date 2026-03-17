@@ -5,13 +5,14 @@ import {
   Settings, 
   LogOut, 
   ChevronRight,
-  AlertTriangle 
+  AlertTriangle,
+  Clock 
 } from 'lucide-react';
 import { Role, AppConfig } from '../../types';
 import { cn } from '../../lib/utils';
 import { getThemeClasses } from '../../lib/theme';
 
-type View = 'dashboard' | 'projects' | 'risks' | 'settings';
+type View = 'dashboard' | 'projects' | 'risks' | 'settings' | 'rebaseline-requests';
 
 interface SidebarProps {
   currentView: View;
@@ -25,6 +26,7 @@ interface SidebarProps {
   setIsSidebarOpen: (isOpen: boolean) => void;
   isSidebarCollapsed: boolean;
   setIsSidebarCollapsed: (isCollapsed: boolean) => void;
+  pendingRebaselineCount?: number;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -38,7 +40,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   isSidebarOpen,
   setIsSidebarOpen,
   isSidebarCollapsed,
-  setIsSidebarCollapsed
+  setIsSidebarCollapsed,
+  pendingRebaselineCount = 0
 }) => {
   const theme = getThemeClasses(config.brand.themeColor);
 
@@ -119,6 +122,19 @@ export const Sidebar: React.FC<SidebarProps> = ({
             {userRole !== 'Executive' && userRole !== 'Finance' && (
               <>
                 <NavItem icon={AlertTriangle} label="Risks & Issues" view="risks" />
+                {['Superadmin', 'Manager', 'Team Lead'].includes(userRole) && (
+                  <div className="relative">
+                    <NavItem icon={Clock} label="Rebaseline Queue" view="rebaseline-requests" />
+                    {pendingRebaselineCount > 0 && !isSidebarCollapsed && (
+                      <span className="absolute right-8 top-1/2 -translate-y-1/2 bg-amber-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full shadow-sm animate-pulse">
+                        {pendingRebaselineCount}
+                      </span>
+                    )}
+                    {pendingRebaselineCount > 0 && isSidebarCollapsed && (
+                      <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-amber-500 border-2 border-white rounded-full" />
+                    )}
+                  </div>
+                )}
                 <NavItem icon={Settings} label="Settings" view="settings" />
               </>
             )}

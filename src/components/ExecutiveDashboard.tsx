@@ -81,7 +81,7 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
 
   // Row 2 Right: Portfolio Health (Donut)
   const healthData = useMemo(() => {
-    const states: ProjectState[] = ['Active', 'Delayed', 'Suspended', 'Ready for Billing', 'Billed', 'Closed'];
+    const states: ProjectState[] = ['Active', 'Delayed', 'Suspended', 'Signed Off', 'Billed', 'Closed'];
     return states.map(s => ({
       name: s,
       value: projects.filter(p => p.state === s).length
@@ -92,7 +92,7 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
     'Active': '#14b8a6', // teal-500
     'Delayed': '#f59e0b', // amber-500
     'Suspended': '#94a3b8', // slate-400
-    'Ready for Billing': '#3b82f6', // blue-500
+    'Signed Off': '#3b82f6', // blue-500
     'Billed': '#10b981', // emerald-500
     'Closed': '#1e293b', // slate-800
   };
@@ -114,10 +114,10 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
 
   // Row 3 Right: Projected Revenue Q1 2026
   const projectedRevenue = useMemo(() => {
-    const activeStates: ProjectState[] = ['Active', 'Delayed', 'Ready for Billing'];
+    const activeStates: ProjectState[] = ['Active', 'Delayed', 'Signed Off'];
     const q1Projects = projects.filter(p => {
       if (!activeStates.includes(p.state)) return false;
-      const signOff = p.milestones.find(m => m.name === 'Sign Off');
+      const signOff = p.phases.find(m => m.name === 'Sign Off');
       if (!signOff) return false;
       const date = new Date(signOff.targetDate);
       return date >= new Date('2026-01-01') && date <= new Date('2026-03-31');
@@ -139,9 +139,9 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
     const avgDays = closed.length === 0 ? 0 : 75; // Mock for now
 
     // Milestone Adherence (simplified)
-    const completedMilestones = projects.flatMap(p => p.milestones).filter(m => m.status === 'Completed');
-    const onTime = completedMilestones.filter(m => m.completionDate && m.completionDate <= m.targetDate).length;
-    const adherence = completedMilestones.length === 0 ? 0 : (onTime / completedMilestones.length) * 100;
+    const completedPhases = projects.flatMap(p => p.phases).filter(m => m.status === 'Completed');
+    const onTime = completedPhases.filter(m => m.completionDate && m.completionDate <= m.targetDate).length;
+    const adherence = completedPhases.length === 0 ? 0 : (onTime / completedPhases.length) * 100;
 
     // Billing Velocity
     const velocity = 4; // Mock days
@@ -188,7 +188,7 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
   }, [projects]);
 
   const getDaysDelayed = (p: Project) => {
-    const signOff = p.milestones.find(m => m.name === 'Sign Off');
+    const signOff = p.phases.find(m => m.name === 'Sign Off');
     if (!signOff) return 0;
     const target = parseISO(signOff.targetDate);
     if (target < now && signOff.status !== 'Completed') {
@@ -341,7 +341,7 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
                       'Active': '#3b82f6',
                       'Delayed': '#ef4444',
                       'Suspended': '#0f172a',
-                      'Ready for Billing': '#6366f1',
+                      'Signed Off': '#6366f1',
                       'Billed': '#10b981',
                       'Closed': '#94a3b8'
                     };
@@ -624,14 +624,14 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
                 <th className="px-4 pb-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">PM</th>
                 <th className="px-4 pb-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Value</th>
                 <th className="px-4 pb-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Days Delayed</th>
-                <th className="px-4 pb-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Current Milestone</th>
+                <th className="px-4 pb-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Current Phase</th>
                 <th className="px-6 pb-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Last Activity</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
               {atRiskProjects.length > 0 ? atRiskProjects.map(p => {
                 const delayed = getDaysDelayed(p);
-                const currMilestone = p.milestones.find(m => m.status === 'In Progress') || p.milestones.find(m => m.status === 'Pending') || { name: 'N/A' };
+                const currPhase = p.phases.find(m => m.status === 'In Progress') || p.phases.find(m => m.status === 'Pending') || { name: 'N/A' };
                 const pm = users.find(u => u.name === p.assignedPM);
                 const isInactive = pm?.status === 'Inactive';
 
@@ -673,7 +673,7 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
                     <td className="px-4 py-5">
                       <div className="flex items-center gap-2">
                          <div className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
-                         <span className="text-[11px] font-bold text-slate-600">{currMilestone.name}</span>
+                         <span className="text-[11px] font-bold text-slate-600">{currPhase.name}</span>
                       </div>
                     </td>
                     <td className="px-6 py-5 text-right text-[11px] font-bold text-slate-400">
