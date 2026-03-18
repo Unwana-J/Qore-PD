@@ -17,7 +17,7 @@ export const MOCK_PROJECTS: Project[] = [
     currentCompletionDate: format(subDays(now, 5), 'yyyy-MM-dd'),
     value: 120000,
     currency: 'USD',
-    state: 'Active',
+    state: 'On-Track',
     createdAt: format(subDays(now, 65), 'yyyy-MM-dd'),
     phases: [
       { id: 'Initiation', name: 'Initiation', status: 'Completed', completionDate: format(subDays(now, 55), 'yyyy-MM-dd') },
@@ -39,7 +39,7 @@ export const MOCK_PROJECTS: Project[] = [
     priority: 'P1',
     updatedAt: format(subDays(now, 1), 'yyyy-MM-dd'),
     activities: [
-      { id: 'a1', type: 'StateChange', user: 'Sarah Jenkins', description: 'Moved to Active', timestamp: format(subDays(now, 55), 'yyyy-MM-dd HH:mm') }
+      { id: 'a1', type: 'StateChange', user: 'Sarah Jenkins', description: 'Moved to On-Track', timestamp: format(subDays(now, 55), 'yyyy-MM-dd HH:mm') }
     ],
     rebaselineRequests: [],
     suspensionCycles: []
@@ -94,7 +94,7 @@ export const MOCK_PROJECTS: Project[] = [
     currentCompletionDate: format(subDays(now, 5), 'yyyy-MM-dd'),
     value: 85000,
     currency: 'USD',
-    state: 'Active',
+    state: 'On-Track',
     createdAt: format(subDays(now, 65), 'yyyy-MM-dd'),
     phases: [
       { id: 'Initiation', name: 'Initiation', status: 'Pending' },
@@ -129,7 +129,7 @@ export const MOCK_PROJECTS: Project[] = [
     currentCompletionDate: format(subDays(now, -3), 'yyyy-MM-dd'),
     value: 20000,
     currency: 'USD',
-    state: 'Active',
+    state: 'On-Track',
     createdAt: format(subDays(now, 20), 'yyyy-MM-dd'),
     phases: [
       { id: 'Initiation', name: 'Initiation', status: 'Pending' },
@@ -195,7 +195,7 @@ export const MOCK_PROJECTS: Project[] = [
     currentCompletionDate: format(subDays(now, 15), 'yyyy-MM-dd'),
     value: 35000000,
     currency: 'NGN',
-    state: 'Active',
+    state: 'On-Track',
     createdAt: format(subDays(now, 50), 'yyyy-MM-dd'),
     phases: [
       { id: 'Initiation', name: 'Initiation', status: 'Completed' },
@@ -295,7 +295,7 @@ export const MOCK_PROJECTS: Project[] = [
     currentCompletionDate: format(subDays(now, 20), 'yyyy-MM-dd'),
     value: 50000,
     currency: 'NGN',
-    state: 'Active',
+    state: 'On-Track',
     createdAt: format(subDays(now, 125), 'yyyy-MM-dd'),
     phases: [
       { id: 'Initiation', name: 'Initiation', status: 'Completed' },

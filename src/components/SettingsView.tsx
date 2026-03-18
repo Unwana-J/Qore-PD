@@ -355,7 +355,7 @@ const ProjectConfig = ({ config, setConfig, theme }: any) => {
           <div className="grid grid-cols-2 gap-4">
              <div className="space-y-1.5 focus-within:z-10">
                <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">
-                 On Track (≥)
+                 On-Track (≥)
                </label>
                <input 
                  type="number" step="0.01"

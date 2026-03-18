@@ -40,7 +40,7 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
   const projectCounts = useMemo(() => {
     return {
       total: projects.length,
-      onTrack: projects.filter(p => p.state === 'Active').length,
+      onTrack: projects.filter(p => p.state === 'On-Track').length,
       delayed: projects.filter(p => p.state === 'Delayed').length,
       onHold: projects.filter(p => p.state === 'Suspended').length,
       readyForBilling: projects.filter(p => p.state === 'Signed Off').length,
@@ -60,7 +60,7 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
       total: { NGN: sumAll('NGN'), USD: sumAll('USD') },
       recognized: { NGN: sumFiltered('NGN', ['Billed', 'Closed']), USD: sumFiltered('USD', ['Billed', 'Closed']) },
       atRisk: { NGN: sumFiltered('NGN', ['Delayed', 'Suspended']), USD: sumFiltered('USD', ['Delayed', 'Suspended']) },
-      onTrack: { NGN: sumFiltered('NGN', ['Active', 'Signed Off']), USD: sumFiltered('USD', ['Active', 'Signed Off']) }
+      onTrack: { NGN: sumFiltered('NGN', ['On-Track', 'Signed Off']), USD: sumFiltered('USD', ['On-Track', 'Signed Off']) }
     };
   }, [projects]);
 
@@ -83,7 +83,7 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
   // Charts: Portfolio Health (Donut)
   const healthData = useMemo(() => {
     const states: { name: string, state: ProjectState }[] = [
-      { name: 'On-Track', state: 'Active' },
+      { name: 'On-Track', state: 'On-Track' },
       { name: 'Delayed', state: 'Delayed' },
       { name: 'On Hold', state: 'Suspended' },
       { name: 'Signed Off', state: 'Signed Off' },
@@ -183,7 +183,7 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
         <KPIBox
           label="On-Track"
           val={projectCounts.onTrack}
-          subtitle="Active & performing"
+          subtitle="On-Track & performing"
           variant="green"
         />
         <KPIBox
@@ -238,8 +238,7 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
           usd={revenueStats.onTrack.USD}
           subtitle="On-Track & Ready for Billing"
           currencyFilter={currencyFilter}
-          variant="teal"
-          themeColor={themeColor}
+          variant="green"
         />
       </div>
 
@@ -254,20 +253,20 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
         <div className="w-full h-8 flex rounded-xl overflow-hidden mb-6 shadow-inner ring-1 ring-slate-100 ring-inset">
           <div className="h-full bg-emerald-500 transition-all hover:opacity-90" style={{ width: `${getStatusRatio(projectCounts.onTrack)}%` }} title={`On-Track: ${projectCounts.onTrack}`} />
           <div className="h-full bg-red-500 transition-all hover:opacity-90" style={{ width: `${getStatusRatio(projectCounts.delayed)}%` }} title={`Delayed: ${projectCounts.delayed}`} />
-          <div className="h-full bg-slate-400 transition-all hover:opacity-90" style={{ width: `${getStatusRatio(projectCounts.onHold)}%` }} title={`On Hold: ${projectCounts.onHold}`} />
+          <div className="h-full bg-slate-800 transition-all hover:opacity-90" style={{ width: `${getStatusRatio(projectCounts.onHold)}%` }} title={`On Hold: ${projectCounts.onHold}`} />
           <div className="h-full bg-amber-500 transition-all hover:opacity-90" style={{ width: `${getStatusRatio(projectCounts.readyForBilling)}%` }} title={`Ready for Billing: ${projectCounts.readyForBilling}`} />
-          <div className="h-full bg-blue-500 transition-all hover:opacity-90" style={{ width: `${getStatusRatio(projectCounts.billed)}%` }} title={`Billed: ${projectCounts.billed}`} />
-          <div className="h-full bg-slate-800 transition-all hover:opacity-90" style={{ width: `${getStatusRatio(projectCounts.closed)}%` }} title={`Closed: ${projectCounts.closed}`} />
+          <div className="h-full bg-blue-600 transition-all hover:opacity-90" style={{ width: `${getStatusRatio(projectCounts.billed)}%` }} title={`Billed: ${projectCounts.billed}`} />
+          <div className="h-full bg-slate-400 transition-all hover:opacity-90" style={{ width: `${getStatusRatio(projectCounts.closed)}%` }} title={`Closed: ${projectCounts.closed}`} />
         </div>
 
         {/* Legend / Stats */}
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
           <BreakdownStat label="On-Track" count={projectCounts.onTrack} total={projects.length} color="text-emerald-500" />
           <BreakdownStat label="Delayed" count={projectCounts.delayed} total={projects.length} color="text-red-500" />
-          <BreakdownStat label="On Hold" count={projectCounts.onHold} total={projects.length} color="text-slate-400" />
+          <BreakdownStat label="On Hold" count={projectCounts.onHold} total={projects.length} color="text-slate-800" />
           <BreakdownStat label="Ready to Bill" count={projectCounts.readyForBilling} total={projects.length} color="text-amber-500" />
-          <BreakdownStat label="Billed" count={projectCounts.billed} total={projects.length} color="text-blue-500" />
-          <BreakdownStat label="Closed" count={projectCounts.closed} total={projects.length} color="text-slate-800" />
+          <BreakdownStat label="Billed" count={projectCounts.billed} total={projects.length} color="text-blue-600" />
+          <BreakdownStat label="Closed" count={projectCounts.closed} total={projects.length} color="text-slate-400" />
         </div>
       </div>
 
@@ -343,10 +342,10 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
                     const stateStyles: any = {
                       'On-Track': '#10b981',      // emerald-500
                       'Delayed': '#ef4444',       // red-500
-                      'On Hold': '#94a3b8',       // slate-400
+                      'On Hold': '#1e293b',       // slate-800
                       'Signed Off': '#f59e0b',    // amber-500
-                      'Billed': '#3b82f6',        // blue-500
-                      'Closed': '#1e293b'         // slate-800
+                      'Billed': '#3b82f6',        // blue-600
+                      'Closed': '#94a3b8'         // slate-400
                     };
                     return (
                       <Cell key={`cell-${index}`} fill={stateStyles[entry.name]} />
@@ -368,10 +367,10 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
                const stateStyles: any = {
                   'On-Track': '#10b981',
                   'Delayed': '#ef4444',
-                  'On Hold': '#94a3b8',
+                  'On Hold': '#1e293b',
                   'Signed Off': '#f59e0b',
                   'Billed': '#3b82f6',
-                  'Closed': '#1e293b'
+                  'Closed': '#94a3b8'
                 };
               return (
                 <div key={d.name} className="flex items-center gap-2">

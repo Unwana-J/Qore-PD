@@ -1,7 +1,7 @@
 export type Role = 'Superadmin' | 'Manager' | 'Team Lead' | 'PM' | 'Finance' | 'Executive';
 
 export type ProjectState = 
-  | 'Active' 
+  | 'On-Track' 
   | 'Delayed' 
   | 'Suspended' 
   | 'Signed Off' 

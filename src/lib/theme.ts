@@ -202,7 +202,7 @@ export const getThemeClasses = (color: string) => {
 };
 
 export const PROJECT_STATE_COLORS: Record<string, { bg: string, text: string, border: string, ring?: string }> = {
-  'Active':     { bg: 'bg-emerald-50',  text: 'text-emerald-700', border: 'border-emerald-100' },
+  'On-Track':   { bg: 'bg-emerald-50',  text: 'text-emerald-700', border: 'border-emerald-100' },
   'Delayed':    { bg: 'bg-red-50',      text: 'text-red-600',     border: 'border-red-100',    ring: 'ring-red-100' },
   'Suspended':  { bg: 'bg-slate-800',   text: 'text-white',       border: 'border-slate-800',  ring: 'ring-slate-200' },
   'Signed Off': { bg: 'bg-amber-50',    text: 'text-amber-700',   border: 'border-amber-200' },

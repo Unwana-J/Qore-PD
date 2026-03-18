@@ -69,7 +69,7 @@ export function useProjects(userRole: Role, config: AppConfig) {
   const getPMWorkload = useCallback((pmName: string) => {
     const pmProjects = projects.filter(p => 
       p.assignedPM === pmName && 
-      ['Active', 'Delayed', 'Suspended', 'Signed Off'].includes(p.state)
+      ['On-Track', 'Delayed', 'Suspended', 'Signed Off'].includes(p.state)
     );
 
     return {
@@ -241,7 +241,7 @@ export function useProjects(userRole: Role, config: AppConfig) {
         activities: newActivities 
       };
 
-      // Auto-sync Active/Delayed state — only for non-terminal states
+      // Auto-sync On-Track/Delayed state — only for non-terminal states
       const terminalStates: ProjectState[] = ['Signed Off', 'Billed', 'Closed', 'Suspended'];
       if (!terminalStates.includes(updatedProject.state)) {
         const autoState = getAutoProjectState(updatedProject, config.spiThresholds);

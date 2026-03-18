@@ -200,7 +200,7 @@ export const PhaseView: React.FC<PhaseViewProps> = ({
 
   const canChangeState = userRole === 'Superadmin' || userRole === 'Manager' || userRole === 'Team Lead' || (userRole === 'PM' && isOwner) || userRole === 'Finance';
   const canEditValue = (userRole === 'Superadmin' || userRole === 'Manager' || userRole === 'Finance') && 
-                       (project.state === 'Active' || project.state === 'Delayed' || project.state === 'Suspended');
+                       (project.state === 'On-Track' || project.state === 'Delayed' || project.state === 'Suspended');
   const canEditCurrency = userRole === 'Superadmin' || userRole === 'Manager';
   const canReassign = ['Superadmin', 'Manager', 'Team Lead'].includes(userRole);
   const canRequestRebaseline = userRole === 'PM' && isOwner;
@@ -298,7 +298,7 @@ export const PhaseView: React.FC<PhaseViewProps> = ({
                     t.value === 'Billed' ? "bg-blue-600 text-white border-blue-700 hover:bg-blue-700" :
                     t.value === 'Signed Off' ? "bg-amber-500 text-white border-amber-600 hover:bg-amber-600" :
                     t.value === 'Suspended' ? "bg-slate-800 text-white border-slate-900 hover:bg-slate-900" :
-                    t.value === 'Active' ? cn(theme.bg, 'text-white', theme.hoverBg) :
+                    t.value === 'On-Track' ? cn(theme.bg, 'text-white', theme.hoverBg) :
                     "bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200"
                   )}
                 >

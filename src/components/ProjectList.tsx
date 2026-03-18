@@ -81,7 +81,7 @@ export const ProjectList: React.FC<ProjectListProps> = ({ projects, onSelectProj
               <option value="All">All States</option>
               {PROJECT_STATES.map(state => (
                 <option key={state} value={state}>
-                  {state === 'Active' ? 'On-Track' : state}
+                  {state}
                 </option>
               ))}
             </select>
@@ -329,7 +329,7 @@ export const StateBadge = ({ state }: { state: ProjectState }) => {
           <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
         </svg>
       )}
-      {state === 'Active' ? 'On-Track' : state}
+      {state}
     </span>
   );
 };

@@ -12,13 +12,13 @@ export function cn(...inputs: ClassValue[]) {
  * - If suspended, the suspension takes visual priority — return 'Suspended'.
  * - If today > currentCompletionDate and not terminal-state, return 'Delayed'.
  * - If SPI < atRisk threshold and project has started, return 'Delayed'.
- * - Otherwise 'Active'.
+ * - Otherwise 'On-Track'.
  * Never overrides 'Signed Off', 'Billed', or 'Closed'.
  */
 export function getAutoProjectState(
   project: Project,
   spiThresholds: { onTrack: number; atRisk: number }
-): 'Active' | 'Delayed' | 'Suspended' {
+): 'On-Track' | 'Delayed' | 'Suspended' {
   const { state } = project;
   if (state === 'Suspended') return 'Suspended';
 
@@ -32,12 +32,12 @@ export function getAutoProjectState(
   const spiData = calculateSPI(project, spiThresholds);
   if (spiData.rawSpi !== null && spiData.rawSpi < spiThresholds.atRisk) return 'Delayed';
 
-  return 'Active';
+  return 'On-Track';
 }
 
 /**
  * Returns valid next manual status transitions for a given role + current state.
- * 'Active' here means either 'Active' or 'Delayed' — the auto-state bucket.
+ * 'On-Track' here means either 'On-Track' or 'Delayed' — the auto-state bucket.
  */
 export function getValidTransitions(
   currentState: string,
@@ -46,7 +46,7 @@ export function getValidTransitions(
   const isPM = userRole === 'PM' || userRole === 'Team Lead' || userRole === 'Manager' || userRole === 'Superadmin';
   const isFinance = userRole === 'Finance';
 
-  if (currentState === 'Active') {
+  if (currentState === 'On-Track') {
     if (isFinance) return [];
     return [
       { value: 'Suspended', label: 'Suspend Project' },
@@ -62,7 +62,7 @@ export function getValidTransitions(
   if (currentState === 'Suspended') {
     if (isFinance) return [];
     return [
-      { value: 'Active', label: 'Reactivate' },
+      { value: 'On-Track', label: 'Reactivate' },
     ];
   }
   if (currentState === 'Signed Off') {

@@ -100,8 +100,10 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
         value: Number(formData.value),
         services: selectedServices,
         productLines: pkg?.productLines || [],
-        state: 'Active',
+        currency: 'NGN',
+        state: 'On-Track',
         comments: [],
+        phases: [],
         risks: []
       }, force);
 

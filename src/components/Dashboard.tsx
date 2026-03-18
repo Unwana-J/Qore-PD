@@ -36,16 +36,16 @@ export const Dashboard: React.FC<DashboardProps> = ({ projects, workloadThreshol
   const achievedGroups = getGroupedRevenue(p => p.state === 'Billed' || p.state === 'Closed');
 
   // Project Stats
-  const activeCount = projects.filter(p => p.state === 'Active').length;
+  const activeCount = projects.filter(p => p.state === 'On-Track').length;
   const delayedCount = projects.filter(p => p.state === 'Delayed').length;
   const suspendedCount = projects.filter(p => p.state === 'Suspended').length;
   const closedCount = projects.filter(p => p.state === 'Closed').length;
   const atRiskCount = delayedCount + suspendedCount;
   
   // Priority Stats
-  const p1Count = projects.filter(p => p.priority === 'P1' && ['Active', 'Delayed', 'Suspended'].includes(p.state)).length;
-  const p2Count = projects.filter(p => p.priority === 'P2' && ['Active', 'Delayed', 'Suspended'].includes(p.state)).length;
-  const p3Count = projects.filter(p => p.priority === 'P3' && ['Active', 'Delayed', 'Suspended'].includes(p.state)).length;
+  const p1Count = projects.filter(p => p.priority === 'P1' && ['On-Track', 'Delayed', 'Suspended'].includes(p.state)).length;
+  const p2Count = projects.filter(p => p.priority === 'P2' && ['On-Track', 'Delayed', 'Suspended'].includes(p.state)).length;
+  const p3Count = projects.filter(p => p.priority === 'P3' && ['On-Track', 'Delayed', 'Suspended'].includes(p.state)).length;
 
   // Product Line Stats
   const productLineData = (['Bankone', 'Channels', 'Recova', 'Cluster'] as ProductLine[]).map(pl => {
@@ -60,7 +60,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ projects, workloadThreshol
   // Performance Stats (Simplified for POC)
   const pmStats = Array.from(new Set(projects.map(p => p.assignedPM))).map(pm => {
     const pmProjects = projects.filter(p => p.assignedPM === pm);
-    const activeProjects = pmProjects.filter(p => ['Active', 'Delayed', 'Suspended', 'Signed Off'].includes(p.state));
+    const activeProjects = pmProjects.filter(p => ['On-Track', 'Delayed', 'Suspended', 'Signed Off'].includes(p.state));
     const workload = {
       P1: activeProjects.filter(p => p.priority === 'P1').length,
       P2: activeProjects.filter(p => p.priority === 'P2').length,
@@ -98,11 +98,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ projects, workloadThreshol
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
           <StatCard label="Total Intake" values={intakeGroups} subValue="All time revenue" icon={<TrendingUp className="w-4 h-4" />} themeColor={themeColor} />
           <StatCard 
-            label="Active Priorities" 
+            label="On-Track Priorities" 
             value={`${p1Count} / ${p2Count} / ${p3Count}`} 
-            subValue="P1 / P2 / P3 Active" 
+            subValue="P1 / P2 / P3 On-Track" 
             icon={<Activity className="w-4 h-4" />} 
-            color="theme" 
+            color="emerald" 
             themeColor={themeColor} 
           />
           <StatCard label="Total Achieved" values={achievedGroups} subValue="Billed & Closed" icon={<Award className="w-4 h-4" />} color="emerald" themeColor={themeColor} />
@@ -121,7 +121,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ projects, workloadThreshol
               <PieChart>
                 <Pie
                   data={[
-                    { name: 'Active', value: activeCount },
+                    { name: 'On-Track', value: activeCount },
                     { name: 'Delayed', value: delayedCount },
                     { name: 'Suspended', value: suspendedCount },
                     { name: 'Closed', value: closedCount },
@@ -132,10 +132,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ projects, workloadThreshol
                   dataKey="value"
                 >
                   {[
-                    '#3b82f6', // Active - Blue
+                    '#10b981', // On-Track - Emerald
                     '#ef4444', // Delayed - Red
-                    '#0f172a', // Suspended - Slate
-                    '#10b981', // Closed - Emerald
+                    '#1e293b', // Suspended - Slate
+                    '#94a3b8', // Closed - Blue-grey
                   ].map((color, index) => (
                     <Cell key={`cell-${index}`} fill={color} />
                   ))}

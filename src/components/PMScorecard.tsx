@@ -210,7 +210,7 @@ export const PMScorecard: React.FC<PMScorecardProps> = ({ projects, config, user
           </select>
           <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="bg-slate-50 text-sm font-semibold border border-slate-200 rounded-lg px-3 py-2 outline-none">
             <option>All</option>
-            <option value="Active">On-Track</option>
+            <option value="On-Track">On-Track</option>
             <option>Closed</option>
             <option>Delayed</option>
             <option>Suspended</option>

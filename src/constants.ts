@@ -19,7 +19,7 @@ export const PRODUCT_LINES: ProductLineConfig[] = [
 ];
 
 export const PROJECT_STATES: ProjectState[] = [
-  'Active',
+  'On-Track',
   'Delayed',
   'Suspended',
   'Signed Off',
