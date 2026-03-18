@@ -41,7 +41,8 @@ export const MOCK_PROJECTS: Project[] = [
     activities: [
       { id: 'a1', type: 'StateChange', user: 'Sarah Jenkins', description: 'Moved to Active', timestamp: format(subDays(now, 55), 'yyyy-MM-dd HH:mm') }
     ],
-    rebaselineRequests: []
+    rebaselineRequests: [],
+    suspensionCycles: []
   },
   {
     id: '2',
@@ -77,7 +78,8 @@ export const MOCK_PROJECTS: Project[] = [
     priority: 'P2',
     updatedAt: format(subDays(now, 20), 'yyyy-MM-dd'),
     activities: [],
-    rebaselineRequests: []
+    rebaselineRequests: [],
+    suspensionCycles: []
   },
   {
     id: '3',
@@ -111,7 +113,8 @@ export const MOCK_PROJECTS: Project[] = [
     priority: 'P1',
     updatedAt: format(subDays(now, 3), 'yyyy-MM-dd'),
     activities: [],
-    rebaselineRequests: []
+    rebaselineRequests: [],
+    suspensionCycles: []
   },
   {
     id: '4',
@@ -143,7 +146,8 @@ export const MOCK_PROJECTS: Project[] = [
     priority: 'P3',
     updatedAt: format(subDays(now, 5), 'yyyy-MM-dd'),
     activities: [],
-    rebaselineRequests: []
+    rebaselineRequests: [],
+    suspensionCycles: []
   },
   {
     id: '5',
@@ -175,7 +179,8 @@ export const MOCK_PROJECTS: Project[] = [
     priority: 'P2',
     updatedAt: format(subDays(now, 2), 'yyyy-MM-dd'),
     activities: [],
-    rebaselineRequests: []
+    rebaselineRequests: [],
+    suspensionCycles: []
   },
   {
     id: '6',
@@ -207,7 +212,8 @@ export const MOCK_PROJECTS: Project[] = [
     priority: 'P2',
     updatedAt: format(subDays(now, 10), 'yyyy-MM-dd'),
     activities: [],
-    rebaselineRequests: []
+    rebaselineRequests: [],
+    suspensionCycles: []
   },
   {
     id: '7',
@@ -239,7 +245,8 @@ export const MOCK_PROJECTS: Project[] = [
     priority: 'P1',
     updatedAt: format(subDays(now, 5), 'yyyy-MM-dd'),
     activities: [],
-    rebaselineRequests: []
+    rebaselineRequests: [],
+    suspensionCycles: []
   },
   {
     id: '8',
@@ -272,7 +279,8 @@ export const MOCK_PROJECTS: Project[] = [
     priority: 'P3',
     updatedAt: format(subDays(now, 1), 'yyyy-MM-dd'),
     activities: [],
-    rebaselineRequests: []
+    rebaselineRequests: [],
+    suspensionCycles: []
   },
   {
     id: '9',
@@ -304,7 +312,8 @@ export const MOCK_PROJECTS: Project[] = [
     priority: 'P2',
     updatedAt: format(subDays(now, 50), 'yyyy-MM-dd'),
     activities: [],
-    rebaselineRequests: []
+    rebaselineRequests: [],
+    suspensionCycles: []
   },
   {
     id: '10',
@@ -336,7 +345,8 @@ export const MOCK_PROJECTS: Project[] = [
     priority: 'P1',
     updatedAt: format(subDays(now, 60), 'yyyy-MM-dd'),
     activities: [],
-    rebaselineRequests: []
+    rebaselineRequests: [],
+    suspensionCycles: []
   },
   {
     id: '11',
@@ -367,7 +377,8 @@ export const MOCK_PROJECTS: Project[] = [
       'API': 'Not Started'
     },
     comments: [], risks: [], activities: [],
-    rebaselineRequests: []
+    rebaselineRequests: [],
+    suspensionCycles: []
   },
   {
     id: '12',
@@ -397,7 +408,8 @@ export const MOCK_PROJECTS: Project[] = [
       'Advisory': 'Not Started'
     },
     comments: [], risks: [], activities: [],
-    rebaselineRequests: []
+    rebaselineRequests: [],
+    suspensionCycles: []
   }
 ];
 
@@ -434,6 +446,7 @@ export const MOCK_AUDIT_LOGS: AuditLog[] = [
 ];
 
 export const INITIAL_CONFIG: AppConfig = {
+    spiThresholds: { onTrack: 1.0, atRisk: 0.8 },
     atRiskThresholdDays: 7,
     staleThresholdDays: 14,
     currencies: [
@@ -460,6 +473,7 @@ export const INITIAL_CONFIG: AppConfig = {
       { id: 'sb11', name: 'Merchant Banking', baselineDays: 15 },
     ],
     allowPostIntakeRevenueEdit: false,
+    pmScorecardWeights: { deliveryRate: 0.4, avgSpi: 0.4, rebaselineRate: 0.2 },
     workloadThresholds: {
         P1: 3,
         P2: 5,

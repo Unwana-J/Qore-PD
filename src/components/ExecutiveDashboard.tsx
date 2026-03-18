@@ -188,10 +188,10 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
   }, [projects]);
 
   const getDaysDelayed = (p: Project) => {
-    const signOff = p.phases.find(m => m.name === 'Sign Off');
-    if (!signOff) return 0;
-    const target = parseISO(signOff.targetDate);
-    if (target < now && signOff.status !== 'Completed') {
+    const closurePhase = p.phases.find(m => (m.name as string) === 'Closure');
+    if (!closurePhase || !closurePhase.completionDate) return 0;
+    const target = parseISO(closurePhase.completionDate);
+    if (target < now && closurePhase.status !== 'Completed') {
       return differenceInDays(now, target);
     }
     return 0;

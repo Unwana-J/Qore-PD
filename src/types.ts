@@ -63,6 +63,12 @@ export interface Currency {
   isActive: boolean;
 }
 
+export interface SuspensionCycle {
+  suspensionDate: string;
+  reactivationDate: string | null;
+  frozenActiveDays: number;
+}
+
 export interface Project {
   id: string;
   clientName: string;
@@ -90,6 +96,8 @@ export interface Project {
   billedAt?: string;
   activities: ProjectActivity[];
   rebaselineRequests: RebaselineRequest[];
+  totalActiveDays?: number;
+  suspensionCycles: SuspensionCycle[];
 }
 
 export interface PackageConfig {
@@ -131,6 +139,12 @@ export interface AuditLog {
   category: 'Project' | 'Revenue' | 'User' | 'Config';
 }
 
+export interface PMScorecardWeights {
+  deliveryRate: number;
+  avgSpi: number;
+  rebaselineRate: number;
+}
+
 export interface BrandConfig {
   themeColor: string;
   logoUrl?: string;
@@ -140,6 +154,7 @@ export interface BrandConfig {
 export type SettingsTab = 'performance' | 'users' | 'project' | 'priority' | 'revenue' | 'audit' | 'account' | 'brand' | 'currencies' | 'packages';
 
 export interface AppConfig {
+  spiThresholds: { onTrack: number; atRisk: number };
   atRiskThresholdDays: number;
   staleThresholdDays: number;
   currencies: Currency[];
@@ -148,6 +163,7 @@ export interface AppConfig {
   allowPostIntakeRevenueEdit: boolean;
   workloadThresholds: Record<ProjectPriority, number>;
   brand: BrandConfig;
+  pmScorecardWeights: PMScorecardWeights;
 }
 
 export interface WeightHistory {

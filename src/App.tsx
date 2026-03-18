@@ -50,6 +50,9 @@ export default function App() {
     declineRebaselineRequest,
     allRebaselineRequests,
     getPMWorkload,
+    validateStateTransition,
+    notifications,
+    dismissNotification,
     loading
   } = useProjects(userRole, config);
 
@@ -145,6 +148,9 @@ export default function App() {
                     onSubmitRebaseline={submitRebaselineRequest}
                     onApproveRebaseline={approveRebaselineRequest}
                     onDeclineRebaseline={declineRebaselineRequest}
+                    spiThresholds={config.spiThresholds}
+                    validateStateTransition={validateStateTransition}
+                    onShowToast={showToast}
                   />
                 ) : (
                   <>
@@ -172,6 +178,7 @@ export default function App() {
                           themeColor={config.brand.themeColor} 
                           userRole={userRole}
                           onReassignProject={setProjectToReassign}
+                          config={config}
                         />
                       )
                     )}
@@ -184,6 +191,7 @@ export default function App() {
                         userRole={userRole}
                         users={MOCK_USERS}
                         onReassignProject={setProjectToReassign}
+                        spiThresholds={config.spiThresholds}
                       />
                     )}
                     {currentView === 'risks' && (
@@ -247,8 +255,16 @@ export default function App() {
         />
       )}
 
-      <div className="fixed bottom-6 right-6 z-[100] pointer-events-none">
+      <div className="fixed bottom-6 right-6 z-[100] pointer-events-none flex flex-col gap-2 items-end">
         <AnimatePresence>
+          {notifications.map(n => (
+            <div key={n.id} className="pointer-events-auto bg-blue-600 text-white rounded-2xl shadow-xl px-5 py-3 flex items-center gap-3 max-w-sm animate-in slide-in-from-right-4 duration-300">
+              <span className="text-sm font-semibold flex-1">{n.message}</span>
+              <button onClick={() => dismissNotification(n.id)} className="p-1 hover:bg-blue-700 rounded-lg transition-colors">
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12"/></svg>
+              </button>
+            </div>
+          ))}
           {toast && (
             <div className="pointer-events-auto">
               <Toast 

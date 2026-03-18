@@ -4,8 +4,9 @@ import { formatCurrency, cn } from '../lib/utils';
 import { motion } from 'motion/react';
 import { PROJECT_STATES } from '../constants';
 import { PROJECT_STATE_COLORS, PRIORITY_COLORS, getThemeClasses } from '../lib/theme';
-import { differenceInDays, parseISO } from 'date-fns';
-import { AlertCircle, AlertTriangle, DollarSign, Search, Filter, MoreHorizontal, Calendar, User, ChevronRight } from 'lucide-react';
+import { differenceInDays, parseISO, subDays, format } from 'date-fns';
+import { getActiveDaysCount, calculateSPI } from '../lib/utils';
+import { AlertCircle, AlertTriangle, DollarSign, Search, Filter, MoreHorizontal, Calendar, User, ChevronRight, TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import { Role } from '../types';
 
 interface ProjectListProps {
@@ -16,11 +17,15 @@ interface ProjectListProps {
   userRole: Role;
   users: any[];
   onReassignProject: (project: Project) => void;
+  spiThresholds: { onTrack: number, atRisk: number };
+  initialSearch?: string;
 }
 
-export const ProjectList: React.FC<ProjectListProps> = ({ projects, onSelectProject, userRole, users, onReassignProject, themeColor = 'teal', staleThresholdDays }) => {
-  const [search, setSearch] = useState('');
+export const ProjectList: React.FC<ProjectListProps> = ({ projects, onSelectProject, userRole, users, onReassignProject, themeColor = 'teal', staleThresholdDays, spiThresholds, initialSearch = '' }) => {
+  const [search, setSearch] = useState(initialSearch);
   const [stateFilter, setStateFilter] = useState<ProjectState | 'All'>('All');
+  const [currentPage, setCurrentPage] = useState(1);
+  const PAGE_SIZE = 5;
 
   const theme = getThemeClasses(themeColor);
   const canReassign = ['Superadmin', 'Manager', 'Team Lead'].includes(userRole);
@@ -60,7 +65,7 @@ export const ProjectList: React.FC<ProjectListProps> = ({ projects, onSelectProj
                 theme.ring, "focus:border-slate-200 focus:bg-white"
               )}
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }}
             />
           </div>
           
@@ -71,11 +76,13 @@ export const ProjectList: React.FC<ProjectListProps> = ({ projects, onSelectProj
                 theme.ring, "focus:border-slate-200"
               )}
               value={stateFilter}
-              onChange={(e) => setStateFilter(e.target.value as any)}
+              onChange={(e) => { setStateFilter(e.target.value as any); setCurrentPage(1); }}
             >
               <option value="All">All States</option>
               {PROJECT_STATES.map(state => (
-                <option key={state} value={state}>{state}</option>
+                <option key={state} value={state}>
+                  {state === 'Active' ? 'On-Track' : state}
+                </option>
               ))}
             </select>
           </div>
@@ -83,7 +90,40 @@ export const ProjectList: React.FC<ProjectListProps> = ({ projects, onSelectProj
       </div>
 
       <div className="grid grid-cols-1 gap-4">
-        {filteredProjects.map(project => (
+        {(() => {
+          const totalResults = filteredProjects.length;
+          const totalPages = Math.ceil(totalResults / PAGE_SIZE);
+          // Guard: if current page is beyond available pages, snap to page 1
+          const safePage = currentPage > totalPages && totalPages > 0 ? 1 : currentPage;
+          const startIdx = (safePage - 1) * PAGE_SIZE;
+          const pageProjects = filteredProjects.slice(startIdx, startIdx + PAGE_SIZE);
+          const showFrom = totalResults === 0 ? 0 : startIdx + 1;
+          const showTo = Math.min(startIdx + PAGE_SIZE, totalResults);
+
+          /** Build page button list with ellipsis. E.g. 1 … 4 5 6 … 12 */
+          const getPageNumbers = (): (number | '...')[] => {
+            if (totalPages <= 7) return Array.from({ length: totalPages }, (_, i) => i + 1);
+            const pages: (number | '...')[] = [1];
+            if (safePage > 3) pages.push('...');
+            for (let p = Math.max(2, safePage - 1); p <= Math.min(totalPages - 1, safePage + 1); p++) {
+              pages.push(p);
+            }
+            if (safePage < totalPages - 2) pages.push('...');
+            pages.push(totalPages);
+            return pages;
+          };
+
+          return (
+            <>
+              {/* Results summary */}
+              {totalResults > 0 && (
+                <p className="text-xs font-semibold text-slate-400 pb-1">
+                  Showing <span className="font-bold text-slate-600">{showFrom}–{showTo}</span> of{' '}
+                  <span className="font-bold text-slate-600">{totalResults}</span> project{totalResults !== 1 ? 's' : ''}
+                </p>
+              )}
+              {/* Project cards */}
+              {pageProjects.map(project => (
           <motion.div 
             key={project.id}
             onClick={() => onSelectProject(project)}
@@ -100,7 +140,33 @@ export const ProjectList: React.FC<ProjectListProps> = ({ projects, onSelectProj
                   <h3 className={cn("text-xl font-extrabold text-slate-900 transition-colors truncate", theme.groupHoverText)}>{project.clientName}</h3>
                   <div className="flex flex-wrap items-center gap-2">
                     <PriorityBadge priority={project.priority} />
-                    <StateBadge state={project.state} />
+                    <div className="flex items-center gap-2 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-100">
+                      <span className="text-[11px] font-black text-slate-500 uppercase tracking-widest">{getActiveDaysCount(project).text}</span>
+                      <span className="text-slate-300">|</span>
+                      <StateBadge state={project.state} />
+                      
+                      {(() => {
+                        const spiNow = calculateSPI(project, spiThresholds);
+                        const yesterdayStr = format(subDays(new Date(), 1), 'yyyy-MM-dd');
+                        const spiYest = calculateSPI(project, spiThresholds, yesterdayStr);
+                        
+                        let trendIcon = <Minus className="w-3 h-3 text-slate-400" />;
+                        if (spiNow.rawSpi !== null && spiYest.rawSpi !== null) {
+                           if (spiNow.rawSpi > spiYest.rawSpi) trendIcon = <TrendingUp className="w-3 h-3 text-emerald-500" />;
+                           else if (spiNow.rawSpi < spiYest.rawSpi) trendIcon = <TrendingDown className="w-3 h-3 text-red-500" />;
+                        }
+
+                        return (
+                          <>
+                            <span className="text-slate-300">|</span>
+                            <div className={cn("flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-black tracking-widest", spiNow.color)} title={spiNow.tooltip}>
+                               <span>SPI: {spiNow.value}</span>
+                               {trendIcon}
+                            </div>
+                          </>
+                        );
+                      })()}
+                    </div>
                     {differenceInDays(new Date(), parseISO(project.updatedAt)) >= staleThresholdDays && (
                       <span className="flex items-center gap-1.5 px-2 py-0.5 bg-red-500/10 text-red-600 rounded-md text-[9px] font-black uppercase tracking-tighter border border-red-200/50 backdrop-blur-sm shadow-sm ring-4 ring-red-500/5">
                         <AlertCircle className="w-3 h-3 animate-pulse" />
@@ -170,23 +236,81 @@ export const ProjectList: React.FC<ProjectListProps> = ({ projects, onSelectProj
               ))}
             </div>
           </motion.div>
-        ))}
+              ))}
 
-        {filteredProjects.length === 0 && (
-          <div className="py-32 text-center bg-white rounded-3xl border-2 border-dashed border-slate-100 shadow-sm animate-in fade-in zoom-in duration-500">
-            <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-6 text-slate-300">
-              <Search className="w-10 h-10" />
-            </div>
-            <h3 className="text-xl font-extrabold text-slate-900 mb-2">No projects found</h3>
-            <p className="text-slate-500 font-bold uppercase tracking-wider text-[10px] max-w-[240px] mx-auto">Try adjusting your filters or search terms to find what you're looking for.</p>
-            <button 
-              onClick={() => { setSearch(''); setStateFilter('All'); }}
-              className="mt-8 px-6 py-2.5 bg-slate-900 text-white rounded-xl text-xs font-bold hover:bg-slate-800 transition-all active:scale-95 shadow-lg"
-            >
-              Clear all filters
-            </button>
-          </div>
-        )}
+              {/* Empty state */}
+              {filteredProjects.length === 0 && (
+                <div className="py-32 text-center bg-white rounded-3xl border-2 border-dashed border-slate-100 shadow-sm animate-in fade-in zoom-in duration-500">
+                  <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-6 text-slate-300">
+                    <Search className="w-10 h-10" />
+                  </div>
+                  <h3 className="text-xl font-extrabold text-slate-900 mb-2">No projects found</h3>
+                  <p className="text-slate-500 font-bold uppercase tracking-wider text-[10px] max-w-[280px] mx-auto">No projects found. Try adjusting your search or filters.</p>
+                  <button 
+                    onClick={() => { setSearch(''); setStateFilter('All'); setCurrentPage(1); }}
+                    className="mt-8 px-6 py-2.5 bg-slate-900 text-white rounded-xl text-xs font-bold hover:bg-slate-800 transition-all active:scale-95 shadow-lg"
+                  >
+                    Clear all filters
+                  </button>
+                </div>
+              )}
+
+              {/* Pagination controls — only shown when > PAGE_SIZE results */}
+              {totalResults > PAGE_SIZE && (
+                <div className="flex items-center justify-between pt-2">
+                  <button
+                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                    disabled={safePage === 1}
+                    className={cn(
+                      "flex items-center gap-1.5 px-4 py-2 text-xs font-bold rounded-xl border transition-all",
+                      safePage === 1
+                        ? "border-slate-100 text-slate-300 bg-white cursor-not-allowed"
+                        : "border-slate-200 text-slate-600 bg-white hover:bg-slate-50 active:scale-95"
+                    )}
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7"/></svg>
+                    Previous
+                  </button>
+
+                  <div className="flex items-center gap-1">
+                    {getPageNumbers().map((p, idx) =>
+                      p === '...' ? (
+                        <span key={`ellipsis-${idx}`} className="w-9 h-9 flex items-center justify-center text-xs font-bold text-slate-400">…</span>
+                      ) : (
+                        <button
+                          key={p}
+                          onClick={() => setCurrentPage(p as number)}
+                          className={cn(
+                            "w-9 h-9 flex items-center justify-center text-xs font-bold rounded-xl border transition-all",
+                            p === safePage
+                              ? cn(theme.bg, 'text-white border-transparent shadow-md')
+                              : "border-slate-200 text-slate-600 bg-white hover:bg-slate-50 active:scale-95"
+                          )}
+                        >
+                          {p}
+                        </button>
+                      )
+                    )}
+                  </div>
+
+                  <button
+                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                    disabled={safePage === totalPages}
+                    className={cn(
+                      "flex items-center gap-1.5 px-4 py-2 text-xs font-bold rounded-xl border transition-all",
+                      safePage === totalPages
+                        ? "border-slate-100 text-slate-300 bg-white cursor-not-allowed"
+                        : "border-slate-200 text-slate-600 bg-white hover:bg-slate-50 active:scale-95"
+                    )}
+                  >
+                    Next
+                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7"/></svg>
+                  </button>
+                </div>
+              )}
+            </>
+          );
+        })()}
       </div>
     </div>
   );
@@ -197,10 +321,15 @@ export const StateBadge = ({ state }: { state: ProjectState }) => {
 
   return (
     <span className={cn(
-      "px-3 py-1 rounded-lg text-[10px] font-extrabold uppercase tracking-widest border shadow-sm transition-all",
+      "px-3 py-1 rounded-lg text-[10px] font-extrabold uppercase tracking-widest border shadow-sm transition-all inline-flex items-center gap-1",
       styles.bg, styles.text, styles.border, styles.ring
     )}>
-      {state}
+      {state === 'Closed' && (
+        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+        </svg>
+      )}
+      {state === 'Active' ? 'On-Track' : state}
     </span>
   );
 };

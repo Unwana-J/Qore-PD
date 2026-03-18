@@ -15,6 +15,7 @@ import {
   ChevronRight,
   Clock,
   Activity,
+  Award,
   Box,
   Save,
   Palette,
@@ -349,6 +350,41 @@ const ProjectConfig = ({ config, setConfig, theme }: any) => {
         </div>
 
         <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100 space-y-4">
+          <h4 className="text-sm font-bold text-slate-900">SPI Status Thresholds</h4>
+          <p className="text-xs text-slate-500 font-medium pb-2">Set the thresholds for Schedule Performance Index statuses.</p>
+          <div className="grid grid-cols-2 gap-4">
+             <div className="space-y-1.5 focus-within:z-10">
+               <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">
+                 On Track (≥)
+               </label>
+               <input 
+                 type="number" step="0.01"
+                 className={cn("w-full px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm font-bold outline-none", theme.focusBorder)}
+                 value={config.spiThresholds?.onTrack || 1.0}
+                 onChange={e => {
+                   const val = parseFloat(e.target.value) || 1.0;
+                   setConfig({ ...config, spiThresholds: { ...config.spiThresholds, onTrack: val } });
+                 }}
+               />
+             </div>
+             <div className="space-y-1.5 focus-within:z-10">
+               <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">
+                 At Risk (≥)
+               </label>
+               <input 
+                 type="number" step="0.01"
+                 className={cn("w-full px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm font-bold outline-none", theme.focusBorder)}
+                 value={config.spiThresholds?.atRisk || 0.8}
+                 onChange={e => {
+                   const val = parseFloat(e.target.value) || 0.8;
+                   setConfig({ ...config, spiThresholds: { ...config.spiThresholds, atRisk: val } });
+                 }}
+               />
+             </div>
+          </div>
+        </div>
+
+        <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100 space-y-4">
           <h4 className="text-sm font-bold text-slate-900">Project Lifecycle Weights</h4>
           <p className="text-xs text-slate-500 font-medium pb-2">Set the relative weight of each phase towards total project completion (%)</p>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -473,6 +509,45 @@ const PrioritySettings = ({ config, setConfig, packages, setPackages, weightHist
               </div>
             ))}
           </div>
+        </div>
+      </div>
+
+      <div className="space-y-4">
+        <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+          <Award className="w-4 h-4" />
+          PM Scorecard Weights
+        </h4>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          {Object.keys(config.pmScorecardWeights || { deliveryRate: 0.4, avgSpi: 0.4, rebaselineRate: 0.2 }).map((key) => (
+            <div key={key} className={cn(
+              "flex flex-col p-4 bg-white border border-slate-100 rounded-2xl transition-all hover:shadow-md",
+              theme.hoverBorder
+            )}>
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">
+                {key.replace(/([A-Z])/g, ' $1').trim()} Weight
+              </span>
+              <div className="flex items-center gap-2">
+                <input 
+                  type="number" 
+                  step="0.05"
+                  min="0"
+                  max="1"
+                  className={cn(
+                    "w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-black outline-none focus:ring-4 transition-all",
+                    theme.ring, theme.focusBorder
+                  )}
+                  value={config.pmScorecardWeights?.[key as keyof AppConfig['pmScorecardWeights']] || 0}
+                  onChange={e => setConfig({
+                    ...config,
+                    pmScorecardWeights: {
+                      ...config.pmScorecardWeights,
+                      [key]: parseFloat(e.target.value) || 0
+                    }
+                  })}
+                />
+              </div>
+            </div>
+          ))}
         </div>
       </div>
 

@@ -1,13 +1,56 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { format } from 'date-fns';
-import { Project, Role, AppConfig, ProjectPriority, ProjectActivity, ActivityType, RebaselineRequest, Phase, ServiceState } from '../types';
+import { Project, Role, AppConfig, ProjectPriority, ProjectActivity, ActivityType, RebaselineRequest, Phase, ServiceState, ProjectState } from '../types';
 import { api } from '../lib/api';
-import { calculateWorkingDays } from '../lib/utils';
+import { calculateWorkingDays, getActiveDaysCount, calculateSPI, getAutoProjectState } from '../lib/utils';
 
 export function useProjects(userRole: Role, config: AppConfig) {
   const [projects, setProjects] = useState<Project[]>([]);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
+  const [notifications, setNotifications] = useState<Array<{ id: string; message: string; projectId: string }>>([]);
+
+  const addNotification = (message: string, projectId: string) => {
+    const id = Math.random().toString(36).substr(2, 9);
+    setNotifications(prev => [...prev, { id, message, projectId }]);
+  };
+
+  const dismissNotification = (id: string) => {
+    setNotifications(prev => prev.filter(n => n.id !== id));
+  };
+
+  /**
+   * Validates a manual state transition, returning an error string if invalid.
+   */
+  const validateStateTransition = (project: Project, newState: string): string | null => {
+    const current = project.state;
+
+    // Billed can only be set by Finance
+    if (newState === 'Billed' && userRole !== 'Finance') {
+      return 'Only Finance can mark a project as Billed.';
+    }
+    // Closed requires Billed
+    if (newState === 'Closed' && current !== 'Billed') {
+      return 'Project must be Billed before it can be Closed.';
+    }
+    // Sign Off requires all Execution services closed
+    if (newState === 'Signed Off') {
+      const allClosed = project.services.length > 0 &&
+        project.services.every(s => project.serviceStates?.[s] === 'Closed');
+      if (!allClosed) {
+        return 'All services must be closed before signing off.';
+      }
+    }
+    // Cannot manually set auto-managed states
+    if (newState === 'Delayed') {
+      return 'Delayed status is set automatically by the system.';
+    }
+    // Closed is irreversible
+    if (current === 'Closed') {
+      return 'This project is closed and cannot be changed.';
+    }
+    return null;
+  };
 
   useEffect(() => {
     async function fetchProjects() {
@@ -89,7 +132,8 @@ export function useProjects(userRole: Role, config: AppConfig) {
         phases,
         phaseWeights: { ...config.projectLifecycleWeights },
         serviceStates,
-        rebaselineRequests: []
+        rebaselineRequests: [],
+        suspensionCycles: []
       });
       setProjects(prev => [newProject, ...prev]);
       return newProject;
@@ -119,6 +163,27 @@ export function useProjects(userRole: Role, config: AppConfig) {
 
         if (project.state === 'Signed Off' && !project.signedOffAt) {
           project.signedOffAt = new Date().toISOString().split('T')[0];
+        }
+
+        const dateStr = new Date().toISOString().split('T')[0];
+        const cycles = [...(project.suspensionCycles || [])];
+
+        if (project.state === 'Suspended') {
+          cycles.push({
+            suspensionDate: dateStr,
+            reactivationDate: null,
+            frozenActiveDays: getActiveDaysCount(oldProject).days
+          });
+          project.suspensionCycles = cycles;
+        } else if (oldProject.state === 'Suspended') {
+          if (cycles.length > 0) {
+            cycles[cycles.length - 1].reactivationDate = dateStr;
+            project.suspensionCycles = cycles;
+          }
+        }
+
+        if (project.state === 'Closed') {
+          project.totalActiveDays = getActiveDaysCount(project).days;
         }
       }
 
@@ -175,6 +240,37 @@ export function useProjects(userRole: Role, config: AppConfig) {
         updatedAt: new Date().toISOString().split('T')[0],
         activities: newActivities 
       };
+
+      // Auto-sync Active/Delayed state — only for non-terminal states
+      const terminalStates: ProjectState[] = ['Signed Off', 'Billed', 'Closed', 'Suspended'];
+      if (!terminalStates.includes(updatedProject.state)) {
+        const autoState = getAutoProjectState(updatedProject, config.spiThresholds);
+        if (autoState !== updatedProject.state) {
+          updatedProject.state = autoState;
+          // Log auto state change if different from what was requested
+          newActivities.unshift({
+            id: Math.random().toString(36).substr(2, 9),
+            type: 'StateChange',
+            user: 'System',
+            description: `Auto-updated status to "${autoState}" based on SPI/schedule`,
+            timestamp: now
+          });
+          updatedProject.activities = newActivities;
+        }
+      }
+
+      const oldSpi = calculateSPI(oldProject, config.spiThresholds);
+      const newSpi = calculateSPI(updatedProject, config.spiThresholds);
+
+      if (newSpi.isAnomaly && !oldSpi.isAnomaly) {
+        await api.audit.addLog({
+          action: 'SPI Anomaly Detected',
+          user: userName,
+          details: `Project "${project.clientName}" recorded unusually high SPI (${newSpi.value})`,
+          timestamp: format(now, 'yyyy-MM-dd HH:mm'),
+          category: 'Project'
+        });
+      }
       
       const result = await api.projects.update(updatedProject);
       setProjects(prev => prev.map(p => p.id === result.id ? result : p));
@@ -193,7 +289,7 @@ export function useProjects(userRole: Role, config: AppConfig) {
 
     const now = new Date();
     const formattedNow = format(now, 'yyyy-MM-dd HH:mm');
-    const userName = userRole === 'PM' ? 'Sarah Jenkins' : 'Admin User';
+    const financeUser = 'Finance Team';
 
     const updatedProject: Project = {
       ...project,
@@ -203,7 +299,7 @@ export function useProjects(userRole: Role, config: AppConfig) {
         {
           id: Math.random().toString(36).substr(2, 9),
           type: 'StateChange',
-          user: userName,
+          user: financeUser,
           description: `Project marked as Billed by Finance`,
           timestamp: formattedNow
         },
@@ -211,7 +307,13 @@ export function useProjects(userRole: Role, config: AppConfig) {
       ]
     };
 
-    return updateProject(updatedProject);
+    const result = await updateProject(updatedProject);
+    // Notify the assigned PM
+    addNotification(
+      `Project "${project.clientName}" has been marked as Billed by Finance`,
+      projectId
+    );
+    return result;
   };
 
   const reassignProject = async (projectId: string, newPmName: string, reason?: string) => {
@@ -346,6 +448,9 @@ export function useProjects(userRole: Role, config: AppConfig) {
     approveRebaselineRequest,
     declineRebaselineRequest,
     getPMWorkload,
+    validateStateTransition,
+    notifications,
+    dismissNotification,
     loading
   };
 }

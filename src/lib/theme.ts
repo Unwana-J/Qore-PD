@@ -202,12 +202,12 @@ export const getThemeClasses = (color: string) => {
 };
 
 export const PROJECT_STATE_COLORS: Record<string, { bg: string, text: string, border: string, ring?: string }> = {
-  'Active': { bg: 'bg-blue-50', text: 'text-blue-600', border: 'border-blue-100' },
-  'Delayed': { bg: 'bg-red-50', text: 'text-red-600', border: 'border-red-100', ring: 'ring-red-100' },
-  'Suspended': { bg: 'bg-slate-900', text: 'text-white', border: 'border-slate-900', ring: 'ring-slate-100' },
-  'Signed Off': { bg: 'bg-indigo-50', text: 'text-indigo-600', border: 'border-indigo-100' },
-  'Billed': { bg: 'bg-emerald-50', text: 'text-emerald-600', border: 'border-emerald-100' },
-  'Closed': { bg: 'bg-slate-100', text: 'text-slate-500', border: 'border-slate-200' },
+  'Active':     { bg: 'bg-emerald-50',  text: 'text-emerald-700', border: 'border-emerald-100' },
+  'Delayed':    { bg: 'bg-red-50',      text: 'text-red-600',     border: 'border-red-100',    ring: 'ring-red-100' },
+  'Suspended':  { bg: 'bg-slate-800',   text: 'text-white',       border: 'border-slate-800',  ring: 'ring-slate-200' },
+  'Signed Off': { bg: 'bg-amber-50',    text: 'text-amber-700',   border: 'border-amber-200' },
+  'Billed':     { bg: 'bg-blue-50',     text: 'text-blue-600',    border: 'border-blue-100' },
+  'Closed':     { bg: 'bg-emerald-600', text: 'text-white',       border: 'border-emerald-700' },
 };
 
 export const PRIORITY_COLORS: Record<string, { bg: string, text: string, border: string }> = {

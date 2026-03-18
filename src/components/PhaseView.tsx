@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Project, Phase, Comment, Risk, Role, RebaselineRequest, ServiceState } from '../types';
 import { StateBadge } from './ProjectList';
-import { formatCurrency, cn, calculatePhaseScores } from '../lib/utils';
+import { formatCurrency, cn, calculatePhaseScores, getActiveDaysCount, getValidTransitions } from '../lib/utils';
 import { 
   Calendar, 
   User, 
@@ -18,10 +18,17 @@ import {
   RefreshCw,
   X,
   Lock,
-  Check
+  Check,
+  CheckCircle,
+  TrendingDown,
+  TrendingUp,
+  Minus,
+  Activity
 } from 'lucide-react';
 import { PROJECT_STATES } from '../constants';
 import { getThemeClasses } from '../lib/theme';
+import { subDays, format } from 'date-fns';
+import { calculateSPI } from '../lib/utils';
 
 interface PhaseViewProps {
   project: Project;
@@ -35,12 +42,16 @@ interface PhaseViewProps {
   themeColor?: string;
   onReassign?: () => void;
   defaultPhases?: string[];
+  spiThresholds: { onTrack: number, atRisk: number };
+  validateStateTransition?: (project: Project, newState: string) => string | null;
+  onShowToast?: (msg: string, type?: 'success' | 'error' | 'info') => void;
 }
 
 export const PhaseView: React.FC<PhaseViewProps> = ({ 
   project, onBack, onUpdateProject, onSubmitRebaseline, 
   onApproveRebaseline, onDeclineRebaseline, 
-  userRole, currencies = [], themeColor = 'teal', onReassign, defaultPhases = [] 
+  userRole, currencies = [], themeColor = 'teal', onReassign, defaultPhases = [],
+  spiThresholds, validateStateTransition, onShowToast
 }) => {
   const [activeTab, setActiveTab] = useState<'overview' | 'activity'>('overview');
   const [commentText, setCommentText] = useState('');
@@ -59,9 +70,16 @@ export const PhaseView: React.FC<PhaseViewProps> = ({
   const canEdit = userRole === 'Superadmin' || userRole === 'Manager' || userRole === 'Team Lead' || (userRole === 'PM' && isOwner);
   const canEditPhase = canEdit; // Relaxed for testing ease, initially restricted to Superadmin/PM
 
-  const handleStatusChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const newState = e.target.value as any;
-    onUpdateProject({ ...project, state: newState });
+  const handleStatusChange = (newState: string) => {
+    // Validate transition
+    if (validateStateTransition) {
+      const error = validateStateTransition(project, newState);
+      if (error) {
+        onShowToast?.(error, 'error');
+        return;
+      }
+    }
+    onUpdateProject({ ...project, state: newState as any });
   };
 
   const handleTogglePID = () => {
@@ -239,67 +257,213 @@ export const PhaseView: React.FC<PhaseViewProps> = ({
           </button>
         </div>
 
-        {canChangeState && (
-          <div className="flex items-center gap-3 bg-white p-2 rounded-2xl border border-slate-200 shadow-sm">
-            <span className="text-xs font-bold text-slate-400 uppercase ml-2">Update Status:</span>
-            <select 
-              value={project.state}
-              onChange={handleStatusChange}
-              className={cn(
-                "bg-slate-50 border border-slate-100 rounded-xl px-3 py-1.5 text-sm font-semibold outline-none focus:ring-2",
-                theme.ring
-              )}
-            >
-              {PROJECT_STATES.map(state => {
-                const isBilled = state === 'Billed';
-                const isFinance = userRole === 'Finance';
-                const isPM = userRole === 'PM';
+        {/* Status Control — role-aware state machine */}
+        {(() => {
+          const state = project.state;
+          const transitions = getValidTransitions(state, userRole);
+          const isClosed = state === 'Closed';
+          const isSignedOff = state === 'Signed Off' && userRole !== 'Finance';
+          const canAct = !isClosed && !isSignedOff;
 
-                if (isFinance && !isBilled) return null;
-                
-                if (isPM && isBilled) return (
-                  <option key={state} value={state} disabled>
-                    {state} (Finance Only)
-                  </option>
-                );
+          if (isClosed) {
+            return (
+              <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 px-4 py-2 rounded-2xl">
+                <CheckCircle className="w-4 h-4 text-emerald-600" />
+                <span className="text-sm font-bold text-emerald-700">Project Closed</span>
+              </div>
+            );
+          }
 
-                return (
-                  <option key={state} value={state}>
-                    {state}
-                  </option>
-                );
-              })}
-            </select>
-          </div>
-        )}
+          if (isSignedOff) {
+            return (
+              <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 px-4 py-2 rounded-2xl">
+                <Clock className="w-4 h-4 text-amber-600" />
+                <span className="text-sm font-bold text-amber-700">Awaiting Finance</span>
+              </div>
+            );
+          }
+
+          if (transitions.length === 0) return null;
+
+          return (
+            <div className="flex items-center gap-2 bg-white p-2 rounded-2xl border border-slate-200 shadow-sm">
+              <span className="text-xs font-bold text-slate-400 uppercase ml-2">Update Status:</span>
+              {transitions.map(t => (
+                <button
+                  key={t.value}
+                  onClick={() => handleStatusChange(t.value)}
+                  className={cn(
+                    "px-3 py-1.5 text-xs font-bold rounded-xl border transition-all",
+                    t.value === 'Closed' ? "bg-emerald-600 text-white border-emerald-700 hover:bg-emerald-700" :
+                    t.value === 'Billed' ? "bg-blue-600 text-white border-blue-700 hover:bg-blue-700" :
+                    t.value === 'Signed Off' ? "bg-amber-500 text-white border-amber-600 hover:bg-amber-600" :
+                    t.value === 'Suspended' ? "bg-slate-800 text-white border-slate-900 hover:bg-slate-900" :
+                    t.value === 'Active' ? cn(theme.bg, 'text-white', theme.hoverBg) :
+                    "bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200"
+                  )}
+                >
+                  {t.label}
+                </button>
+              ))}
+            </div>
+          );
+        })()}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 space-y-8">
           {activeTab === 'overview' ? (
             <>
-              <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm mb-8">
-                <div className="flex justify-between items-end mb-4">
-                  <div>
-                    <h3 className="text-lg font-bold text-slate-900">Project Completion</h3>
-                    <p className="text-xs text-slate-500 font-medium mt-1">Overall progress based on phase completion</p>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+                <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm flex flex-col justify-between">
+                  <div className="flex justify-between items-end mb-4">
+                    <div>
+                      <h3 className="text-lg font-bold text-slate-900">Project Completion</h3>
+                      <p className="text-xs text-slate-500 font-medium mt-1">Overall progress based on phase completion</p>
+                    </div>
+                    <span className={cn("text-3xl font-black tracking-tighter", theme.text)}>
+                      {scores.totalPercentage}%
+                    </span>
                   </div>
-                  <span className={cn("text-3xl font-black tracking-tighter", theme.text)}>
-                    {scores.totalPercentage}%
-                  </span>
+                  <div className="grid grid-cols-4 gap-2 mt-6">
+                    <div className="flex flex-col text-center">
+                      <span className="text-[10px] uppercase font-black text-slate-600 truncate mb-2">
+                        <span className="hidden sm:inline">Initiation</span>
+                        <span className="sm:hidden">Init</span>
+                      </span>
+                      <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden flex shadow-inner">
+                        <div className={cn("h-full transition-all duration-500", theme.bg)} style={{ width: `${(scores.initiationScore / (project.phaseWeights?.initiation || 10)) * 100}%` }} />
+                      </div>
+                      <span className="text-[9px] uppercase font-black text-slate-400 mt-2">{project.phaseWeights?.initiation || 10}%</span>
+                    </div>
+                    <div className="flex flex-col text-center">
+                      <span className="text-[10px] uppercase font-black text-slate-600 truncate mb-2">
+                        <span className="hidden sm:inline">Planning</span>
+                        <span className="sm:hidden">Plan</span>
+                      </span>
+                      <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden flex shadow-inner">
+                        <div className={cn("h-full transition-all duration-500", theme.bg)} style={{ width: `${(scores.planningScore / (project.phaseWeights?.planning || 10)) * 100}%` }} />
+                      </div>
+                      <span className="text-[9px] uppercase font-black text-slate-400 mt-2">{project.phaseWeights?.planning || 10}%</span>
+                    </div>
+                    <div className="flex flex-col text-center">
+                      <span className="text-[10px] uppercase font-black text-slate-600 truncate mb-2">
+                        <span className="hidden sm:inline">Execution</span>
+                        <span className="sm:hidden">Exec</span>
+                      </span>
+                      <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden flex shadow-inner">
+                        <div className={cn("h-full transition-all duration-500", theme.bg)} style={{ width: `${(scores.executionScore / (project.phaseWeights?.execution || 60)) * 100}%` }} />
+                      </div>
+                      <span className="text-[9px] uppercase font-black text-slate-400 mt-2">{project.phaseWeights?.execution || 60}%</span>
+                    </div>
+                    <div className="flex flex-col text-center">
+                      <span className="text-[10px] uppercase font-black text-slate-600 truncate mb-2">
+                        <span className="hidden sm:inline">Closure</span>
+                        <span className="sm:hidden">Close</span>
+                      </span>
+                      <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden flex shadow-inner">
+                        <div className={cn("h-full transition-all duration-500", theme.bg)} style={{ width: `${(scores.closureScore / (project.phaseWeights?.closure || 20)) * 100}%` }} />
+                      </div>
+                      <span className="text-[9px] uppercase font-black text-slate-400 mt-2">{project.phaseWeights?.closure || 20}%</span>
+                    </div>
+                  </div>
                 </div>
-                <div className="w-full h-4 bg-slate-100 rounded-full overflow-hidden flex shadow-inner">
-                  <div className="h-full bg-blue-500 transition-all duration-500" style={{ width: `${scores.initiationScore}%` }} />
-                  <div className="h-full bg-indigo-500 transition-all duration-500" style={{ width: `${scores.planningScore}%` }} />
-                  <div className="h-full bg-purple-500 transition-all duration-500" style={{ width: `${scores.executionScore}%` }} />
-                  <div className="h-full bg-emerald-500 transition-all duration-500" style={{ width: `${scores.closureScore}%` }} />
-                </div>
-                <div className="flex justify-between mt-3 text-[10px] uppercase font-black tracking-widest text-slate-400">
-                  <span>Initiation ({project.phaseWeights?.initiation || 10}%)</span>
-                  <span>Planning ({project.phaseWeights?.planning || 10}%)</span>
-                  <span>Execution ({project.phaseWeights?.execution || 60}%)</span>
-                  <span>Closure ({project.phaseWeights?.closure || 20}%)</span>
-                </div>
+
+                {(() => {
+                  const activeStats = getActiveDaysCount(project);
+                  const isVisible = userRole === 'PM' ? isOwner : userRole !== 'Stakeholder';
+                  
+                  if (!isVisible) return null;
+
+                  return (
+                    <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm flex flex-col justify-between" title="Counts working days only. Paused during any suspension periods.">
+                      <div className="flex justify-between items-start mb-4">
+                        <div>
+                          <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                            <Clock className={cn("w-5 h-5", theme.text)} />
+                            {activeStats.label}
+                          </h3>
+                          <p className="text-xs text-slate-500 font-medium mt-1">Excludes weekends and holidays</p>
+                        </div>
+                        <StateBadge state={project.state} />
+                      </div>
+                      <div className="flex items-end gap-3 mt-auto pt-4">
+                        {activeStats.isStarted ? (
+                          <>
+                            <span className={cn("text-4xl font-black tracking-tighter leading-none", activeStats.isSuspended ? "text-slate-400" : theme.text)}>
+                              {activeStats.days}
+                            </span>
+                            <span className="text-sm font-bold text-slate-500 pb-1">working days</span>
+                            {activeStats.isSuspended && (
+                               <span className="mb-1 ml-auto text-[10px] font-black px-2 py-1 bg-slate-100 text-slate-500 uppercase tracking-widest rounded border border-slate-200">
+                                 Suspended
+                               </span>
+                            )}
+                          </>
+                        ) : (
+                           <span className={cn("text-lg font-black tracking-tighter", theme.text)}>
+                             {activeStats.text}
+                           </span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {(() => {
+                  const spiNow = calculateSPI(project, spiThresholds);
+                  const isVisible = userRole === 'PM' ? isOwner : userRole !== 'Stakeholder';
+                  if (!isVisible) return null;
+
+                  const hasRebaseline = project.rebaselineRequests?.find(r => r.status === 'Approved');
+                  const rebaselineLabel = hasRebaseline ? `Rebaselined ${format(new Date(hasRebaseline.reviewedAt || ''), 'MMM d')}` : null;
+
+                  return (
+                    <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm flex flex-col justify-between" title={spiNow.tooltip}>
+                      <div className="flex justify-between items-start mb-4">
+                        <div>
+                          <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                            <Activity className={cn("w-5 h-5", theme.text)} />
+                            SPI
+                          </h3>
+                          <p className="text-[10px] text-slate-500 font-bold mt-1 uppercase tracking-widest">Schedule Performance Index</p>
+                        </div>
+                        <span className={cn("px-2.5 py-1 rounded-lg text-[10px] font-extrabold uppercase tracking-widest border", spiNow.color)}>
+                          {spiNow.badge}
+                        </span>
+                      </div>
+                      
+                      <div className="flex flex-col items-center justify-center my-auto">
+                        <span className={cn("text-5xl font-black tracking-tighter", 
+                          spiNow.badge === 'On Track' ? 'text-emerald-500' :
+                          spiNow.badge === 'At Risk' ? 'text-amber-500' :
+                          spiNow.badge === 'Delayed' ? 'text-red-500' : 'text-slate-400'
+                        )}>
+                          {spiNow.value}
+                        </span>
+                        {spiNow.isAnomaly && (
+                           <AlertTriangle className="w-5 h-5 text-rose-500 mt-2" title="SPI is unusually high — consider reviewing completion data" />
+                        )}
+                        {rebaselineLabel && (
+                          <span className="mt-3 px-2 py-0.5 bg-blue-50 text-blue-600 rounded text-[10px] font-bold uppercase tracking-wider border border-blue-100">
+                            {rebaselineLabel}
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4 mt-6 pt-4 border-t border-slate-100">
+                        <div className="text-center">
+                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">EV</p>
+                          <p className="text-lg font-black text-slate-700">{spiNow.ev.toFixed(2)}</p>
+                        </div>
+                        <div className="text-center">
+                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">PV</p>
+                          <p className="text-lg font-black text-slate-700">{spiNow.pv.toFixed(2)}</p>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
 
               <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
@@ -369,29 +533,31 @@ export const PhaseView: React.FC<PhaseViewProps> = ({
                               {phase.id === 'Initiation' && (
                                 <div className="flex items-center justify-between">
                                   <div 
-                                    className={cn("flex items-center gap-3", canEditPhase && "cursor-pointer group")}
-                                    onClick={() => canEditPhase && handleTogglePID()}
+                                    className={cn("flex items-center gap-3", canEditPhase && !isCompleted && "cursor-pointer group")}
+                                    onClick={() => canEditPhase && !isCompleted && handleTogglePID()}
                                   >
                                     <button 
-                                      disabled={!canEditPhase}
+                                      disabled={!canEditPhase || isCompleted}
                                       className={cn(
                                         "w-5 h-5 rounded border-2 flex items-center justify-center transition-colors shadow-sm",
-                                        project.pidSignedOffDate ? "bg-emerald-500 border-emerald-500" : "bg-white border-slate-300",
-                                        canEditPhase && !project.pidSignedOffDate ? "group-hover:border-emerald-500" : ""
+                                        project.pidSignedOffDate || isCompleted ? "bg-emerald-500 border-emerald-500" : "bg-white border-slate-300",
+                                        canEditPhase && !project.pidSignedOffDate && !isCompleted ? "group-hover:border-emerald-500" : ""
                                       )}
                                     >
-                                      {project.pidSignedOffDate && <Check className="w-3.5 h-3.5 text-white" />}
+                                      {(project.pidSignedOffDate || isCompleted) && <Check className="w-3.5 h-3.5 text-white" />}
                                     </button>
                                     <div>
-                                      <p className="text-sm font-bold text-slate-900 group-hover:text-emerald-700 transition-colors">PID Sign-off</p>
+                                      <p className={cn("text-sm font-bold transition-colors flex items-center gap-2", 
+                                        !isCompleted && canEditPhase ? "group-hover:text-emerald-700 text-slate-900" : "text-slate-900"
+                                      )}>
+                                        PID Sign-off
+                                        {(isCompleted || project.pidSignedOffDate) && (
+                                          <span className="text-slate-400 font-medium text-xs">Signed off · {project.pidSignedOffDate || project.startDate}</span>
+                                        )}
+                                      </p>
                                       <p className="text-xs text-slate-500">Must be completed before proceeding</p>
                                     </div>
                                   </div>
-                                  {project.pidSignedOffDate && (
-                                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                                      {project.pidSignedOffDate}
-                                    </span>
-                                  )}
                                 </div>
                               )}
 
@@ -594,77 +760,89 @@ export const PhaseView: React.FC<PhaseViewProps> = ({
         <div className="space-y-8">
           <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
             <h3 className="text-lg font-bold text-slate-900 mb-6">Project Details</h3>
-            <div className="space-y-4">
-              <DetailItem icon={<User className="w-4 h-4" />} label="Assigned PM" value={project.assignedPM} />
-              
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-slate-50 rounded-lg text-slate-400">
-                  <Briefcase className="w-4 h-4" />
-                </div>
-                <div className="flex-1">
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider leading-none">Value & Currency</p>
-                  <div className="flex gap-2 mt-1">
-                    {canEditValue ? (
-                      <input 
-                        type="number"
-                        className={cn(
-                          "flex-1 text-sm font-semibold text-slate-900 bg-slate-50 border border-slate-100 rounded px-2 py-1 outline-none focus:ring-1",
-                          theme.ringStatic
-                        )}
-                        value={project.value}
-                        onChange={(e) => onUpdateProject({ ...project, value: parseFloat(e.target.value) })}
-                      />
-                    ) : (
-                      <p className="text-sm font-semibold text-slate-900 py-1">{formatCurrency(project.value, project.currency)}</p>
-                    )}
-                    
-                    {canEditCurrency ? (
-                      <select
-                        className={cn(
-                          "text-[10px] font-bold uppercase bg-slate-50 border border-slate-100 rounded px-1 py-1 outline-none focus:ring-1",
-                          theme.ringStatic
-                        )}
-                        value={project.currency}
-                        onChange={(e) => onUpdateProject({ ...project, currency: e.target.value })}
-                      >
-                        {currencies.map(c => (
-                          <option key={c.code} value={c.code}>{c.code}</option>
-                        ))}
-                      </select>
-                    ) : (
-                       canEditValue && <span className="text-xs font-bold text-slate-500 py-1">{project.currency}</span>
-                    )}
-                  </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="col-span-2">
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Assigned PM</p>
+                <div className="flex items-center gap-2">
+                  <User className="w-4 h-4 text-slate-400" />
+                  <p className="text-sm font-semibold text-slate-900">{project.assignedPM}</p>
                 </div>
               </div>
 
-              <DetailItem icon={<Calendar className="w-4 h-4" />} label="Start Date" value={project.startDate} />
+              <div>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Value</p>
+                {canEditValue ? (
+                  <input 
+                    type="number"
+                    className={cn(
+                      "w-full text-sm font-semibold text-slate-900 bg-slate-50 border border-slate-100 rounded px-3 py-2 outline-none focus:ring-1",
+                      theme.ringStatic
+                    )}
+                    value={project.value}
+                    onChange={(e) => onUpdateProject({ ...project, value: parseFloat(e.target.value) })}
+                  />
+                ) : (
+                  <p className="text-sm font-semibold text-slate-900 py-1">{project.value > 0 ? project.value.toLocaleString() : '0'}</p>
+                )}
+              </div>
 
-              <div className="pt-2 grid grid-cols-2 gap-4 border-t border-slate-100 mt-2 pt-4">
-                <div className="space-y-1">
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider leading-none">Expected Duration</p>
-                  <p className="text-sm font-semibold text-slate-900">{project.expectedDuration || 0} Working Days</p>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider leading-none">Exp. Completion</p>
-                  <p className="text-sm font-semibold text-slate-900">{project.expectedCompletionDate || project.startDate}</p>
+              <div>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Currency</p>
+                {canEditCurrency ? (
+                  <select
+                    className={cn(
+                      "w-full text-sm font-semibold text-slate-900 bg-slate-50 border border-slate-100 rounded px-3 py-2 outline-none focus:ring-1",
+                      theme.ringStatic
+                    )}
+                    value={project.currency}
+                    onChange={(e) => onUpdateProject({ ...project, currency: e.target.value })}
+                  >
+                    {currencies.map(c => (
+                      <option key={c.code} value={c.code}>{c.code}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <p className="text-sm font-semibold text-slate-900 py-1">{project.currency}</p>
+                )}
+              </div>
+
+              <div>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Start Date</p>
+                <div className="flex items-center gap-2">
+                  <Calendar className="w-4 h-4 text-slate-400" />
+                  <p className="text-sm font-semibold text-slate-900">{project.startDate}</p>
                 </div>
               </div>
 
-              <div className="pt-2">
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider leading-none">Current Completion Date</p>
-                <div className="flex items-center justify-between mt-1">
-                  <p className="text-sm font-extrabold text-teal-600">{project.currentCompletionDate || project.expectedCompletionDate || project.startDate}</p>
+              <div>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Expected Duration</p>
+                <p className="text-sm font-semibold text-slate-900">{project.expectedDuration || 0} Working Days</p>
+              </div>
+
+              <div>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Exp. Completion</p>
+                <p className="text-sm font-semibold text-slate-900">{project.expectedCompletionDate || project.startDate}</p>
+              </div>
+
+              <div>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Current Completion</p>
+                <div className="flex items-center justify-between">
+                  <p className={cn(
+                    "text-sm font-bold", 
+                    project.currentCompletionDate !== project.expectedCompletionDate ? theme.text : "text-slate-900"
+                  )}>
+                    {project.currentCompletionDate || project.expectedCompletionDate || project.startDate}
+                  </p>
                   {canRequestRebaseline && (
                     <button 
                       onClick={() => setIsRebaselineModalOpen(true)}
                       className={cn(
-                        "flex items-center gap-1 px-2 py-1 bg-slate-50 text-[10px] font-bold rounded-lg hover:bg-slate-100 transition-colors border border-slate-200",
+                        "flex items-center gap-1 px-2 py-0.5 bg-slate-50 text-[10px] font-bold rounded hover:bg-slate-100 transition-colors border border-slate-200",
                         theme.text
                       )}
+                      title="Request Rebaseline"
                     >
                       <Plus className="w-3 h-3" />
-                      Request
                     </button>
                   )}
                 </div>

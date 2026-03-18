@@ -54,6 +54,10 @@ export const api = {
     }
   },
   audit: {
+    addLog: async (log: Omit<AuditLog, 'id'>) => {
+      await delay(100);
+      MOCK_AUDIT_LOGS.unshift({ ...log, id: Math.random().toString(36).substr(2,9) });
+    },
     getLogs: async (): Promise<AuditLog[]> => {
       await delay(200);
       return [...MOCK_AUDIT_LOGS];

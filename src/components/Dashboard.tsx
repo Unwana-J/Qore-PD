@@ -3,10 +3,11 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
   PieChart, Pie, Cell, Legend 
 } from 'recharts';
-import { Project, ProductLine, Role } from '../types';
+import { Project, ProductLine, Role, AppConfig } from '../types';
 import { cn, formatCurrency } from '../lib/utils';
 import { TrendingUp, Briefcase, Layers, Award, DollarSign, Activity, Clock, RefreshCw } from 'lucide-react';
 import { getThemeClasses } from '../lib/theme';
+import { PMScorecard } from './PMScorecard';
 
 interface DashboardProps {
   projects: Project[];
@@ -15,9 +16,10 @@ interface DashboardProps {
   themeColor?: string;
   userRole?: Role;
   onReassignProject?: (project: Project) => void;
+  config: AppConfig;
 }
 
-export const Dashboard: React.FC<DashboardProps> = ({ projects, workloadThresholds, themeColor = 'teal', userRole, onReassignProject }) => {
+export const Dashboard: React.FC<DashboardProps> = ({ projects, workloadThresholds, themeColor = 'teal', userRole, onReassignProject, config }) => {
   const theme = getThemeClasses(themeColor);
 
   // Revenue Stats Grouped by Currency
@@ -183,66 +185,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ projects, workloadThreshol
 
       {/* Performance Panel */}
       <section id="performance">
-        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-          <div className="flex items-center gap-2 mb-6">
-            <Award className={cn("w-5 h-5", theme.text)} />
-            <h2 className="text-lg font-semibold text-slate-900">PM Performance Scorecard</h2>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left">
-              <thead>
-                <tr className="border-b border-slate-100">
-                  <th className="pb-3 text-sm font-semibold text-slate-500 uppercase tracking-wider">Project Manager</th>
-                  <th className="pb-3 text-sm font-semibold text-slate-500 uppercase tracking-wider text-center">Projects</th>
-                  <th className="pb-3 text-sm font-semibold text-slate-500 uppercase tracking-wider text-right">Score</th>
-                  <th className="pb-3 text-sm font-semibold text-slate-500 uppercase tracking-wider text-right">Progress</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-50">
-                  {pmStats.map((stat: any, i) => (
-                    <tr key={i} className="border-b border-slate-50 last:border-0 hover:bg-slate-50/50 transition-colors">
-                      <td className="py-4">
-                        <div className="flex items-center gap-3">
-                          <div className={cn("w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white", theme.bg)}>
-                            {stat.name.split(' ').map((n: string) => n[0]).join('')}
-                          </div>
-                          <div>
-                            <p className="text-sm font-bold text-slate-900">{stat.name}</p>
-                            <div className="flex gap-2 mt-0.5">
-                              <span className="text-[10px] font-bold text-slate-400">P1: {stat.workload.P1}</span>
-                              <span className="text-[10px] font-bold text-slate-400">P2: {stat.workload.P2}</span>
-                              <span className="text-[10px] font-bold text-slate-400">P3: {stat.workload.P3}</span>
-                            </div>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="py-4 text-slate-600 text-center font-medium">{stat.projects}</td>
-                      <td className={cn("py-4 font-bold text-right", theme.text)}>{stat.score.toFixed(1)}</td>
-                      <td className="py-4 text-right">
-                        <div className="flex items-center justify-end gap-3">
-                          <span className="text-xs font-bold text-slate-500">{stat.completed}/{stat.projects}</span>
-                          <div className="w-24 h-2 bg-slate-100 rounded-full overflow-hidden">
-                            <div 
-                              className={cn("h-full rounded-full", theme.bg)} 
-                              style={{ width: `${(stat.completed / stat.projects) * 100}%` }}
-                            />
-                          </div>
-                          {['Superadmin', 'Manager', 'Team Lead'].includes(userRole as string) && onReassignProject && (
-                            <PMReassignButton 
-                              pmName={stat.name} 
-                              pmProjects={projects.filter(p => p.assignedPM === stat.name && ['Active', 'Delayed', 'Suspended'].includes(p.state))}
-                              onSelectProject={onReassignProject}
-                              theme={theme}
-                            />
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
+        <PMScorecard 
+          projects={projects}
+          config={config}
+          userRole={userRole!}
+          themeColor={themeColor}
+          onSelectProject={onReassignProject}
+        />
       </section>
     </div>
   );
