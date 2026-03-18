@@ -21,6 +21,7 @@ export const PMScorecard: React.FC<PMScorecardProps> = ({ projects, config, user
   const [statusFilter, setStatusFilter] = useState('All');
   const [sortBy, setSortBy] = useState('Weighted Score');
   const [expandedPMs, setExpandedPMs] = useState<string[]>([]);
+  const [isPackagePerformanceExpanded, setIsPackagePerformanceExpanded] = useState(false);
   
   if (userRole === 'PM') return null;
 
@@ -406,7 +407,7 @@ export const PMScorecard: React.FC<PMScorecardProps> = ({ projects, config, user
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
-              {packageStats.map((pkg, i) => (
+              {(isPackagePerformanceExpanded ? packageStats : packageStats.slice(0, 5)).map((pkg, i) => (
                 <tr key={i} className="hover:bg-slate-50 transition-colors">
                   <td className="py-4 font-bold text-slate-900">{pkg.name}</td>
                   <td className="py-4 text-center text-sm font-bold text-slate-600">{pkg.projectsWithService}</td>
@@ -437,6 +438,28 @@ export const PMScorecard: React.FC<PMScorecardProps> = ({ projects, config, user
                   </td>
                 </tr>
               ))}
+              {packageStats.length > 5 && (
+                <tr>
+                  <td colSpan={5} className="py-4 px-2">
+                    <button 
+                      onClick={() => setIsPackagePerformanceExpanded(!isPackagePerformanceExpanded)}
+                      className="w-full py-3 bg-slate-50 hover:bg-slate-100 rounded-xl text-xs font-black text-slate-500 hover:text-slate-800 uppercase tracking-widest transition-colors flex items-center justify-center gap-2"
+                    >
+                      {isPackagePerformanceExpanded ? (
+                        <>
+                          <ChevronDown className="w-4 h-4 rotate-180" />
+                          Show less services
+                        </>
+                      ) : (
+                        <>
+                          <ChevronDown className="w-4 h-4" />
+                          View all {packageStats.length} services
+                        </>
+                      )}
+                    </button>
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
