@@ -385,7 +385,6 @@ export const PhaseView: React.FC<PhaseViewProps> = ({
                           </h3>
                           <p className="text-xs text-slate-500 font-medium mt-1">Excludes weekends and holidays</p>
                         </div>
-                        <StateBadge state={project.state} />
                       </div>
                       <div className="flex items-end gap-3 mt-auto pt-4">
                         {activeStats.isStarted ? (

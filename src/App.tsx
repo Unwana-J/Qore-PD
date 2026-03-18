@@ -169,6 +169,7 @@ export default function App() {
                           themeColor={config.brand.themeColor}
                           onSelectProject={setSelectedProject}
                           staleThresholdDays={config.staleThresholdDays}
+                          spiThresholds={config.spiThresholds}
                         />
                       ) : (
                         <Dashboard 

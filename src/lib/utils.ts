@@ -168,9 +168,8 @@ export function getActiveDaysCount(project: Project, refDateStr?: string) {
   }
 
   const isSuspended = project.state === 'Suspended';
-  const label = isSuspended ? 'Suspended' : 'Active Days';
   
-  return { days: totalStr, text: `${totalStr} working days`, label, isStarted: true, isSuspended };
+  return { days: totalStr, text: `${totalStr} working days`, label: 'Active Days', isStarted: true, isSuspended };
 }
 
 export function calculateSPI(project: Project, thresholds = { onTrack: 1.0, atRisk: 0.8 }, refDateStr?: string) {

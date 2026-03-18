@@ -11,7 +11,7 @@ import {
 import { format, differenceInDays, parseISO } from 'date-fns';
 import { Project, Role, RevenueTrend, ProjectState, ProjectPriority, User } from '../types';
 import { MOCK_REVENUE_TREND } from '../mockData';
-import { formatCurrency, cn } from '../lib/utils';
+import { formatCurrency, cn, calculateSPI } from '../lib/utils';
 import { PROJECT_STATE_COLORS, PRIORITY_COLORS, getThemeClasses } from '../lib/theme';
 
 interface ExecutiveDashboardProps {
@@ -20,6 +20,7 @@ interface ExecutiveDashboardProps {
   themeColor?: string;
   onSelectProject: (p: Project) => void;
   staleThresholdDays: number;
+  spiThresholds: { onTrack: number; atRisk: number };
 }
 
 export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
@@ -27,7 +28,7 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
   users,
   themeColor = 'teal',
   onSelectProject,
-  staleThresholdDays
+  spiThresholds
 }) => {
   const [currencyFilter, setCurrencyFilter] = useState<'All' | 'NGN' | 'USD'>('All');
   const theme = getThemeClasses(themeColor);
@@ -35,40 +36,40 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
 
   // --- Computations ---
 
-  const filteredByCurrency = useMemo(() => {
-    if (currencyFilter === 'All') return projects;
-    return projects.filter(p => p.currency === currencyFilter);
-  }, [projects, currencyFilter]);
-
-  // Row 1: KPI Stats
-  const kpiStats = useMemo(() => {
-    const totalNGN = projects.filter(p => p.currency === 'NGN').reduce((acc, p) => acc + p.value, 0);
-    const totalUSD = projects.filter(p => p.currency === 'USD').reduce((acc, p) => acc + p.value, 0);
-
-    const achievedNGN = projects.filter(p => p.currency === 'NGN' && (p.state === 'Billed' || p.state === 'Closed')).reduce((acc, p) => acc + p.value, 0);
-    const achievedUSD = projects.filter(p => p.currency === 'USD' && (p.state === 'Billed' || p.state === 'Closed')).reduce((acc, p) => acc + p.value, 0);
-
-    const atRiskNGN = projects.filter(p => p.currency === 'NGN' && p.state === 'Delayed').reduce((acc, p) => acc + p.value, 0);
-    const atRiskUSD = projects.filter(p => p.currency === 'USD' && p.state === 'Delayed').reduce((acc, p) => acc + p.value, 0);
-
-    const activeCount = projects.filter(p => p.state === 'Active').length;
-    const attentionCount = projects.filter(p => p.state === 'Delayed' || p.state === 'Suspended').length;
-
+  // Row 1: Project Counts
+  const projectCounts = useMemo(() => {
     return {
-      total: { NGN: totalNGN, USD: totalUSD },
-      achieved: { NGN: achievedNGN, USD: achievedUSD },
-      atRisk: { NGN: atRiskNGN, USD: atRiskUSD },
-      activeCount,
-      attentionCount
+      total: projects.length,
+      onTrack: projects.filter(p => p.state === 'Active').length,
+      delayed: projects.filter(p => p.state === 'Delayed').length,
+      onHold: projects.filter(p => p.state === 'Suspended').length,
+      readyForBilling: projects.filter(p => p.state === 'Signed Off').length,
+      billed: projects.filter(p => p.state === 'Billed').length,
+      closed: projects.filter(p => p.state === 'Closed').length,
     };
   }, [projects]);
 
-  // Row 2 Left: Revenue Trend Data
+  // Row 2: Revenue Stats
+  const revenueStats = useMemo(() => {
+    const sumFiltered = (currency: 'NGN'|'USD', states: ProjectState[]) => 
+      projects.filter(p => p.currency === currency && states.includes(p.state)).reduce((acc, p) => acc + p.value, 0);
+    const sumAll = (currency: 'NGN'|'USD') => 
+      projects.filter(p => p.currency === currency).reduce((acc, p) => acc + p.value, 0);
+
+    return {
+      total: { NGN: sumAll('NGN'), USD: sumAll('USD') },
+      recognized: { NGN: sumFiltered('NGN', ['Billed', 'Closed']), USD: sumFiltered('USD', ['Billed', 'Closed']) },
+      atRisk: { NGN: sumFiltered('NGN', ['Delayed', 'Suspended']), USD: sumFiltered('USD', ['Delayed', 'Suspended']) },
+      onTrack: { NGN: sumFiltered('NGN', ['Active', 'Signed Off']), USD: sumFiltered('USD', ['Active', 'Signed Off']) }
+    };
+  }, [projects]);
+
+  // Charts: Revenue Trend
   const trendData = useMemo(() => {
     if (currencyFilter === 'All') {
       return MOCK_REVENUE_TREND.map(t => ({
         ...t,
-        intake: t.intakeNGN + (t.intakeUSD * 1500), // Simple blended for 'All' view if needed, or just separate lines
+        intake: t.intakeNGN + (t.intakeUSD * 1500),
         achieved: t.achievedNGN + (t.achievedUSD * 1500)
       }));
     }
@@ -79,25 +80,23 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
     }));
   }, [currencyFilter]);
 
-  // Row 2 Right: Portfolio Health (Donut)
+  // Charts: Portfolio Health (Donut)
   const healthData = useMemo(() => {
-    const states: ProjectState[] = ['Active', 'Delayed', 'Suspended', 'Signed Off', 'Billed', 'Closed'];
+    const states: { name: string, state: ProjectState }[] = [
+      { name: 'On-Track', state: 'Active' },
+      { name: 'Delayed', state: 'Delayed' },
+      { name: 'On Hold', state: 'Suspended' },
+      { name: 'Signed Off', state: 'Signed Off' },
+      { name: 'Billed', state: 'Billed' },
+      { name: 'Closed', state: 'Closed' }
+    ];
     return states.map(s => ({
-      name: s,
-      value: projects.filter(p => p.state === s).length
+      name: s.name,
+      value: projects.filter(p => p.state === s.state).length
     }));
   }, [projects]);
 
-  const stateColors: Record<ProjectState, string> = {
-    'Active': '#14b8a6', // teal-500
-    'Delayed': '#f59e0b', // amber-500
-    'Suspended': '#94a3b8', // slate-400
-    'Signed Off': '#3b82f6', // blue-500
-    'Billed': '#10b981', // emerald-500
-    'Closed': '#1e293b', // slate-800
-  };
-
-  // Row 3 Left: Revenue by Product Line
+  // Charts: Product Line Revenue
   const productLineRevenue = useMemo(() => {
     const plines: any[] = ['Bankone', 'Channels', 'Recova', 'Cluster'];
     return plines.map(pl => {
@@ -112,74 +111,17 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
     });
   }, [projects, currencyFilter]);
 
-  // Row 3 Right: Projected Revenue Q1 2026
-  const projectedRevenue = useMemo(() => {
-    const activeStates: ProjectState[] = ['Active', 'Delayed', 'Signed Off'];
-    const q1Projects = projects.filter(p => {
-      if (!activeStates.includes(p.state)) return false;
-      const signOff = p.phases.find(m => m.name === 'Sign Off');
-      if (!signOff) return false;
-      const date = new Date(signOff.targetDate);
-      return date >= new Date('2026-01-01') && date <= new Date('2026-03-31');
-    });
+  // Schedule Performance
+  const schedulePerformance = useMemo(() => {
+    const activeProjects = projects.filter(p => !['Signed Off', 'Billed', 'Closed'].includes(p.state));
+    const validSpis = activeProjects.map(p => calculateSPI(p, spiThresholds).rawSpi).filter(val => val !== null) as number[];
+    const avgSpi = validSpis.length > 0 ? validSpis.reduce((a, b) => a + b, 0) / validSpis.length : 0;
+    const completionRate = projects.length > 0 ? (projectCounts.closed / projects.length) * 100 : 0;
 
-    const ngn = q1Projects.filter(p => p.currency === 'NGN');
-    const usd = q1Projects.filter(p => p.currency === 'USD');
+    return { avgSpi, completionRate };
+  }, [projects, projectCounts.closed, spiThresholds]);
 
-    return {
-      ngn: { val: ngn.reduce((acc, p) => acc + p.value, 0), count: ngn.length },
-      usd: { val: usd.reduce((acc, p) => acc + p.value, 0), count: usd.length }
-    };
-  }, [projects]);
-
-  // Row 4: Delivery Performance
-  const deliveryMetrics = useMemo(() => {
-    // Avg Completion Time (simplified)
-    const closed = projects.filter(p => p.state === 'Closed');
-    const avgDays = closed.length === 0 ? 0 : 75; // Mock for now
-
-    // Milestone Adherence (simplified)
-    const completedPhases = projects.flatMap(p => p.phases).filter(m => m.status === 'Completed');
-    const onTime = completedPhases.filter(m => m.completionDate && m.completionDate <= m.targetDate).length;
-    const adherence = completedPhases.length === 0 ? 0 : (onTime / completedPhases.length) * 100;
-
-    // Billing Velocity
-    const velocity = 4; // Mock days
-
-    // Stale Projects
-    const stale = projects.filter(p => {
-      const diff = (new Date().getTime() - new Date(p.updatedAt).getTime()) / (1000 * 3600 * 24);
-      return diff >= staleThresholdDays;
-    }).length;
-
-    return { avgDays, adherence, velocity, stale };
-  }, [projects, staleThresholdDays]);
-
-  // Row 5: Priority Tier
-  const priorityMetrics = useMemo(() => {
-    const tiers: ProjectPriority[] = ['P1', 'P2', 'P3'];
-    return tiers.map(t => {
-      const activeProjects = projects.filter(p => p.priority === t && ['Active', 'Delayed', 'Suspended'].includes(p.state));
-      const ngnVal = activeProjects.filter(p => p.currency === 'NGN').reduce((acc, p) => acc + p.value, 0);
-      const usdVal = activeProjects.filter(p => p.currency === 'USD').reduce((acc, p) => acc + p.value, 0);
-      return { tier: t, count: activeProjects.length, ngn: ngnVal, usd: usdVal };
-    });
-  }, [projects]);
-
-  // Row 5: Team Utilisation
-  const utilisation = useMemo(() => {
-    // Mock Capacity Calculation
-    // Total PMs could be the number of active PMs in MOCK_USERS
-    const totalPMs = 3;
-    const thresholds = { P1: 3, P2: 10, P3: 50 }; // from config
-    return {
-      P1: { used: projects.filter(p => p.priority === 'P1' && ['Active', 'Delayed', 'Suspended'].includes(p.state)).length, max: totalPMs * thresholds.P1 },
-      P2: { used: projects.filter(p => p.priority === 'P2' && ['Active', 'Delayed', 'Suspended'].includes(p.state)).length, max: totalPMs * thresholds.P2 },
-      P3: { used: projects.filter(p => p.priority === 'P3' && ['Active', 'Delayed', 'Suspended'].includes(p.state)).length, max: totalPMs * thresholds.P3 },
-    };
-  }, [projects]);
-
-  // Row 6: At-Risk Table
+  // At-Risk Table
   const atRiskProjects = useMemo(() => {
     return projects
       .filter(p => p.state === 'Delayed')
@@ -188,7 +130,7 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
   }, [projects]);
 
   const getDaysDelayed = (p: Project) => {
-    const closurePhase = p.phases.find(m => (m.name as string) === 'Closure');
+    const closurePhase = p.phases.find(m => m.name === 'Closure');
     if (!closurePhase || !closurePhase.completionDate) return 0;
     const target = parseISO(closurePhase.completionDate);
     if (target < now && closurePhase.status !== 'Completed') {
@@ -196,6 +138,8 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
     }
     return 0;
   };
+
+  const getStatusRatio = (count: number) => projects.length > 0 ? (count / projects.length) * 100 : 0;
 
   return (
     <div className="p-6 space-y-8 max-w-7xl mx-auto pb-20">
@@ -228,53 +172,112 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
         </div>
       </div>
 
-      {/* Row 1: KPI Strip */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
+      {/* Row 1: Project Counts */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-4">
         <KPIBox
-          label="Total Portfolio Revenue"
-          ngn={kpiStats.total.NGN}
-          usd={kpiStats.total.USD}
-          subtitle="All contracted revenue"
-          currencyFilter={currencyFilter}
+          label="Total Projects"
+          val={projectCounts.total}
+          subtitle="Across all statuses"
+          variant="neutral"
         />
         <KPIBox
-          label="Achieved Revenue"
-          ngn={kpiStats.achieved.NGN}
-          usd={kpiStats.achieved.USD}
-          subtitle="Billed & closed"
+          label="On-Track"
+          val={projectCounts.onTrack}
+          subtitle="Active & performing"
           variant="green"
-          currencyFilter={currencyFilter}
         />
         <KPIBox
-          label="At-Risk Revenue"
-          ngn={kpiStats.atRisk.NGN}
-          usd={kpiStats.atRisk.USD}
-          subtitle="Revenue in delayed projects"
+          label="Delayed"
+          val={projectCounts.delayed}
+          subtitle="At-risk schedules"
           variant="red"
-          currencyFilter={currencyFilter}
         />
         <KPIBox
-          label="Active Projects"
-          val={kpiStats.activeCount}
-          subtitle="Currently in delivery"
-          variant="teal"
-          themeColor={themeColor}
+          label="On Hold"
+          val={projectCounts.onHold}
+          subtitle="Suspended operations"
+          variant="slate"
         />
         <KPIBox
-          label="Delayed + Suspended"
-          val={kpiStats.attentionCount}
-          subtitle="Needs attention"
+          label="Ready for Billing"
+          val={projectCounts.readyForBilling}
+          subtitle="Awaiting Finance"
           variant="amber"
         />
       </div>
 
-      {/* Row 2: Charts */}
+      {/* Row 2: Revenue Stats */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+        <RevenueBox
+          label="Total Portfolio Revenue"
+          ngn={revenueStats.total.NGN}
+          usd={revenueStats.total.USD}
+          subtitle="All contracted value"
+          currencyFilter={currencyFilter}
+          variant="neutral"
+        />
+        <RevenueBox
+          label="Recognized Revenue"
+          ngn={revenueStats.recognized.NGN}
+          usd={revenueStats.recognized.USD}
+          subtitle="Billed & Closed projects"
+          currencyFilter={currencyFilter}
+          variant="green"
+        />
+        <RevenueBox
+          label="Receivable At-Risk"
+          ngn={revenueStats.atRisk.NGN}
+          usd={revenueStats.atRisk.USD}
+          subtitle="Delayed & Suspended projects"
+          currencyFilter={currencyFilter}
+          variant="red"
+        />
+        <RevenueBox
+          label="Receivable On-Track"
+          ngn={revenueStats.onTrack.NGN}
+          usd={revenueStats.onTrack.USD}
+          subtitle="On-Track & Ready for Billing"
+          currencyFilter={currencyFilter}
+          variant="teal"
+          themeColor={themeColor}
+        />
+      </div>
+
+      {/* Project Status Breakdown (Horizontal Bar) */}
+      <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
+        <div className="mb-4">
+          <h2 className="text-lg font-black text-slate-900 tracking-tight">Portfolio Status Breakdown</h2>
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Single-line overview of all projects</p>
+        </div>
+        
+        {/* The stacked bar */}
+        <div className="w-full h-8 flex rounded-xl overflow-hidden mb-6 shadow-inner ring-1 ring-slate-100 ring-inset">
+          <div className="h-full bg-emerald-500 transition-all hover:opacity-90" style={{ width: `${getStatusRatio(projectCounts.onTrack)}%` }} title={`On-Track: ${projectCounts.onTrack}`} />
+          <div className="h-full bg-red-500 transition-all hover:opacity-90" style={{ width: `${getStatusRatio(projectCounts.delayed)}%` }} title={`Delayed: ${projectCounts.delayed}`} />
+          <div className="h-full bg-slate-400 transition-all hover:opacity-90" style={{ width: `${getStatusRatio(projectCounts.onHold)}%` }} title={`On Hold: ${projectCounts.onHold}`} />
+          <div className="h-full bg-amber-500 transition-all hover:opacity-90" style={{ width: `${getStatusRatio(projectCounts.readyForBilling)}%` }} title={`Ready for Billing: ${projectCounts.readyForBilling}`} />
+          <div className="h-full bg-blue-500 transition-all hover:opacity-90" style={{ width: `${getStatusRatio(projectCounts.billed)}%` }} title={`Billed: ${projectCounts.billed}`} />
+          <div className="h-full bg-slate-800 transition-all hover:opacity-90" style={{ width: `${getStatusRatio(projectCounts.closed)}%` }} title={`Closed: ${projectCounts.closed}`} />
+        </div>
+
+        {/* Legend / Stats */}
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+          <BreakdownStat label="On-Track" count={projectCounts.onTrack} total={projects.length} color="text-emerald-500" />
+          <BreakdownStat label="Delayed" count={projectCounts.delayed} total={projects.length} color="text-red-500" />
+          <BreakdownStat label="On Hold" count={projectCounts.onHold} total={projects.length} color="text-slate-400" />
+          <BreakdownStat label="Ready to Bill" count={projectCounts.readyForBilling} total={projects.length} color="text-amber-500" />
+          <BreakdownStat label="Billed" count={projectCounts.billed} total={projects.length} color="text-blue-500" />
+          <BreakdownStat label="Closed" count={projectCounts.closed} total={projects.length} color="text-slate-800" />
+        </div>
+      </div>
+
+      {/* Row 3: Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Revenue Trend */}
         <div className="lg:col-span-2 bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
           <div className="mb-6">
-            <h2 className="text-lg font-black text-slate-900">Revenue Performance — Last 12 Months</h2>
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Intake vs Achieved</p>
+            <h2 className="text-lg font-black text-slate-900">Revenue Performance</h2>
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Intake vs Recognized (Last 12 Months)</p>
           </div>
           <div className="h-[300px] w-full">
             <ResponsiveContainer width="100%" height="100%">
@@ -313,7 +316,7 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
                   strokeWidth={3} 
                   dot={{ r: 4, fill: '#14b8a6', strokeWidth: 2, stroke: '#fff' }}
                   activeDot={{ r: 6, strokeWidth: 0 }}
-                  name="Achieved Revenue"
+                  name="Recognized Revenue"
                 />
                 <Legend verticalAlign="top" align="right" iconType="circle" wrapperStyle={{paddingBottom: 20, fontSize: 10, fontWeight: 700, textTransform: 'uppercase'}} />
               </LineChart>
@@ -338,15 +341,15 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
                 >
                   {healthData.map((entry, index) => {
                     const stateStyles: any = {
-                      'Active': '#3b82f6',
-                      'Delayed': '#ef4444',
-                      'Suspended': '#0f172a',
-                      'Signed Off': '#6366f1',
-                      'Billed': '#10b981',
-                      'Closed': '#94a3b8'
+                      'On-Track': '#10b981',      // emerald-500
+                      'Delayed': '#ef4444',       // red-500
+                      'On Hold': '#94a3b8',       // slate-400
+                      'Signed Off': '#f59e0b',    // amber-500
+                      'Billed': '#3b82f6',        // blue-500
+                      'Closed': '#1e293b'         // slate-800
                     };
                     return (
-                      <Cell key={`cell-${index}`} fill={stateStyles[entry.name as ProjectState]} />
+                      <Cell key={`cell-${index}`} fill={stateStyles[entry.name]} />
                     );
                   })}
                 </Pie>
@@ -356,24 +359,24 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
               </PieChart>
             </ResponsiveContainer>
             <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none mt-[-20px]">
-              <span className="text-3xl font-black text-slate-900Leading-none">{projects.length}</span>
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Total Projects</span>
+              <span className="text-3xl font-black text-slate-900 leading-none">{projects.length}</span>
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Total Projects</span>
             </div>
           </div>
           <div className="grid grid-cols-2 gap-y-2 mt-4">
             {healthData.map((d) => {
                const stateStyles: any = {
-                  'Active': '#3b82f6',
+                  'On-Track': '#10b981',
                   'Delayed': '#ef4444',
-                  'Suspended': '#0f172a',
-                  'Ready for Billing': '#6366f1',
-                  'Billed': '#10b981',
-                  'Closed': '#94a3b8'
+                  'On Hold': '#94a3b8',
+                  'Signed Off': '#f59e0b',
+                  'Billed': '#3b82f6',
+                  'Closed': '#1e293b'
                 };
               return (
                 <div key={d.name} className="flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full" style={{backgroundColor: stateStyles[d.name as ProjectState]}} />
-                  <span className="text-[10px] font-bold text-slate-600 truncate">{d.name} ({Math.round(d.value / projects.length * 100)}%)</span>
+                  <div className="w-2 h-2 rounded-full" style={{backgroundColor: stateStyles[d.name]}} />
+                  <span className="text-[10px] font-bold text-slate-600 truncate">{d.name} ({Math.round((d.value / projects.length || 0) * 100)}%)</span>
                 </div>
               );
             })}
@@ -381,10 +384,9 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
         </div>
       </div>
 
-      {/* Row 3: Product Line & Currency Summary */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Product Line Bar Chart */}
-        <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
+        <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm lg:col-span-1">
           <div className="mb-6">
             <h2 className="text-lg font-black text-slate-900">Revenue by Product Line</h2>
           </div>
@@ -405,200 +407,49 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
                    contentStyle={{borderRadius: '20px', border: 'none', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)'}}
                 />
                 <Legend verticalAlign="top" align="right" iconType="circle" wrapperStyle={{paddingBottom: 10, fontSize: 10, fontWeight: 700}} />
-                <Bar dataKey="achieved" fill="#14b8a6" radius={[0, 4, 4, 0]} name="Achieved" barSize={12} />
+                <Bar dataKey="achieved" fill="#14b8a6" radius={[0, 4, 4, 0]} name="Recognized" barSize={12} />
                 <Bar dataKey="pending" fill="#99f6e4" radius={[0, 4, 4, 0]} name="Pending" barSize={12} />
               </BarChart>
             </ResponsiveContainer>
           </div>
         </div>
 
-        {/* Revenue by Currency Table */}
-        <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
-          <div className="mb-6 flex items-center gap-2">
-            <DollarSign className="w-5 h-5 text-teal-600" />
-            <h2 className="text-lg font-black text-slate-900">Revenue by Currency</h2>
-          </div>
-          <div className="space-y-6">
-            {(['NGN', 'USD'] as const)
-              .filter(curr => currencyFilter === 'All' || currencyFilter === curr)
-              .map(curr => {
-              const intake = projects.filter(p => p.currency === curr).reduce((acc, p) => acc + p.value, 0);
-              const achieved = projects.filter(p => p.currency === curr && (p.state === 'Billed' || p.state === 'Closed')).reduce((acc, p) => acc + p.value, 0);
-              const pending = intake - achieved;
-              return (
-                <div key={curr} className="space-y-3">
-                  <div className="flex items-center gap-2">
-                    <div className="px-2 py-0.5 bg-slate-100 rounded text-[10px] font-black text-slate-600">{curr}</div>
-                    <div className="h-px flex-1 bg-slate-100" />
-                  </div>
-                  <div className="space-y-4">
-                    <div className="flex justify-between items-center text-xs">
-                      <p className="font-bold text-slate-400 uppercase tracking-widest text-[9px]">Intake</p>
-                      <p className="font-black text-slate-900">{formatCurrency(intake, curr)}</p>
-                    </div>
-                    <div className="flex justify-between items-center text-xs">
-                      <p className="font-bold text-slate-400 uppercase tracking-widest text-[9px]">Pending</p>
-                      <p className="font-black text-slate-700">{formatCurrency(pending, curr)}</p>
-                    </div>
-                    <div className="flex justify-between items-center text-xs p-2 bg-emerald-50 rounded-xl border border-emerald-100">
-                      <p className="font-bold text-emerald-600 uppercase tracking-widest text-[9px]">Achieved</p>
-                      <p className="font-black text-emerald-700">{formatCurrency(achieved, curr)}</p>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Projected Revenue */}
-        <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-teal-50 rounded-full -mr-16 -mt-16 opacity-50" />
-          <div className="relative">
-            <div className="mb-2">
-              <h2 className="text-lg font-black text-slate-900 leading-tight">Projected Revenue — This Quarter</h2>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Based on active project Sign Off dates</p>
-            </div>
-            <div className="mt-8 space-y-6">
-              <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                <p className="text-[11px] font-black text-slate-500 uppercase tracking-widest mb-2">Q1 2026 Pipeline</p>
-                <div className="space-y-3">
-                  {(currencyFilter === 'All' || currencyFilter === 'NGN') && (
-                    <div>
-                      <p className="text-xl font-black text-slate-900">{formatCurrency(projectedRevenue.ngn.val, 'NGN')}</p>
-                      <p className="text-[10px] font-bold text-slate-400 uppercase">Across {projectedRevenue.ngn.count} projects</p>
-                    </div>
-                  )}
-                  {currencyFilter === 'All' && <div className="h-px bg-slate-200" />}
-                  {(currencyFilter === 'All' || currencyFilter === 'USD') && (
-                    <div>
-                      <p className="text-xl font-black text-slate-900">{formatCurrency(projectedRevenue.usd.val, 'USD')}</p>
-                      <p className="text-[10px] font-bold text-slate-400 uppercase">Across {projectedRevenue.usd.count} projects</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Row 4: Delivery Performance scorecard */}
-      <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
-        <div className="mb-8">
-          <h2 className="text-lg font-black text-slate-900 tracking-tight">Delivery Performance</h2>
-          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">All time · Updated in real time</p>
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
-           <MetricItem 
-            label="Avg Completion Time" 
-            value={`${deliveryMetrics.avgDays} Days`} 
-            status={deliveryMetrics.avgDays < 90 ? 'good' : deliveryMetrics.avgDays <= 120 ? 'warning' : 'critical'}
-            thresholds="< 90d / 90-120d / 120d+"
-          />
-           <MetricItem 
-            label="Milestone Adherence" 
-            value={`${Math.round(deliveryMetrics.adherence)}%`} 
-            status={deliveryMetrics.adherence > 80 ? 'good' : deliveryMetrics.adherence >= 60 ? 'warning' : 'critical'}
-            thresholds="> 80% / 60-80% / < 60%"
-          />
-           <MetricItem 
-            label="Billing Velocity" 
-            value={`${deliveryMetrics.velocity} Days`} 
-            status={deliveryMetrics.velocity < 5 ? 'good' : deliveryMetrics.velocity <= 10 ? 'warning' : 'critical'}
-            thresholds="< 5d / 5-10d / 10d+"
-          />
-           <MetricItem 
-            label="Stale Projects" 
-            value={deliveryMetrics.stale.toString()} 
-            status={deliveryMetrics.stale === 0 ? 'good' : deliveryMetrics.stale <= 3 ? 'warning' : 'critical'}
-            thresholds="0 / 1-3 / 4+"
-          />
-        </div>
-      </div>
-
-      {/* Row 5: Priority & Capacity */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Priority Tier */}
-        <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
+        {/* Schedule Performance section */}
+        <div className="lg:col-span-2 bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
           <div className="mb-6">
-            <h2 className="text-lg font-black text-slate-900 tracking-tight">Active Projects by Priority</h2>
+            <h2 className="text-lg font-black text-slate-900 tracking-tight">Schedule Performance</h2>
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Delivery efficiency across all active portfolios</p>
           </div>
-          <div className="space-y-4">
-            {priorityMetrics.map(p => {
-              const maxCount = Math.max(...priorityMetrics.map(m => m.count));
-              return (
-                <div key={p.tier} className="group">
-                  <div className="flex justify-between items-end mb-2">
-                    <div>
-                      <span className={cn(
-                        "px-2 py-0.5 rounded-lg text-[10px] font-black border uppercase tracking-widest",
-                        p.tier === 'P1' ? "bg-red-50 text-red-600 border-red-100" :
-                        p.tier === 'P2' ? "bg-amber-50 text-amber-600 border-amber-100" :
-                        "bg-sky-50 text-sky-600 border-sky-100"
-                      )}>
-                        {p.tier} Tier
-                      </span>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-sm font-black text-slate-900">{p.count} Projects</p>
-                      <p className="text-[10px] font-bold text-slate-400">
-                        {currencyFilter === 'USD' ? formatCurrency(p.usd, 'USD') : formatCurrency(p.ngn, 'NGN')}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="h-4 w-full bg-slate-50 rounded-full overflow-hidden border border-slate-100">
-                    <div 
-                      className={cn(
-                        "h-full transition-all duration-1000 group-hover:opacity-80",
-                        p.tier === 'P1' ? "bg-red-500" : p.tier === 'P2' ? "bg-amber-500" : "bg-sky-500"
-                      )} 
-                      style={{ width: `${(p.count / maxCount) * 100}%` }}
-                    />
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 h-[250px] content-center">
+            
+            <div className="flex flex-col items-center justify-center p-6 bg-slate-50 rounded-3xl border border-slate-100 relative overflow-hidden">
+               <Activity className={cn("absolute -top-4 -right-4 w-32 h-32 opacity-[0.03]", schedulePerformance.avgSpi >= 1 ? "text-emerald-500" : schedulePerformance.avgSpi >= 0.8 ? "text-amber-500" : "text-red-500")} />
+               <p className="text-xs font-black text-slate-500 uppercase tracking-widest mb-4">Portfolio Average SPI</p>
+               <span className={cn(
+                 "text-6xl font-black tracking-tighter mb-2",
+                 schedulePerformance.avgSpi >= 1.0 ? "text-emerald-500" : 
+                 schedulePerformance.avgSpi >= 0.8 ? "text-amber-500" : "text-red-500"
+               )}>
+                 {schedulePerformance.avgSpi.toFixed(2)}
+               </span>
+               <p className="text-[10px] font-bold text-slate-400 uppercase">Average across all active projects</p>
+            </div>
 
-        {/* PM Utilisation */}
-        <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
-          <div className="mb-6 flex justify-between items-start">
-            <h2 className="text-lg font-black text-slate-900 tracking-tight">Team Capacity Utilisation</h2>
-            <Target className="w-5 h-5 text-slate-300" />
+            <div className="flex flex-col items-center justify-center p-6 bg-slate-50 rounded-3xl border border-slate-100">
+               <p className="text-xs font-black text-slate-500 uppercase tracking-widest mb-4">Project Completion Rate</p>
+               <span className="text-6xl font-black tracking-tighter text-slate-800 mb-4">{Math.round(schedulePerformance.completionRate)}%</span>
+               
+               <div className="w-full max-w-[200px] h-3 bg-slate-200 rounded-full overflow-hidden shadow-inner mb-2">
+                 <div className="h-full bg-slate-800 transition-all duration-1000" style={{ width: `${schedulePerformance.completionRate}%` }} />
+               </div>
+               <p className="text-[10px] font-bold text-slate-400 uppercase">Projects reached closed status</p>
+            </div>
+
           </div>
-          <div className="space-y-6">
-            {(['P1', 'P2', 'P3'] as const).map(tier => {
-              const { used, max } = utilisation[tier];
-              const pct = Math.round((used / max) * 100);
-              const statusColor = pct < 70 ? 'bg-emerald-500' : pct < 90 ? 'bg-amber-500' : 'bg-red-500';
-              return (
-                <div key={tier}>
-                  <div className="flex justify-between items-center mb-2">
-                    <span className="text-xs font-black text-slate-500 uppercase tracking-widest">{tier} Allocation</span>
-                    <span className={cn("text-xs font-black", pct > 90 ? "text-red-600" : "text-slate-900")}>
-                      {used} / {max} slots used ({pct}%)
-                    </span>
-                  </div>
-                  <div className="h-2.5 w-full bg-slate-100 rounded-full overflow-hidden">
-                    <div 
-                      className={cn("h-full transition-all duration-1000", statusColor)}
-                      style={{ width: `${pct}%` }}
-                    />
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-          <p className="mt-8 p-3 bg-blue-50 rounded-xl text-[10px] font-bold text-blue-600 border border-blue-100 flex items-center gap-2">
-            <Zap className="w-3.5 h-3.5" />
-            BASED ON ACTIVE PMs × TIER THRESHOLDS
-          </p>
         </div>
       </div>
 
-      {/* Row 6: At-Risk Projects Table */}
+      {/* Row 4: At-Risk Projects Table */}
       <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
         <div className="flex justify-between items-end mb-8">
           <div>
@@ -616,7 +467,7 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
         </div>
 
         <div className="overflow-x-auto -mx-6">
-          <table className="w-full text-left min-w-[900px]">
+          <table className="w-full text-left min-w-[800px]">
             <thead>
               <tr className="border-b border-slate-100">
                 <th className="px-6 pb-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Client / Project</th>
@@ -624,16 +475,15 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
                 <th className="px-4 pb-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">PM</th>
                 <th className="px-4 pb-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Value</th>
                 <th className="px-4 pb-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Days Delayed</th>
-                <th className="px-4 pb-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Current Phase</th>
-                <th className="px-6 pb-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Last Activity</th>
+                <th className="px-6 pb-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Current SPI</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
               {atRiskProjects.length > 0 ? atRiskProjects.map(p => {
                 const delayed = getDaysDelayed(p);
-                const currPhase = p.phases.find(m => m.status === 'In Progress') || p.phases.find(m => m.status === 'Pending') || { name: 'N/A' };
                 const pm = users.find(u => u.name === p.assignedPM);
                 const isInactive = pm?.status === 'Inactive';
+                const spi = calculateSPI(p, spiThresholds);
 
                 return (
                   <tr 
@@ -670,20 +520,16 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
                         delayed > 29 ? "text-red-600" : delayed > 14 ? "text-amber-600" : "text-slate-500"
                       )}>{delayed}d</span>
                     </td>
-                    <td className="px-4 py-5">
-                      <div className="flex items-center gap-2">
-                         <div className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
-                         <span className="text-[11px] font-bold text-slate-600">{currPhase.name}</span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-5 text-right text-[11px] font-bold text-slate-400">
-                      {p.updatedAt}
+                    <td className="px-6 py-5 text-center">
+                      <span className={cn("px-2 py-1 rounded text-[10px] font-black border", spi.color)}>
+                        {spi.value}
+                      </span>
                     </td>
                   </tr>
                 );
               }) : (
                 <tr>
-                  <td colSpan={7} className="px-6 py-20 text-center">
+                  <td colSpan={6} className="px-6 py-20 text-center">
                     <div className="w-16 h-16 bg-emerald-50 rounded-full flex items-center justify-center mx-auto mb-4">
                       <Award className="w-8 h-8 text-emerald-500" />
                     </div>
@@ -702,13 +548,25 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
 
 /* --- Helpers --- */
 
-const KPIBox = ({ label, ngn, usd, val, subtitle, variant = 'neutral', themeColor = 'teal', currencyFilter = 'All' }: any) => {
-  const theme = getThemeClasses(themeColor);
+const BreakdownStat = ({ label, count, total, color }: { label: string, count: number, total: number, color: string }) => {
+  const pct = total > 0 ? Math.round((count / total) * 100) : 0;
+  return (
+    <div className="flex flex-col">
+      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{label}</span>
+      <div className="flex items-baseline gap-1.5">
+        <span className={cn("text-xl font-black", color)}>{count}</span>
+        <span className="text-[10px] font-bold text-slate-400">({pct}%)</span>
+      </div>
+    </div>
+  );
+};
+
+const KPIBox = ({ label, val, subtitle, variant = 'neutral' }: any) => {
   const styles: any = {
-    neutral: "bg-white border-slate-200 text-slate-900 icon-bg-slate-50 icon-text-slate-400",
-    green: "bg-white border-emerald-100 text-slate-900 icon-bg-emerald-50 icon-text-emerald-500 border-b-4 border-b-emerald-500",
+    neutral: "bg-white border-slate-200 text-slate-900 icon-bg-slate-50 icon-text-slate-400 border-b-4 border-b-slate-800",
+    green: "bg-white border-emerald-100 text-emerald-900 icon-bg-emerald-50 icon-text-emerald-500 border-b-4 border-b-emerald-500",
     red: "bg-white border-red-100 text-slate-900 icon-bg-red-50 icon-text-red-500 border-b-4 border-b-red-500",
-    teal: cn("bg-white border-slate-200 text-slate-900 border-b-4", theme.borderB),
+    slate: "bg-slate-50 border-slate-200 text-slate-600 icon-bg-white icon-text-slate-400 border-b-4 border-b-slate-400",
     amber: "bg-white border-amber-100 text-slate-900 icon-bg-amber-50 icon-text-amber-500 border-b-4 border-b-amber-500",
   };
 
@@ -716,77 +574,68 @@ const KPIBox = ({ label, ngn, usd, val, subtitle, variant = 'neutral', themeColo
     neutral: Briefcase,
     green: Award,
     red: AlertTriangle,
-    teal: Zap,
-    amber: Clock
+    slate: Clock,
+    amber: Target
   };
   const Icon = IconMap[variant];
 
   return (
-    <div className={cn("p-4 rounded-3xl border shadow-sm flex flex-col justify-between transition-all hover:shadow-md h-full", styles[variant])}>
-      <div className="flex justify-between items-start mb-4">
-        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-tight">{label}</p>
-        <div className={cn("p-2 rounded-xl", variant === 'teal' ? theme.lightBg : "bg-slate-50")}>
-          <Icon className={cn("w-4 h-4", variant === 'teal' ? theme.text : "text-slate-400")} />
+    <div className={cn("p-4 rounded-3xl border shadow-sm flex flex-col justify-between transition-all hover:-translate-y-1 hover:shadow-md h-full relative overflow-hidden", styles[variant])}>
+      <div className="flex justify-between items-start mb-6">
+        <div className={cn("p-2 rounded-xl backdrop-blur-sm", variant === 'slate' ? "bg-white" : "bg-slate-50")}>
+          <Icon className={cn("w-4 h-4 opacity-80", styles[variant].match(/icon-text-[a-z0-9-]+/)![0].replace('icon-text-', 'text-'))} />
         </div>
       </div>
       <div>
-        {val !== undefined ? (
-          <p className="text-3xl font-black tracking-tighter">{val}</p>
-        ) : (
-          <div className="space-y-0.5 overflow-hidden">
-            {(currencyFilter === 'All' || currencyFilter === 'NGN') && (
-              <p 
-                title={formatCurrency(ngn, 'NGN')}
-                className={cn(
-                  "font-black leading-none tracking-tighter truncate",
-                  currencyFilter === 'NGN' ? "text-2xl" : "text-sm sm:text-base"
-                )}
-              >
-                {formatCurrency(ngn, 'NGN')}
-              </p>
+        <p className="text-4xl font-black tracking-tighter mb-1 relative z-10">{val}</p>
+        <p className="text-[11px] font-black uppercase tracking-widest relative z-10 mb-0.5">{label}</p>
+        <p className="text-[9px] font-bold opacity-60 uppercase relative z-10">{subtitle}</p>
+      </div>
+      <Icon className={cn("absolute -bottom-4 -right-4 w-24 h-24 opacity-5 transition-transform group-hover:scale-110", styles[variant].match(/icon-text-[a-z0-9-]+/)![0].replace('icon-text-', 'text-'))} />
+    </div>
+  );
+};
+
+const RevenueBox = ({ label, ngn, usd, subtitle, variant = 'neutral', themeColor = 'teal', currencyFilter = 'All' }: any) => {
+  const theme = getThemeClasses(themeColor);
+  const styles: any = {
+    neutral: "bg-white border-slate-200 text-slate-900 border-b-4 border-b-slate-800",
+    green: "bg-emerald-50 border-emerald-100 text-slate-900 border-b-4 border-b-emerald-500",
+    red: "bg-red-50 border-red-100 text-slate-900 border-b-4 border-b-red-500",
+    teal: cn("bg-white border-slate-200 text-slate-900 border-b-4", theme.borderB),
+  };
+
+  return (
+    <div className={cn("p-5 rounded-3xl border shadow-sm flex flex-col justify-between transition-all hover:shadow-md h-full", styles[variant])}>
+      <div className="mb-4">
+        <p className="text-[11px] font-black uppercase tracking-widest">{label}</p>
+        <p className="text-[9px] font-bold text-slate-500 opacity-80 uppercase mt-0.5">{subtitle}</p>
+      </div>
+      <div className="space-y-1 overflow-hidden">
+        {(currencyFilter === 'All' || currencyFilter === 'NGN') && (
+          <p 
+            title={formatCurrency(ngn, 'NGN')}
+            className={cn(
+              "font-black leading-none tracking-tighter truncate",
+              currencyFilter === 'NGN' ? "text-3xl" : "text-xl"
             )}
-            {(currencyFilter === 'All' || currencyFilter === 'USD') && (
-              <p 
-                title={formatCurrency(usd, 'USD')}
-                className={cn(
-                  "font-black tracking-tighter truncate",
-                  currencyFilter === 'USD' ? "text-2xl" : "text-[10px] sm:text-xs text-slate-400"
-                )}
-              >
-                {formatCurrency(usd, 'USD')}
-              </p>
-            )}
-          </div>
+          >
+            {formatCurrency(ngn, 'NGN')}
+          </p>
         )}
-        <p className="text-[10px] font-bold text-slate-400 uppercase mt-2">{subtitle}</p>
+        {(currencyFilter === 'All' || currencyFilter === 'USD') && (
+          <p 
+            title={formatCurrency(usd, 'USD')}
+            className={cn(
+              "font-black tracking-tighter truncate opacity-70",
+              currencyFilter === 'USD' ? "text-3xl" : "text-sm"
+            )}
+          >
+            {formatCurrency(usd, 'USD')}
+          </p>
+        )}
       </div>
     </div>
   );
 };
 
-const MetricItem = ({ label, value, status, thresholds }: { label: string, value: string, status: 'good' | 'warning' | 'critical', thresholds: string }) => {
-  const colors = {
-    good: "bg-emerald-50 text-emerald-600 ring-emerald-100",
-    warning: "bg-amber-50 text-amber-600 ring-amber-100",
-    critical: "bg-red-50 text-red-600 ring-red-100"
-  };
-  
-  return (
-    <div className="space-y-3">
-      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{label}</p>
-      <div className="flex items-center gap-4">
-        <div className={cn("px-4 py-2 rounded-2xl text-xl font-black ring-4", colors[status])}>
-          {value}
-        </div>
-        <div>
-          <div className="flex gap-1 mb-1">
-            <div className={cn("w-2 h-2 rounded-full", status === 'good' ? "bg-emerald-500" : "bg-slate-200")} />
-            <div className={cn("w-2 h-2 rounded-full", status === 'warning' ? "bg-amber-500" : "bg-slate-200")} />
-            <div className={cn("w-2 h-2 rounded-full", status === 'critical' ? "bg-red-500" : "bg-slate-200")} />
-          </div>
-          <p className="text-[9px] font-black text-slate-400 uppercase">{thresholds}</p>
-        </div>
-      </div>
-    </div>
-  );
-};
