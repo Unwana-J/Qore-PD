@@ -1,5 +1,5 @@
 import React from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from 'motion/react';
 import { AlertTriangle, X, ChevronRight } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { getThemeClasses } from '../../lib/theme';

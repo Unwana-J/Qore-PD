@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 import { getThemeClasses } from '../lib/theme';
 import { format, differenceInDays, parseISO } from 'date-fns';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from 'motion/react';
 
 interface FinanceDashboardProps {
   projects: Project[];
