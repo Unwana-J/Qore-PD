@@ -124,6 +124,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ projects, workloadThreshol
                     { name: 'On-Track', value: activeCount },
                     { name: 'Delayed', value: delayedCount },
                     { name: 'Suspended', value: suspendedCount },
+                    { name: 'Signed Off', value: projects.filter(p => p.state === 'Signed Off').length },
+                    { name: 'Billed', value: projects.filter(p => p.state === 'Billed').length },
                     { name: 'Closed', value: closedCount },
                   ]}
                   innerRadius={55}
@@ -135,6 +137,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ projects, workloadThreshol
                     '#10b981', // On-Track - Emerald
                     '#ef4444', // Delayed - Red
                     '#1e293b', // Suspended - Slate
+                    '#f59e0b', // Signed Off - Amber
+                    '#3b82f6', // Billed - Blue
                     '#94a3b8', // Closed - Blue-grey
                   ].map((color, index) => (
                     <Cell key={`cell-${index}`} fill={color} />
@@ -167,15 +171,23 @@ export const Dashboard: React.FC<DashboardProps> = ({ projects, workloadThreshol
           </div>
           <div className="h-[250px]">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={productLineData}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 12}} />
-                <YAxis axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 12}} />
+              <BarChart data={productLineData} layout="vertical" margin={{ left: 10, right: 30 }}>
+                <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#f1f5f9" />
+                <XAxis type="number" hide />
+                <YAxis 
+                  dataKey="name" 
+                  type="category" 
+                  axisLine={false} 
+                  tickLine={false} 
+                  tick={{fill: '#64748b', fontSize: 11, fontWeight: 700}} 
+                  width={80}
+                />
                 <Tooltip 
                   cursor={{fill: '#f8fafc'}}
                   contentStyle={{borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)'}}
+                  formatter={(value: number) => [`₦${(value / 1000000).toFixed(1)}M`, 'Revenue']}
                 />
-                <Bar dataKey="revenue" fill={themeHex} radius={[4, 4, 0, 0]} barSize={40} />
+                <Bar dataKey="revenue" fill={themeHex} radius={[0, 4, 4, 0]} barSize={20} />
               </BarChart>
             </ResponsiveContainer>
           </div>
