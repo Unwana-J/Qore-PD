@@ -12,6 +12,7 @@ import { RisksTable } from './components/RisksTable';
 import { SettingsView } from './components/SettingsView';
 import { RebaselineRequestsView } from './components/RebaselineRequestsView';
 import { ExecutiveDashboard } from './components/ExecutiveDashboard';
+import { BulkImportView } from './components/BulkImportView';
 import { INITIAL_CONFIG, MOCK_USERS } from './mockData';
 import { Role, AppConfig, SettingsTab, Project } from './types';
 import { useProjects } from './hooks/useProjects';
@@ -26,6 +27,7 @@ export default function App() {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [activeSettingsTab, setActiveSettingsTab] = useState<SettingsTab>('account');
+  const [isBulkImportOpen, setIsBulkImportOpen] = useState(false);
   const [config, setConfig] = useState<AppConfig>(INITIAL_CONFIG);
   const [projectToReassign, setProjectToReassign] = useState<Project | null>(null);
 
@@ -42,6 +44,7 @@ export default function App() {
     selectedProject,
     setSelectedProject,
     addProject: originalAddProject,
+    importBulkProjects,
     updateProject,
     billProject,
     reassignProject: originalReassignProject,
@@ -123,6 +126,7 @@ export default function App() {
           userRole={userRole}
           onNavigateBack={() => setSelectedProject(null)}
           setIsModalOpen={setIsModalOpen}
+          setIsBulkImportOpen={setIsBulkImportOpen}
         />
 
         <div className="flex-1 overflow-y-auto bg-slate-50/50">
@@ -254,6 +258,22 @@ export default function App() {
           onReassign={reassignProject}
           themeColor={config.brand.themeColor}
         />
+      )}
+
+      {isBulkImportOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 lg:p-10 hide-scrollbar overflow-y-auto">
+          <div className="bg-white w-full h-[calc(100vh-100px)] rounded-3xl shadow-2xl relative overflow-hidden flex flex-col">
+            <BulkImportView 
+              users={MOCK_USERS}
+              projects={projects}
+              config={config}
+              userRole={userRole}
+              onImportBulk={importBulkProjects}
+              onShowToast={showToast}
+              onClose={() => setIsBulkImportOpen(false)}
+            />
+          </div>
+        </div>
       )}
 
       <div className="fixed bottom-6 right-6 z-[100] pointer-events-none flex flex-col gap-2 items-end">

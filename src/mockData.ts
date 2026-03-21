@@ -478,7 +478,8 @@ export const INITIAL_CONFIG: AppConfig = {
         P1: 3,
         P2: 5,
         P3: 8
-    }
+    },
+    maxImportRows: 500
 };
 
 export const MOCK_WEIGHT_HISTORY: WeightHistory[] = [

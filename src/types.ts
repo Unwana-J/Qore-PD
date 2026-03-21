@@ -164,6 +164,7 @@ export interface AppConfig {
   workloadThresholds: Record<ProjectPriority, number>;
   brand: BrandConfig;
   pmScorecardWeights: PMScorecardWeights;
+  maxImportRows: number;
 }
 
 export interface WeightHistory {
@@ -197,4 +198,26 @@ export interface RevenueTrend {
   achievedNGN: number;
   intakeUSD: number;
   achievedUSD: number;
+}
+
+export type ImportRowStatus = 'clean' | 'error' | 'duplicate';
+export type DuplicateAction = 'overwrite' | 'skip' | 'unresolved';
+
+export interface ImportRow {
+  index: number;
+  clientName: string;
+  packageName: string;
+  assignedPM: string;
+  startDate: string;
+  value: string | number;
+  currency: string;
+  implementationPerson?: string;
+  subscriptionLevel?: string;
+  status: ImportRowStatus;
+  errors: string[];
+  duplicateAction?: DuplicateAction;
+  originalData: any;
+  serviceStates?: Record<string, string>;
+  closureStatus?: string;
+  notes?: string;
 }

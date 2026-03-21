@@ -5,7 +5,8 @@ import {
   ChevronRight, 
   Search, 
   Bell, 
-  Plus 
+  Plus,
+  Upload
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { Project, Role } from '../../types';
@@ -24,6 +25,7 @@ interface HeaderProps {
   userRole: Role;
   onNavigateBack?: () => void;
   setIsModalOpen: (isOpen: boolean) => void;
+  setIsBulkImportOpen: (isOpen: boolean) => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -37,7 +39,8 @@ export const Header: React.FC<HeaderProps> = ({
   themeColor,
   userRole,
   onNavigateBack,
-  setIsModalOpen
+  setIsModalOpen,
+  setIsBulkImportOpen
 }) => {
   const theme = getThemeClasses(themeColor);
   const now = new Date();
@@ -169,6 +172,15 @@ export const Header: React.FC<HeaderProps> = ({
           <Bell className="w-5 h-5" />
           <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
         </button>
+        {['Superadmin', 'Manager', 'Team Lead'].includes(userRole) && currentView === 'dashboard' && (
+          <button 
+            onClick={() => setIsBulkImportOpen(true)}
+            className="hidden sm:flex items-center gap-2 px-4 py-2 text-slate-600 bg-white border border-slate-200 text-sm font-bold rounded-xl shadow-sm hover:bg-slate-50 transition-all"
+          >
+            <Upload className="w-4 h-4" />
+            <span>Import</span>
+          </button>
+        )}
         {userRole !== 'Executive' && userRole !== 'Finance' && (
           <button 
             onClick={() => setIsModalOpen(true)}

@@ -430,6 +430,36 @@ export function useProjects(userRole: Role, config: AppConfig) {
     return updateProject(updatedProject);
   };
 
+  const importBulkProjects = async (projectsToAdd: Partial<Project>[], projectsToUpdate: Partial<Project>[], skippedCount: number) => {
+    try {
+      if (projectsToAdd.length === 0 && projectsToUpdate.length === 0) return;
+      
+      const userName = userRole === 'PM' ? 'Sarah Jenkins' : 'Admin User';
+      
+      await api.projects.createBulk(projectsToAdd, projectsToUpdate);
+      
+      const importedNames = [...projectsToAdd, ...projectsToUpdate].map(p => p.clientName).join(', ');
+
+      const now = new Date();
+      await api.audit.addLog({
+        action: 'Bulk Import',
+        user: userName,
+        details: `Created: ${projectsToAdd.length} | Overwritten: ${projectsToUpdate.length} | Skipped: ${skippedCount}. Institutions: ${importedNames}`,
+        timestamp: format(now, 'yyyy-MM-dd HH:mm'),
+        category: 'Project'
+      });
+
+      // Refetch projects to sync
+      const data = await api.projects.getAll();
+      setProjects(data);
+
+      return { added: projectsToAdd.length, updated: projectsToUpdate.length };
+    } catch (error) {
+      console.error('Failed to import bulk projects', error);
+      throw error;
+    }
+  };
+
   const allRebaselineRequests = useMemo(() => {
     return projects.flatMap(p => p.rebaselineRequests || []);
   }, [projects]);
@@ -441,6 +471,7 @@ export function useProjects(userRole: Role, config: AppConfig) {
     setSelectedProject,
     allRebaselineRequests,
     addProject,
+    importBulkProjects,
     updateProject,
     billProject,
     reassignProject,

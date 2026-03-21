@@ -35,6 +35,46 @@ export const api = {
         ],
       };
       return newProject;
+    },
+    createBulk: async (projectsToAdd: Partial<Project>[], projectsToUpdate: Partial<Project>[]): Promise<void> => {
+      await delay(500);
+      
+      // Simulate atomic behavior by performing validation before modifying our array
+      // In this mock setup, we just append or mutate the MOCK_PROJECTS array.
+      
+      // Update existing ones
+      projectsToUpdate.forEach(updatedData => {
+        const idx = MOCK_PROJECTS.findIndex(p => p.clientName.toLowerCase() === updatedData.clientName?.toLowerCase());
+        if (idx !== -1) {
+          MOCK_PROJECTS[idx] = {
+            ...MOCK_PROJECTS[idx],
+            ...updatedData,
+            updatedAt: new Date().toISOString().split('T')[0]
+          } as Project;
+        }
+      });
+
+      // Insert new ones
+      const now = new Date();
+      const newProjects: Project[] = projectsToAdd.map((projectData) => ({
+        ...projectData as any,
+        id: Math.random().toString(36).substr(2, 9),
+        createdAt: now.toISOString().split('T')[0],
+        updatedAt: now.toISOString().split('T')[0],
+        comments: [],
+        risks: [],
+        activities: [
+          { 
+            id: Math.random().toString(36).substr(2, 9), 
+            type: 'System', 
+            user: 'System', 
+            description: 'Project created from bulk import', 
+            timestamp: now.toLocaleString([], { dateStyle: 'short', timeStyle: 'short' }) 
+          }
+        ],
+      }));
+      
+      MOCK_PROJECTS.push(...newProjects);
     }
   },
   users: {
