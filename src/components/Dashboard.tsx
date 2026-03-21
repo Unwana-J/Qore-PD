@@ -49,7 +49,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ projects, workloadThreshol
 
   // Product Line Stats
   const productLineData = (['Bankone', 'Channels', 'Recova', 'Cluster'] as ProductLine[]).map(pl => {
-    const plProjects = projects.filter(p => p.productLines.includes(pl));
+    const plProjects = projects.filter(p => (p.productLines || []).includes(pl));
     return {
       name: pl,
       count: plProjects.length,

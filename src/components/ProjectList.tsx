@@ -36,8 +36,8 @@ export const ProjectList: React.FC<ProjectListProps> = ({ projects, onSelectProj
   };
 
   const filteredProjects = projects.filter(p => {
-    const matchesSearch = p.clientName.toLowerCase().includes(search.toLowerCase()) || 
-                          p.assignedPM.toLowerCase().includes(search.toLowerCase());
+    const matchesSearch = (p.clientName || '').toLowerCase().includes(search.toLowerCase()) || 
+                          (p.assignedPM || '').toLowerCase().includes(search.toLowerCase());
     const matchesState = stateFilter === 'All' || p.state === stateFilter;
     return matchesSearch && matchesState;
   }).sort((a, b) => {
@@ -47,7 +47,10 @@ export const ProjectList: React.FC<ProjectListProps> = ({ projects, onSelectProj
       const bInactive = getPMStatus(b.assignedPM) === 'Inactive' ? 1 : 0;
       if (aInactive !== bInactive) return bInactive - aInactive;
     }
-    return 0;
+    // Fallback sort: Most recently created first
+    const dateA = new Date(a.createdAt || 0).getTime();
+    const dateB = new Date(b.createdAt || 0).getTime();
+    return dateB - dateA;
   });
 
   return (
@@ -229,7 +232,7 @@ export const ProjectList: React.FC<ProjectListProps> = ({ projects, onSelectProj
             </div>
 
             <div className="mt-4 flex flex-wrap gap-2">
-              {project.productLines.map(pl => (
+              {(project.productLines || []).map(pl => (
                 <span key={pl} className="px-2 py-1 bg-slate-100 text-slate-600 text-[10px] font-bold uppercase tracking-wider rounded-md">
                   {pl}
                 </span>
@@ -317,7 +320,7 @@ export const ProjectList: React.FC<ProjectListProps> = ({ projects, onSelectProj
 };
 
 export const StateBadge = ({ state }: { state: ProjectState }) => {
-  const styles = PROJECT_STATE_COLORS[state];
+  const styles = PROJECT_STATE_COLORS[state] || PROJECT_STATE_COLORS['On-Track'];
 
   return (
     <span className={cn(

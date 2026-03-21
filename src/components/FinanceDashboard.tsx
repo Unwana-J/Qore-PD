@@ -14,7 +14,8 @@ import {
   ArrowUpDown,
   Check,
   ChevronRight,
-  Filter
+  Filter,
+  X
 } from 'lucide-react';
 import { getThemeClasses } from '../lib/theme';
 import { format, differenceInDays, parseISO } from 'date-fns';
@@ -245,7 +246,7 @@ export const FinanceDashboard: React.FC<FinanceDashboardProps> = ({ projects, on
                       </td>
                       <td className="px-6 py-5">
                         <div className="flex flex-wrap gap-1 max-w-[200px]">
-                          {project.productLines.map(pl => (
+                          {(project.productLines || []).map(pl => (
                             <span key={pl} className="px-1.5 py-0.5 bg-slate-100 text-slate-500 rounded text-[9px] font-extrabold uppercase tracking-tighter">
                               {pl}
                             </span>
@@ -346,8 +347,11 @@ export const FinanceDashboard: React.FC<FinanceDashboardProps> = ({ projects, on
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="bg-white w-full max-w-md rounded-3xl shadow-2xl overflow-hidden"
+              className="bg-white w-full max-w-md rounded-3xl shadow-2xl overflow-hidden relative"
             >
+              <button onClick={() => setBillingConfirmation(null)} className="absolute top-4 right-4 p-2 text-slate-400 hover:bg-slate-50 hover:text-slate-600 rounded-full transition-colors z-10">
+                <X className="w-5 h-5" />
+              </button>
               <div className="p-8 text-center">
                 <div className={cn("w-20 h-20 mx-auto mb-6 rounded-full flex items-center justify-center", theme.lightBg)}>
                    <Check className={cn("w-10 h-10", theme.text)} />

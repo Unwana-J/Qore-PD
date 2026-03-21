@@ -59,6 +59,20 @@ export const api = {
       const newProjects: Project[] = projectsToAdd.map((projectData) => ({
         ...projectData as any,
         id: Math.random().toString(36).substr(2, 9),
+        phases: [
+          { id: 'Initiation', name: 'Initiation', status: 'In Progress' },
+          { id: 'Planning', name: 'Planning', status: 'Pending' },
+          { id: 'Execution', name: 'Execution', status: 'Pending' },
+          { id: 'Closure', name: 'Closure', status: 'Pending' }
+        ],
+        phaseWeights: {
+          initiation: 10,
+          planning: 20,
+          execution: 50,
+          closure: 20
+        },
+        rebaselineRequests: [],
+        suspensionCycles: [],
         createdAt: now.toISOString().split('T')[0],
         updatedAt: now.toISOString().split('T')[0],
         comments: [],

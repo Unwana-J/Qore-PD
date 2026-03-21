@@ -229,31 +229,33 @@ export function calculateSPI(project: Project, thresholds = { onTrack: 1.0, atRi
 
 export function calculatePhaseScores(project: Project) {
   const weights = project.phaseWeights || { initiation: 10, planning: 10, execution: 60, closure: 20 };
+  const phases = project.phases || [];
+  const services = project.services || [];
   
   let initiationScore = 0;
   let planningScore = 0;
   let executionScore = 0;
   let closureScore = 0;
 
-  const initiationPhase = project.phases.find(p => p.id === 'Initiation');
+  const initiationPhase = phases.find(p => p.id === 'Initiation');
   if (initiationPhase?.status === 'Completed') {
     initiationScore = weights.initiation;
   }
 
-  const planningPhase = project.phases.find(p => p.id === 'Planning');
+  const planningPhase = phases.find(p => p.id === 'Planning');
   if (planningPhase?.status === 'Completed') {
     planningScore = weights.planning;
   }
 
   // Execution score calculation
-  const executionPhase = project.phases.find(p => p.id === 'Execution');
+  const executionPhase = phases.find(p => p.id === 'Execution');
   if (executionPhase?.status === 'Completed') {
     executionScore = weights.execution;
-  } else if (project.services.length > 0) {
-    const weightPerService = weights.execution / project.services.length;
+  } else if (services.length > 0) {
+    const weightPerService = weights.execution / services.length;
     let currentExecutionSum = 0;
     
-    project.services.forEach(service => {
+    services.forEach(service => {
       const state = project.serviceStates?.[service] || 'Not Started';
       if (state === 'Closed') {
         currentExecutionSum += weightPerService;
@@ -264,7 +266,7 @@ export function calculatePhaseScores(project: Project) {
     executionScore = currentExecutionSum;
   }
 
-  const closurePhase = project.phases.find(p => p.id === 'Closure');
+  const closurePhase = phases.find(p => p.id === 'Closure');
   if (closurePhase?.status === 'Completed') {
     closureScore = weights.closure;
   }

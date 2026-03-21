@@ -165,6 +165,7 @@ export interface AppConfig {
   brand: BrandConfig;
   pmScorecardWeights: PMScorecardWeights;
   maxImportRows: number;
+  hideImportGuide: boolean;
 }
 
 export interface WeightHistory {
@@ -218,6 +219,7 @@ export interface ImportRow {
   duplicateAction?: DuplicateAction;
   originalData: any;
   serviceStates?: Record<string, string>;
+  services?: string[];
   closureStatus?: string;
   notes?: string;
 }

@@ -5,7 +5,9 @@ import Papa from 'papaparse';
 import * as XLSX from 'xlsx';
 import { cn, formatCurrency, calculateWorkingDays, getActiveDaysCount } from '../lib/utils';
 import { getThemeClasses } from '../lib/theme';
-import { Project, Role, AppConfig, ImportRow, ImportRowStatus, User, ServiceBaseline } from '../types';
+import { Project, Role, AppConfig, ImportRow, ImportRowStatus, User, ServiceBaseline, ProductLine } from '../types';
+import { ImportGuideModal } from './ImportGuideModal';
+import { PACKAGES, PRODUCT_LINES } from '../constants';
 
 interface BulkImportViewProps {
   users: User[];
@@ -13,7 +15,8 @@ interface BulkImportViewProps {
   config: AppConfig;
   userRole: Role;
   onImportBulk: (add: Partial<Project>[], update: Partial<Project>[], skippedCount: number) => Promise<{ added: number, updated: number } | undefined>;
-  onShowToast: (message: string, type?: 'success' | 'error' | 'info') => void;
+  onShowToast: (message: string, type?: 'error' | 'success' | 'info') => void;
+  onUpdateConfig: (updates: Partial<AppConfig>) => void;
   onClose: () => void;
 }
 
@@ -35,9 +38,10 @@ const OPTIONAL_FIELDS = [
 
 const EXPECTED_COLUMNS = [...REQUIRED_FIELDS, ...OPTIONAL_FIELDS];
 
-export const BulkImportView: React.FC<BulkImportViewProps> = ({ users, projects, config, userRole, onImportBulk, onShowToast, onClose }) => {
+export const BulkImportView: React.FC<BulkImportViewProps> = ({ users, projects, config, userRole, onImportBulk, onShowToast, onUpdateConfig, onClose }) => {
   const theme = getThemeClasses(config.brand.themeColor);
   
+  const [showGuide, setShowGuide] = useState(!config.hideImportGuide);
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [file, setFile] = useState<File | null>(null);
   const [isParsing, setIsParsing] = useState(false);
@@ -59,8 +63,8 @@ export const BulkImportView: React.FC<BulkImportViewProps> = ({ users, projects,
   const moduleStatusOptions = ['Live', 'Not Started', 'Out of Scope', 'Not Ready'];
   
   // Ref to valid packages and PMs
-  const validPackages = config.serviceBaselines.map(sb => sb.name);
-  const validPMs = users.map(u => u.name);
+  const validPackages = PACKAGES.map(p => p.name);
+  const validPMs = users.filter(u => u.role === 'PM' && u.status === 'Active').map(u => u.name);
   
   // Validation function for a single row
   const validateRow = (row: ImportRow, rowIndex: number, allRows: ImportRow[]): ImportRow => {
@@ -242,7 +246,8 @@ export const BulkImportView: React.FC<BulkImportViewProps> = ({ users, projects,
     let extracted: ImportRow[] = rows.map((row, idx) => {
       const r: any = { index: idx, originalData: row, status: 'clean', errors: [], serviceStates: {} };
       
-      // Modules mapping manually check (any header not mapped we can assume is a module if we want, or map properly)
+      // Modules mapping manually check
+      const stateObj: Record<string, string> = {};
       Object.keys(row).forEach(header => {
         const mappedKey = mapping[header];
         if (mappedKey) {
@@ -253,11 +258,29 @@ export const BulkImportView: React.FC<BulkImportViewProps> = ({ users, projects,
           if (val) {
              const mStatus = val.toString().trim();
              if (moduleStatusOptions.includes(mStatus)) {
-               r.serviceStates[header] = mStatus;
+               stateObj[header] = mStatus;
              }
           }
         }
       });
+      // Deduce default services if package is present
+      if (r.packageName) {
+        const pkg = PACKAGES.find(p => p.name === r.packageName);
+        if (pkg) {
+           const autoServices = PRODUCT_LINES
+             .filter(pl => pkg.productLines.includes(pl.name))
+             .flatMap(pl => pl.services);
+             
+           // Exclude services that were explicitly marked 'Out of Scope' in Excel
+           r.services = autoServices.filter(s => stateObj[s] !== 'Out of Scope');
+        } else {
+           r.services = [];
+        }
+      } else {
+        r.services = [];
+      }
+      r.serviceStates = stateObj;
+
       return r as ImportRow;
     });
 
@@ -272,6 +295,21 @@ export const BulkImportView: React.FC<BulkImportViewProps> = ({ users, projects,
 
   const updateRowField = (idx: number, field: keyof ImportRow, value: any) => {
     const newRows = [...processedRows];
+    
+    // Auto-update services if package changes
+    if (field === 'packageName') {
+      const pkg = PACKAGES.find(p => p.name === value);
+      if (pkg) {
+        const autoServices = PRODUCT_LINES
+           .filter(pl => pkg.productLines.includes(pl.name))
+           .flatMap(pl => pl.services)
+           .filter(s => newRows[idx].serviceStates?.[s] !== 'Out of Scope');
+        newRows[idx].services = autoServices;
+      } else {
+        newRows[idx].services = [];
+      }
+    }
+    
     newRows[idx] = { ...newRows[idx], [field]: value };
     // Revalidate
     newRows[idx] = validateRow(newRows[idx], idx, newRows);
@@ -313,14 +351,29 @@ export const BulkImportView: React.FC<BulkImportViewProps> = ({ users, projects,
       // Format numeric value
       const numVal = typeof row.value === 'string' ? parseFloat(row.value.replace(/[^\d.-]/g, '')) : row.value;
       
-      // Calculate Dates
+      // Calculate Auto Services and Baseline Days
       let baselineDays = 0;
+      let mappedServices: string[] = row.services || [];
+      let productLines: ProductLine[] = ['Bankone']; // Default
+
       if (row.packageName) {
-        const baseline = config.serviceBaselines.find(sb => sb.name === row.packageName);
-        if (baseline) baselineDays = baseline.baselineDays;
+        const pkg = PACKAGES.find(p => p.name === row.packageName);
+        if (pkg) {
+          productLines = pkg.productLines;
+          baselineDays = mappedServices.reduce((acc, serviceName) => {
+            const baseline = config.serviceBaselines.find(sb => sb.name === serviceName);
+            return acc + (baseline ? baseline.baselineDays : 0);
+          }, 0);
+        }
       }
       
       const expectedCompletionDate = calculateWorkingDays(row.startDate, baselineDays);
+
+      // Extract explicit service states set in the excel columns
+      const finalServiceStates: Record<string, any> = { ...row.serviceStates };
+      mappedServices.forEach(s => {
+        if (!finalServiceStates[s]) finalServiceStates[s] = 'Not Started';
+      });
 
       const mappedData: Partial<Project> = {
         clientName: row.clientName,
@@ -333,9 +386,10 @@ export const BulkImportView: React.FC<BulkImportViewProps> = ({ users, projects,
         value: Number(numVal) || 0,
         currency: row.currency,
         state: (row.closureStatus as any) || 'On-Track',
-        priority: 'P2', // Default
-        productLines: ['Bankone'], // Using default unless matched otherwise, required by Type
-        services: row.packageName ? [row.packageName] : [],
+        priority: 'P2', 
+        productLines,
+        services: mappedServices,
+        serviceStates: finalServiceStates,
       };
 
       if (row.status === 'duplicate' && row.duplicateAction === 'overwrite') {
@@ -363,6 +417,18 @@ export const BulkImportView: React.FC<BulkImportViewProps> = ({ users, projects,
 
   return (
     <div className="flex flex-col h-[calc(100vh-100px)] animate-in fade-in duration-300">
+      <ImportGuideModal 
+        isOpen={showGuide}
+        config={config}
+        onProceed={(hideFuture) => {
+          setShowGuide(false);
+          if (hideFuture) {
+             onUpdateConfig({ hideImportGuide: true });
+          }
+        }}
+        onShowToast={onShowToast as any}
+      />
+
       <div className="flex justify-between items-center mb-6 px-6">
         <div>
           <h2 className="text-2xl font-black text-slate-900 tracking-tight">Bulk Import Projects</h2>
@@ -512,18 +578,49 @@ export const BulkImportView: React.FC<BulkImportViewProps> = ({ users, projects,
                             />
                           </div>
 
-                          {/* Package */}
+                          {/* Package & Services */}
                           <div>
-                            <span className="block text-[10px] uppercase font-bold text-slate-400 mb-1">Package</span>
+                            <span className="block text-[10px] uppercase font-bold text-slate-400 mb-1">Package & Services</span>
                             <select 
                                value={row.packageName || ''} 
                                onChange={(e) => updateRowField(idx, 'packageName', e.target.value)}
-                               className={cn("w-full bg-transparent font-medium border-b border-transparent hover:border-slate-300 focus:border-teal-500 outline-none transition-colors", 
+                               className={cn("w-full bg-transparent font-medium border-b border-transparent hover:border-slate-300 focus:border-teal-500 outline-none transition-colors mb-2", 
                                  (!row.packageName || !validPackages.includes(row.packageName)) ? 'bg-red-50 text-red-600' : 'text-slate-700')}
                             >
                                <option value="">Select Package</option>
                                {validPackages.map(p => <option key={p} value={p}>{p}</option>)}
                             </select>
+                            
+                            {row.packageName && (
+                              <div className="flex flex-wrap gap-1 mt-1">
+                                 {(() => {
+                                   const pkg = PACKAGES.find(p => p.name === row.packageName);
+                                   if (!pkg) return null;
+                                   const allAvail = PRODUCT_LINES.filter(pl => pkg.productLines.includes(pl.name)).flatMap(pl => pl.services);
+                                   const activeServices = row.services || [];
+                                   
+                                   return allAvail.map(s => {
+                                     const isActive = activeServices.includes(s);
+                                     return (
+                                       <button 
+                                         key={s}
+                                         onClick={() => {
+                                           const newSet = isActive ? activeServices.filter(x => x !== s) : [...activeServices, s];
+                                           updateRowField(idx, 'services', newSet);
+                                         }}
+                                         className={cn(
+                                           "text-[9px] font-bold px-1.5 py-0.5 rounded transition-all",
+                                           isActive ? "bg-slate-100 text-slate-600 hover:bg-red-50 hover:text-red-500 hover:line-through" : "bg-white border border-slate-200 text-slate-400 opacity-50 hover:opacity-100"
+                                         )}
+                                         title={isActive ? "Click to remove service" : "Click to add service"}
+                                       >
+                                         {s}
+                                       </button>
+                                     )
+                                   });
+                                 })()}
+                              </div>
+                            )}
                           </div>
 
                           {/* PM */}

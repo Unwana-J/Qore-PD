@@ -10,7 +10,7 @@ interface RisksTableProps {
 
 export const RisksTable: React.FC<RisksTableProps> = ({ projects, onSelectProject }) => {
   const allRisks = projects.flatMap(project => 
-    project.risks.map(risk => ({
+    (project.risks || []).map(risk => ({
       ...risk,
       clientName: project.clientName,
       packageName: project.packageName,

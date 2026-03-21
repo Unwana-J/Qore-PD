@@ -349,6 +349,19 @@ const ProjectConfig = ({ config, setConfig, theme }: any) => {
           </div>
         </div>
 
+        <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100 flex items-center justify-between">
+          <div>
+            <h4 className="text-sm font-bold text-slate-900">Show Bulk Import Guide</h4>
+            <p className="text-xs text-slate-500 pt-1">Display the instructions pop-up before bulk importing projects.</p>
+          </div>
+          <button 
+            onClick={() => setConfig({...config, hideImportGuide: !config.hideImportGuide})}
+            className={cn("w-12 h-6 rounded-full relative transition-all", !config.hideImportGuide ? theme.bg : "bg-slate-300")}
+          >
+            <div className={cn("absolute top-1 w-4 h-4 bg-white rounded-full transition-all", !config.hideImportGuide ? "left-7" : "left-1")} />
+          </button>
+        </div>
+
         <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100 space-y-4">
           <h4 className="text-sm font-bold text-slate-900">SPI Status Thresholds</h4>
           <p className="text-xs text-slate-500 font-medium pb-2">Set the thresholds for Schedule Performance Index statuses.</p>

@@ -60,8 +60,11 @@ export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            className="bg-white w-full max-w-md rounded-3xl shadow-2xl overflow-hidden"
+            className="bg-white w-full max-w-md rounded-3xl shadow-2xl overflow-hidden relative"
           >
+            <button onClick={onClose} className="absolute top-4 right-4 p-2 text-slate-400 hover:bg-slate-50 hover:text-slate-600 rounded-full transition-colors z-10">
+              <X className="w-5 h-5" />
+            </button>
             <div className="p-8 text-center">
               <div className={cn("w-16 h-16 mx-auto mb-6 rounded-2xl flex items-center justify-center border", currentVariant.bg, currentVariant.border)}>
                  {currentVariant.icon}

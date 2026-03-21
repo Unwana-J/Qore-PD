@@ -48,11 +48,23 @@ interface PhaseViewProps {
 }
 
 export const PhaseView: React.FC<PhaseViewProps> = ({ 
-  project, onBack, onUpdateProject, onSubmitRebaseline, 
+  project: rawProject, onBack, onUpdateProject, onSubmitRebaseline, 
   onApproveRebaseline, onDeclineRebaseline, 
   userRole, currencies = [], themeColor = 'teal', onReassign, defaultPhases = [],
   spiThresholds, validateStateTransition, onShowToast
 }) => {
+  // Defensive fallbacks for imported legacy projects that might lack these arrays
+  const project = {
+    ...rawProject,
+    phases: rawProject.phases || [],
+    services: rawProject.services || [],
+    risks: rawProject.risks || [],
+    comments: rawProject.comments || [],
+    activities: rawProject.activities || [],
+    serviceStates: rawProject.serviceStates || {},
+    suspensionCycles: rawProject.suspensionCycles || []
+  };
+
   const [activeTab, setActiveTab] = useState<'overview' | 'activity'>('overview');
   const [commentText, setCommentText] = useState('');
   const [isAddingRisk, setIsAddingRisk] = useState(false);

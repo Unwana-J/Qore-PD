@@ -271,6 +271,7 @@ export default function App() {
               onImportBulk={importBulkProjects}
               onShowToast={showToast}
               onClose={() => setIsBulkImportOpen(false)}
+              onUpdateConfig={(updates) => setConfig(prev => ({ ...prev, ...updates }))}
             />
           </div>
         </div>
