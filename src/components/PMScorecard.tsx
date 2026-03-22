@@ -23,8 +23,6 @@ export const PMScorecard: React.FC<PMScorecardProps> = ({ projects, config, user
   const [expandedPMs, setExpandedPMs] = useState<string[]>([]);
   const [isPackagePerformanceExpanded, setIsPackagePerformanceExpanded] = useState(false);
   
-  if (userRole === 'PM') return null;
-
   const togglePM = (pm: string) => {
     setExpandedPMs(prev => prev.includes(pm) ? prev.filter(p => p !== pm) : [...prev, pm]);
   };
@@ -190,6 +188,8 @@ export const PMScorecard: React.FC<PMScorecardProps> = ({ projects, config, user
       return { name: srvName, projectsWithService: projectsWithService.length, compRate, avgSpi, overrunRate };
     }).sort((a,b) => (b.overrunRate || 0) - (a.overrunRate || 0));
   }, [projects, config]);
+
+  if (userRole === 'PM') return null;
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">

@@ -96,19 +96,30 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
     }));
   }, [projects]);
 
-  // Charts: Product Line Revenue
-  const productLineRevenue = useMemo(() => {
-    const plines: any[] = ['Bankone', 'Channels', 'Recova', 'Cluster'];
-    return plines.map(pl => {
-      const plProjects = projects.filter(p => p.productLines.includes(pl));
-      const achieved = plProjects
-        .filter(p => (p.state === 'Billed' || p.state === 'Closed') && (currencyFilter === 'All' || p.currency === currencyFilter))
-        .reduce((acc, p) => acc + p.value, 0);
-      const pending = plProjects
-        .filter(p => (p.state !== 'Billed' && p.state !== 'Closed') && (currencyFilter === 'All' || p.currency === currencyFilter))
-        .reduce((acc, p) => acc + p.value, 0);
-      return { name: pl, achieved, pending };
+  // Charts: Package Revenue
+  const packageRevenue = useMemo(() => {
+    // If 'All' is selected, don't aggregate invalid numbers (USD + NGN together)
+    if (currencyFilter === 'All') return [];
+
+    const pkgMap = new Map<string, { name: string, achieved: number, pending: number, total: number }>();
+    projects.forEach(p => {
+      // ONLY process projects matching the exact currency filter
+      if (p.currency !== currencyFilter) return;
+
+      const pkg = p.packageName || 'Unknown Package';
+      if (!pkgMap.has(pkg)) pkgMap.set(pkg, { name: pkg, achieved: 0, pending: 0, total: 0 });
+      
+      const stats = pkgMap.get(pkg)!;
+      const isAchieved = (p.state === 'Billed' || p.state === 'Closed');
+      
+      if (isAchieved) stats.achieved += p.value;
+      else stats.pending += p.value;
+      stats.total += p.value;
     });
+
+    return Array.from(pkgMap.values())
+      .sort((a, b) => b.total - a.total)
+      .filter(p => p.total > 0);
   }, [projects, currencyFilter]);
 
   // Schedule Performance
@@ -384,32 +395,47 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Product Line Bar Chart */}
-        <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm lg:col-span-1">
-          <div className="mb-6">
-            <h2 className="text-lg font-black text-slate-900">Revenue by Product Line</h2>
+        {/* Package Revenue Bar Chart */}
+        <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm lg:col-span-1 flex flex-col">
+          <div className="mb-6 shrink-0">
+            <h2 className="text-lg font-black text-slate-900">Revenue by Package</h2>
           </div>
-          <div className="h-[250px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={productLineRevenue} layout="vertical">
-                <XAxis type="number" hide />
-                <YAxis 
-                  dataKey="name" 
-                  type="category" 
-                  axisLine={false} 
-                  tickLine={false} 
-                  tick={{fill: '#64748b', fontSize: 11, fontWeight: 700}} 
-                  width={80}
-                />
-                <Tooltip 
-                   cursor={{fill: '#f8fafc'}}
-                   contentStyle={{borderRadius: '20px', border: 'none', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)'}}
-                />
-                <Legend verticalAlign="top" align="right" iconType="circle" wrapperStyle={{paddingBottom: 10, fontSize: 10, fontWeight: 700}} />
-                <Bar dataKey="achieved" fill="#14b8a6" radius={[0, 4, 4, 0]} name="Recognized" barSize={12} />
-                <Bar dataKey="pending" fill="#99f6e4" radius={[0, 4, 4, 0]} name="Pending" barSize={12} />
-              </BarChart>
-            </ResponsiveContainer>
+          <div className="h-[250px] overflow-y-auto pr-2 custom-scrollbar border-y border-slate-50 relative">
+            {currencyFilter === 'All' ? (
+              <div className="flex flex-col items-center justify-center h-full text-center px-4">
+                 <AlertCircle className="w-8 h-8 text-slate-200 mb-3" />
+                 <p className="text-sm font-bold text-slate-600 mb-1">Select a Currency</p>
+                 <p className="text-xs text-slate-400">Please choose NGN or USD in the portfolio filter to view accurate distribution.</p>
+              </div>
+            ) : packageRevenue.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-full text-center px-4">
+                 <p className="text-sm font-bold text-slate-400 italic">No {currencyFilter} intake logged for active packages.</p>
+              </div>
+            ) : (
+              <div style={{ height: `${Math.max(100, packageRevenue.length * 45)}px`, minHeight: '100%' }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={packageRevenue} layout="vertical" margin={{ top: 10, right: 10, bottom: 10, left: 0 }}>
+                    <XAxis type="number" hide />
+                    <YAxis 
+                      dataKey="name" 
+                      type="category" 
+                      axisLine={false} 
+                      tickLine={false} 
+                      tick={{fill: '#64748b', fontSize: 10, fontWeight: 700}} 
+                      width={90}
+                    />
+                    <Tooltip 
+                       cursor={{fill: '#f8fafc'}}
+                       contentStyle={{borderRadius: '20px', border: 'none', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)', fontSize: '12px', fontWeight: 'bold'}}
+                       formatter={(value: number) => [`${currencyFilter === 'NGN' ? '₦' : '$'}${value.toLocaleString()}`, 'Revenue']}
+                    />
+                    <Legend verticalAlign="top" align="right" iconType="circle" wrapperStyle={{paddingBottom: 10, fontSize: 10, fontWeight: 700}} />
+                    <Bar dataKey="achieved" fill="#14b8a6" radius={[0, 4, 4, 0]} name="Recognized" barSize={12} />
+                    <Bar dataKey="pending" fill="#99f6e4" radius={[0, 4, 4, 0]} name="Pending" barSize={12} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            )}
           </div>
         </div>
 

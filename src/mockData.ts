@@ -47,7 +47,7 @@ export const MOCK_PROJECTS: Project[] = [
   {
     id: '2',
     clientName: 'Apex Microfinance',
-    packageName: 'Cloud Core Migration',
+    packageName: 'Digital Banking Program',
     services: ['Agency', 'Merchant Banking'],
     productLines: ['Bankone'],
     assignedPM: 'Michael Chen',
@@ -119,7 +119,7 @@ export const MOCK_PROJECTS: Project[] = [
   {
     id: '4',
     clientName: 'Stellar Fin',
-    packageName: 'Payment Gateway Setup',
+    packageName: 'CBA Program',
     services: ['Web'],
     productLines: ['Paypoint'],
     assignedPM: 'David Okoro',
@@ -152,7 +152,7 @@ export const MOCK_PROJECTS: Project[] = [
   {
     id: '5',
     clientName: 'Eco Bank',
-    packageName: 'Green Wallet',
+    packageName: 'Retail Banking Program',
     services: ['Mobile'],
     productLines: ['Channels'],
     assignedPM: 'Michael Chen',
@@ -185,7 +185,7 @@ export const MOCK_PROJECTS: Project[] = [
   {
     id: '6',
     clientName: 'Recova Plus',
-    packageName: 'Collections Pro',
+    packageName: 'Lending as a Service',
     services: ['USSD'],
     productLines: ['Recova'],
     assignedPM: 'David Okoro',
@@ -218,7 +218,7 @@ export const MOCK_PROJECTS: Project[] = [
   {
     id: '7',
     clientName: 'Prime Bank',
-    packageName: 'Loan Origination System',
+    packageName: 'Distributed Banking Program',
     services: ['Lending'],
     productLines: ['Bankone'],
     assignedPM: 'Sarah Jenkins',
@@ -251,7 +251,7 @@ export const MOCK_PROJECTS: Project[] = [
   {
     id: '8',
     clientName: 'Rapid Pay',
-    packageName: 'Instant Transfer Service',
+    packageName: 'Cluster Program',
     services: ['API'],
     productLines: ['Paypoint'],
     assignedPM: 'Michael Chen',
@@ -285,7 +285,7 @@ export const MOCK_PROJECTS: Project[] = [
   {
     id: '9',
     clientName: 'Legacy Corp',
-    packageName: 'Legacy Migration',
+    packageName: 'CBA Program',
     services: ['CBA'],
     productLines: ['Bankone'],
     assignedPM: 'Abisoye Adeyemi',
@@ -318,7 +318,7 @@ export const MOCK_PROJECTS: Project[] = [
   {
     id: '10',
     clientName: 'Old School Fin',
-    packageName: 'Digital Onboarding',
+    packageName: 'Digital Uplift Program',
     services: ['Mobile'],
     productLines: ['Channels'],
     assignedPM: 'Abisoye Adeyemi',
@@ -351,7 +351,7 @@ export const MOCK_PROJECTS: Project[] = [
   {
     id: '11',
     clientName: 'Future Bank',
-    packageName: 'Cloud Core Migration',
+    packageName: 'Digital Banking Program',
     services: ['Cloud', 'API'],
     productLines: ['Bankone'],
     assignedPM: 'Sarah Jenkins',
@@ -383,7 +383,7 @@ export const MOCK_PROJECTS: Project[] = [
   {
     id: '12',
     clientName: 'Amber Ventures',
-    packageName: 'Seed Growth',
+    packageName: 'Retail Banking Program',
     services: ['Advisory'],
     productLines: ['Channels'],
     assignedPM: 'David Okoro',

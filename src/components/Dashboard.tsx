@@ -21,6 +21,7 @@ interface DashboardProps {
 
 export const Dashboard: React.FC<DashboardProps> = ({ projects, workloadThresholds, themeColor = 'teal', userRole, onReassignProject, config }) => {
   const theme = getThemeClasses(themeColor);
+  const [chartCurrency, setChartCurrency] = useState<'NGN' | 'USD'>('NGN');
 
   // Revenue Stats Grouped by Currency
   const getGroupedRevenue = (filterFn: (p: Project) => boolean) => {
@@ -47,15 +48,22 @@ export const Dashboard: React.FC<DashboardProps> = ({ projects, workloadThreshol
   const p2Count = projects.filter(p => p.priority === 'P2' && ['On-Track', 'Delayed', 'Suspended'].includes(p.state)).length;
   const p3Count = projects.filter(p => p.priority === 'P3' && ['On-Track', 'Delayed', 'Suspended'].includes(p.state)).length;
 
-  // Product Line Stats
-  const productLineData = (['Bankone', 'Channels', 'Recova', 'Cluster'] as ProductLine[]).map(pl => {
-    const plProjects = projects.filter(p => (p.productLines || []).includes(pl));
-    return {
-      name: pl,
-      count: plProjects.length,
-      revenue: plProjects.reduce((acc, p) => acc + p.value, 0)
-    };
-  });
+  // Package Stats
+  const packageData = React.useMemo(() => {
+    const pkgMap = new Map<string, { count: number, revenue: number }>();
+    projects.forEach(p => {
+      if (p.currency !== chartCurrency) return;
+      
+      const pkg = p.packageName || 'Unknown Package';
+      if (!pkgMap.has(pkg)) pkgMap.set(pkg, { count: 0, revenue: 0 });
+      const stats = pkgMap.get(pkg)!;
+      stats.count += 1;
+      stats.revenue += p.value;
+    });
+    return Array.from(pkgMap.entries())
+      .map(([name, stats]) => ({ name, ...stats }))
+      .sort((a, b) => b.revenue - a.revenue);
+  }, [projects, chartCurrency]);
 
   // Performance Stats (Simplified for POC)
   const pmStats = Array.from(new Set(projects.map(p => p.assignedPM))).map(pm => {
@@ -163,35 +171,59 @@ export const Dashboard: React.FC<DashboardProps> = ({ projects, workloadThreshol
           </div>
         </div>
 
-        {/* Product Panel */}
-        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-          <div className="flex items-center gap-2 mb-6">
-            <Layers className={cn("w-5 h-5", theme.text)} />
-            <h2 className="text-lg font-semibold text-slate-900">Product Line Distribution</h2>
+        {/* Package Panel */}
+        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col">
+          <div className="flex items-center justify-between mb-6 shrink-0 gap-4">
+            <div className="flex items-center gap-2">
+              <Layers className={cn("w-5 h-5", theme.text)} />
+              <h2 className="text-lg font-semibold text-slate-900">Package Distribution</h2>
+            </div>
+            <div className="flex bg-slate-100 p-0.5 rounded-lg border border-slate-200">
+              <button 
+                onClick={() => setChartCurrency('NGN')}
+                className={cn("px-2.5 py-1 text-[10px] font-black tracking-widest rounded transition-all", chartCurrency === 'NGN' ? "bg-white text-slate-900 shadow-sm" : "text-slate-400 hover:text-slate-600")}
+              >
+                NGN
+              </button>
+              <button 
+                onClick={() => setChartCurrency('USD')}
+                className={cn("px-2.5 py-1 text-[10px] font-black tracking-widest rounded transition-all", chartCurrency === 'USD' ? "bg-white text-slate-900 shadow-sm" : "text-slate-400 hover:text-slate-600")}
+              >
+                USD
+              </button>
+            </div>
           </div>
-          <div className="h-[250px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={productLineData} layout="vertical" margin={{ left: 10, right: 30 }}>
-                <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#f1f5f9" />
-                <XAxis type="number" hide />
-                <YAxis 
-                  dataKey="name" 
-                  type="category" 
-                  axisLine={false} 
-                  tickLine={false} 
-                  tick={{fill: '#64748b', fontSize: 11, fontWeight: 700}} 
-                  width={80}
-                />
-                <Tooltip 
-                  cursor={{fill: '#f8fafc'}}
-                  contentStyle={{borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)'}}
-                  formatter={(value: number) => [`₦${(value / 1000000).toFixed(1)}M`, 'Revenue']}
-                />
-                <Bar dataKey="revenue" fill={themeHex} radius={[0, 4, 4, 0]} barSize={20} />
-              </BarChart>
-            </ResponsiveContainer>
+          <div className="h-[250px] overflow-y-auto pr-2 custom-scrollbar border-y border-slate-50 relative">
+            <div style={{ height: `${Math.max(100, packageData.length * 45)}px`, minHeight: '100%' }}>
+              <ResponsiveContainer width="100%" height="100%">
+                {packageData.length > 0 ? (
+                  <BarChart data={packageData} layout="vertical" margin={{ left: 10, right: 30, top: 10, bottom: 10 }}>
+                    <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#f1f5f9" />
+                    <XAxis type="number" hide />
+                    <YAxis 
+                      dataKey="name" 
+                      type="category" 
+                      axisLine={false} 
+                      tickLine={false} 
+                      tick={{fill: '#64748b', fontSize: 10, fontWeight: 700}} 
+                      width={90}
+                    />
+                    <Tooltip 
+                      cursor={{fill: '#f8fafc'}}
+                      contentStyle={{borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)', fontSize: '12px', fontWeight: 'bold'}}
+                      formatter={(value: number) => [`${chartCurrency === 'NGN' ? '₦' : '$'}${value.toLocaleString()}`, 'Revenue']}
+                    />
+                    <Bar dataKey="revenue" fill={themeHex} radius={[0, 4, 4, 0]} barSize={16} />
+                  </BarChart>
+                ) : (
+                  <div className="flex items-center justify-center h-full">
+                     <p className="text-xs font-bold text-slate-400 italic">No {chartCurrency} intake logged for active packages.</p>
+                  </div>
+                )}
+              </ResponsiveContainer>
+            </div>
           </div>
-          <p className="mt-4 text-sm text-slate-500 text-center italic">Revenue contribution per product line</p>
+          <p className="mt-4 text-sm text-slate-500 text-center italic shrink-0">Revenue contribution per package</p>
         </div>
       </div>
 
