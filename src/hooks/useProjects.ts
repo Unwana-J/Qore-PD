@@ -56,7 +56,21 @@ export function useProjects(userRole: Role, config: AppConfig) {
     async function fetchProjects() {
       try {
         const data = await api.projects.getAll();
-        setProjects(data);
+        
+        // Auto-correct stale states upon loading from backend
+        // (If SPI drops below threshold due to elapsed days, it becomes 'Delayed' today)
+        const terminalStates: ProjectState[] = ['Signed Off', 'Billed', 'Closed', 'Suspended'];
+        const correctedData = data.map(p => {
+          if (!terminalStates.includes(p.state)) {
+             const autoState = getAutoProjectState(p, config.spiThresholds);
+             if (p.state !== autoState) {
+                return { ...p, state: autoState };
+             }
+          }
+          return p;
+        });
+
+        setProjects(correctedData);
       } catch (error) {
         console.error('Failed to fetch projects', error);
       } finally {
@@ -64,7 +78,7 @@ export function useProjects(userRole: Role, config: AppConfig) {
       }
     }
     fetchProjects();
-  }, []);
+  }, [config.spiThresholds.atRisk, config.spiThresholds.onTrack]);
 
   const getPMWorkload = useCallback((pmName: string) => {
     const pmProjects = projects.filter(p => 
