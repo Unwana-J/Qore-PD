@@ -44,9 +44,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ projects, workloadThreshol
   const atRiskCount = delayedCount + suspendedCount;
   
   // Priority Stats
-  const p1Count = projects.filter(p => p.priority === 'P1' && ['On-Track', 'Delayed', 'Suspended'].includes(p.state)).length;
-  const p2Count = projects.filter(p => p.priority === 'P2' && ['On-Track', 'Delayed', 'Suspended'].includes(p.state)).length;
-  const p3Count = projects.filter(p => p.priority === 'P3' && ['On-Track', 'Delayed', 'Suspended'].includes(p.state)).length;
+  const p1Count = projects.filter(p => p.priority === 'P1' && p.state === 'On-Track').length;
+  const p2Count = projects.filter(p => p.priority === 'P2' && p.state === 'On-Track').length;
+  const p3Count = projects.filter(p => p.priority === 'P3' && p.state === 'On-Track').length;
 
   // Package Stats
   const packageData = React.useMemo(() => {
