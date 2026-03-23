@@ -31,30 +31,44 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
   spiThresholds
 }) => {
   const [currencyFilter, setCurrencyFilter] = useState<'All' | 'NGN' | 'USD'>('All');
+  const [globalFilter, setGlobalFilter] = useState<'All' | 'Enterprise' | 'Initiative'>('All');
   const theme = getThemeClasses(themeColor);
   const now = new Date();
+
+  // --- Filtering Logic ---
+  const filteredProjects = useMemo(() => {
+    switch (globalFilter) {
+      case 'Enterprise':
+        return projects.filter(p => !p.isInternalInitiative && p.priority === 'P1');
+      case 'Initiative':
+        return projects.filter(p => p.isInternalInitiative);
+      default:
+        return projects;
+    }
+  }, [projects, globalFilter]);
 
   // --- Computations ---
 
   // Row 1: Project Counts
   const projectCounts = useMemo(() => {
     return {
-      total: projects.length,
-      onTrack: projects.filter(p => p.state === 'On-Track').length,
-      delayed: projects.filter(p => p.state === 'Delayed').length,
-      onHold: projects.filter(p => p.state === 'Suspended').length,
-      readyForBilling: projects.filter(p => p.state === 'Signed Off').length,
-      billed: projects.filter(p => p.state === 'Billed').length,
-      closed: projects.filter(p => p.state === 'Closed').length,
+      total: filteredProjects.length,
+      onTrack: filteredProjects.filter(p => p.state === 'On-Track').length,
+      delayed: filteredProjects.filter(p => p.state === 'Delayed').length,
+      onHold: filteredProjects.filter(p => p.state === 'Suspended').length,
+      readyForBilling: filteredProjects.filter(p => p.state === 'Signed Off').length,
+      billed: filteredProjects.filter(p => p.state === 'Billed').length,
+      closed: filteredProjects.filter(p => p.state === 'Closed').length,
+      initiatives: filteredProjects.filter(p => p.isInternalInitiative).length,
     };
-  }, [projects]);
+  }, [filteredProjects]);
 
   // Row 2: Revenue Stats
   const revenueStats = useMemo(() => {
     const sumFiltered = (currency: 'NGN'|'USD', states: ProjectState[]) => 
-      projects.filter(p => p.currency === currency && states.includes(p.state)).reduce((acc, p) => acc + p.value, 0);
+      filteredProjects.filter(p => !p.isInternalInitiative && p.currency === currency && states.includes(p.state)).reduce((acc, p) => acc + p.value, 0);
     const sumAll = (currency: 'NGN'|'USD') => 
-      projects.filter(p => p.currency === currency).reduce((acc, p) => acc + p.value, 0);
+      filteredProjects.filter(p => !p.isInternalInitiative && p.currency === currency).reduce((acc, p) => acc + p.value, 0);
 
     return {
       total: { NGN: sumAll('NGN'), USD: sumAll('USD') },
@@ -62,7 +76,7 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
       atRisk: { NGN: sumFiltered('NGN', ['Delayed', 'Suspended']), USD: sumFiltered('USD', ['Delayed', 'Suspended']) },
       onTrack: { NGN: sumFiltered('NGN', ['On-Track', 'Signed Off']), USD: sumFiltered('USD', ['On-Track', 'Signed Off']) }
     };
-  }, [projects]);
+  }, [filteredProjects]);
 
   // Charts: Revenue Trend
   const trendData = useMemo(() => {
@@ -92,9 +106,9 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
     ];
     return states.map(s => ({
       name: s.name,
-      value: projects.filter(p => p.state === s.state).length
+      value: filteredProjects.filter(p => p.state === s.state).length
     }));
-  }, [projects]);
+  }, [filteredProjects]);
 
   // Charts: Package Revenue
   const packageRevenue = useMemo(() => {
@@ -102,7 +116,7 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
     if (currencyFilter === 'All') return [];
 
     const pkgMap = new Map<string, { name: string, achieved: number, pending: number, total: number }>();
-    projects.forEach(p => {
+    filteredProjects.forEach(p => {
       // ONLY process projects matching the exact currency filter
       if (p.currency !== currencyFilter) return;
 
@@ -120,25 +134,25 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
     return Array.from(pkgMap.values())
       .sort((a, b) => b.total - a.total)
       .filter(p => p.total > 0);
-  }, [projects, currencyFilter]);
+  }, [filteredProjects, currencyFilter]);
 
   // Schedule Performance
   const schedulePerformance = useMemo(() => {
-    const activeProjects = projects.filter(p => !['Signed Off', 'Billed', 'Closed'].includes(p.state));
+    const activeProjects = filteredProjects.filter(p => !['Signed Off', 'Billed', 'Closed'].includes(p.state));
     const validSpis = activeProjects.map(p => calculateSPI(p, spiThresholds).rawSpi).filter(val => val !== null) as number[];
     const avgSpi = validSpis.length > 0 ? validSpis.reduce((a, b) => a + b, 0) / validSpis.length : 0;
-    const completionRate = projects.length > 0 ? (projectCounts.closed / projects.length) * 100 : 0;
+    const completionRate = filteredProjects.length > 0 ? (projectCounts.closed / filteredProjects.length) * 100 : 0;
 
     return { avgSpi, completionRate };
-  }, [projects, projectCounts.closed, spiThresholds]);
+  }, [filteredProjects, projectCounts.closed, spiThresholds]);
 
   // At-Risk Table
   const atRiskProjects = useMemo(() => {
-    return projects
+    return filteredProjects
       .filter(p => p.state === 'Delayed')
       .sort((a, b) => b.value - a.value)
       .slice(0, 10);
-  }, [projects]);
+  }, [filteredProjects]);
 
   const getDaysDelayed = (p: Project) => {
     const closurePhase = p.phases.find(m => m.name === 'Closure');
@@ -150,7 +164,7 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
     return 0;
   };
 
-  const getStatusRatio = (count: number) => projects.length > 0 ? (count / projects.length) * 100 : 0;
+  const getStatusRatio = (count: number) => filteredProjects.length > 0 ? (count / filteredProjects.length) * 100 : 0;
 
   return (
     <div className="p-6 space-y-8 max-w-7xl mx-auto pb-20">
@@ -162,6 +176,28 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
           <p className="text-sm font-bold text-slate-500 uppercase tracking-widest mt-1">
             {format(now, 'EEEE, d MMMM yyyy')}
           </p>
+        </div>
+
+        {/* Portfolio Filter Toggle */}
+        <div className="flex bg-slate-100 p-1 rounded-2xl border border-slate-200">
+          {[
+            { id: 'All', label: 'All Portfolio' },
+            { id: 'Enterprise', label: 'Tier 1 - Enterprise' },
+            { id: 'Initiative', label: 'Internal Initiatives' }
+          ].map(f => (
+            <button
+              key={f.id}
+              onClick={() => setGlobalFilter(f.id as any)}
+              className={cn(
+                "px-5 py-2.5 rounded-xl text-xs font-black transition-all",
+                globalFilter === f.id
+                  ? "bg-white text-slate-900 shadow-sm ring-1 ring-slate-200"
+                  : "text-slate-500 hover:text-slate-700"
+              )}
+            >
+              {f.label}
+            </button>
+          ))}
         </div>
 
         {/* Currency Filter Toggle */}
@@ -184,12 +220,18 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
       </div>
 
       {/* Row 1: Project Counts */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-4">
         <KPIBox
           label="Total Projects"
           val={projectCounts.total}
           subtitle="Across all statuses"
           variant="neutral"
+        />
+        <KPIBox
+          label="Internal Initiatives"
+          val={projectCounts.initiatives}
+          subtitle="Strategic tasks"
+          variant="violet"
         />
         <KPIBox
           label="On-Track"
@@ -206,11 +248,11 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
         <KPIBox
           label="On Hold"
           val={projectCounts.onHold}
-          subtitle="Suspended operations"
+          subtitle="Suspended"
           variant="slate"
         />
         <KPIBox
-          label="Ready for Billing"
+          label="Ready to Bill"
           val={projectCounts.readyForBilling}
           subtitle="Awaiting Finance"
           variant="amber"
@@ -272,12 +314,12 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
 
         {/* Legend / Stats */}
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-          <BreakdownStat label="On-Track" count={projectCounts.onTrack} total={projects.length} color="text-emerald-500" />
-          <BreakdownStat label="Delayed" count={projectCounts.delayed} total={projects.length} color="text-red-500" />
-          <BreakdownStat label="On Hold" count={projectCounts.onHold} total={projects.length} color="text-slate-800" />
-          <BreakdownStat label="Ready to Bill" count={projectCounts.readyForBilling} total={projects.length} color="text-amber-500" />
-          <BreakdownStat label="Billed" count={projectCounts.billed} total={projects.length} color="text-blue-600" />
-          <BreakdownStat label="Closed" count={projectCounts.closed} total={projects.length} color="text-slate-400" />
+          <BreakdownStat label="On-Track" count={projectCounts.onTrack} total={filteredProjects.length} color="text-emerald-500" />
+          <BreakdownStat label="Delayed" count={projectCounts.delayed} total={filteredProjects.length} color="text-red-500" />
+          <BreakdownStat label="On Hold" count={projectCounts.onHold} total={filteredProjects.length} color="text-slate-800" />
+          <BreakdownStat label="Ready to Bill" count={projectCounts.readyForBilling} total={filteredProjects.length} color="text-amber-500" />
+          <BreakdownStat label="Billed" count={projectCounts.billed} total={filteredProjects.length} color="text-blue-600" />
+          <BreakdownStat label="Closed" count={projectCounts.closed} total={filteredProjects.length} color="text-slate-400" />
         </div>
       </div>
 
@@ -386,7 +428,7 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
               return (
                 <div key={d.name} className="flex items-center gap-2">
                   <div className="w-2 h-2 rounded-full" style={{backgroundColor: stateStyles[d.name]}} />
-                  <span className="text-[10px] font-bold text-slate-600 truncate">{d.name} ({Math.round((d.value / projects.length || 0) * 100)}%)</span>
+                  <span className="text-[10px] font-bold text-slate-600 truncate">{d.name} ({Math.round((d.value / filteredProjects.length || 0) * 100)}%)</span>
                 </div>
               );
             })}
@@ -524,7 +566,7 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
                       <span className={cn(
                         "px-2 py-0.5 rounded text-[10px] font-black border",
                         p.priority === 'P1' ? "bg-red-50 text-red-600 border-red-100" : "bg-slate-100 text-slate-600 border-slate-200"
-                      )}>{p.priority}</span>
+                      )}>{p.priority === 'P1' ? 'Tier 1 - Enterprise' : p.priority === 'P2' ? 'Tier 2 - Pro' : 'Tier 3 - Basic'}</span>
                     </td>
                     <td className="px-4 py-5 font-bold text-sm text-slate-600">
                       <div className="flex flex-col">
@@ -593,6 +635,7 @@ const KPIBox = ({ label, val, subtitle, variant = 'neutral' }: any) => {
     red: "bg-white border-red-100 text-slate-900 icon-bg-red-50 icon-text-red-500 border-b-4 border-b-red-500",
     slate: "bg-slate-50 border-slate-200 text-slate-600 icon-bg-white icon-text-slate-400 border-b-4 border-b-slate-400",
     amber: "bg-white border-amber-100 text-slate-900 icon-bg-amber-50 icon-text-amber-500 border-b-4 border-b-amber-500",
+    violet: "bg-white border-violet-100 text-violet-900 icon-bg-violet-50 icon-text-violet-500 border-b-4 border-b-violet-500",
   };
 
   const IconMap: any = {
@@ -600,7 +643,8 @@ const KPIBox = ({ label, val, subtitle, variant = 'neutral' }: any) => {
     green: Award,
     red: AlertTriangle,
     slate: Clock,
-    amber: Target
+    amber: Target,
+    violet: Layers
   };
   const Icon = IconMap[variant];
 

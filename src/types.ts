@@ -69,6 +69,18 @@ export interface SuspensionCycle {
   frozenActiveDays: number;
 }
 
+export interface ExecutionMilestone {
+  id: string;
+  name: string;
+  status: ServiceState;
+}
+
+export interface MilestoneComment {
+  author: string;
+  text: string;
+  timestamp: string;
+}
+
 export interface Project {
   id: string;
   clientName: string;
@@ -98,11 +110,15 @@ export interface Project {
   rebaselineRequests: RebaselineRequest[];
   totalActiveDays?: number;
   suspensionCycles: SuspensionCycle[];
+  isInternalInitiative?: boolean;
+  milestones?: ExecutionMilestone[];
+  phaseComments?: Partial<Record<PhaseName, MilestoneComment>>;
 }
 
 export interface PackageConfig {
+  id: string;
   name: string;
-  productLines: ProductLine[];
+  services: string[];
   weight: number;
 }
 
@@ -160,6 +176,8 @@ export interface AppConfig {
   currencies: Currency[];
   projectLifecycleWeights: ProjectLifecycleWeights;
   serviceBaselines: ServiceBaseline[];
+  packages: PackageConfig[];
+  productLines: ProductLineConfig[];
   allowPostIntakeRevenueEdit: boolean;
   workloadThresholds: Record<ProjectPriority, number>;
   brand: BrandConfig;

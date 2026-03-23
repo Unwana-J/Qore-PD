@@ -245,6 +245,8 @@ export default function App() {
         themeColor={config.brand.themeColor}
         users={MOCK_USERS}
         serviceBaselines={config.serviceBaselines}
+        packages={config.packages}
+        productLines={config.productLines}
       />
 
       {projectToReassign && (

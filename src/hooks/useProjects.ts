@@ -119,14 +119,18 @@ export function useProjects(userRole: Role, config: AppConfig) {
     }
 
     try {
-      const baselineDays = (newProjectData.services || []).reduce((acc, serviceName) => {
+      const isInternalInitiative = newProjectData.isInternalInitiative;
+      
+      const baselineDays = isInternalInitiative ? 0 : (newProjectData.services || []).reduce((acc, serviceName) => {
         const baseline = config.serviceBaselines.find(sb => sb.name === serviceName);
         return acc + (baseline ? baseline.baselineDays : 0);
       }, 0);
 
-      const expectedCompletionDate = calculateWorkingDays(newProjectData.startDate || new Date(), baselineDays);
+      const expectedCompletionDate = isInternalInitiative 
+        ? (newProjectData.expectedCompletionDate || new Date().toISOString().split('T')[0])
+        : calculateWorkingDays(newProjectData.startDate || new Date(), baselineDays);
 
-      const phases: Phase[] = [
+      const phases: Phase[] = newProjectData.phases?.length ? newProjectData.phases : [
         { id: 'Initiation', name: 'Initiation', status: 'Pending' },
         { id: 'Planning', name: 'Planning', status: 'Locked' },
         { id: 'Execution', name: 'Execution', status: 'Locked' },
@@ -134,13 +138,22 @@ export function useProjects(userRole: Role, config: AppConfig) {
       ];
 
       const serviceStates: Record<string, ServiceState> = {};
-      (newProjectData.services || []).forEach(s => {
-        serviceStates[s] = 'Not Started';
-      });
+      if (!isInternalInitiative) {
+        (newProjectData.services || []).forEach(s => {
+          serviceStates[s] = 'Not Started';
+        });
+      }
+
+      const productLines = isInternalInitiative ? [] : Array.from(new Set(
+        config.productLines
+          .filter(pl => pl.services.some(s => (newProjectData.services || []).includes(s)))
+          .map(pl => pl.name)
+      ));
 
       const newProject = await api.projects.create({
         ...newProjectData,
-        expectedDuration: baselineDays,
+        productLines,
+        expectedDuration: isInternalInitiative ? 0 : baselineDays,
         expectedCompletionDate,
         currentCompletionDate: expectedCompletionDate,
         phases,

@@ -108,7 +108,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ projects, workloadThreshol
           <StatCard 
             label="On-Track Priorities" 
             value={`${p1Count} / ${p2Count} / ${p3Count}`} 
-            subValue="P1 / P2 / P3 On-Track" 
+            subValue="Enterprise / Pro / Basic On-Track" 
             icon={<Activity className="w-4 h-4" />} 
             color="emerald" 
             themeColor={themeColor} 

@@ -74,6 +74,10 @@ export const PhaseView: React.FC<PhaseViewProps> = ({
   const [rebaselineDays, setRebaselineDays] = useState(1);
   const [rebaselineComment, setRebaselineComment] = useState('');
   const [isSubmittingRebaseline, setIsSubmittingRebaseline] = useState(false);
+  
+  const [phaseCommentInputs, setPhaseCommentInputs] = useState<Record<string, string>>({});
+  const [showAddMilestone, setShowAddMilestone] = useState(false);
+  const [newMilestoneName, setNewMilestoneName] = useState('');
 
   const theme = getThemeClasses(themeColor);
   const scores = calculatePhaseScores(project);
@@ -114,13 +118,120 @@ export const PhaseView: React.FC<PhaseViewProps> = ({
       if (p) p.status = 'In Progress';
     } else if (phaseId === 'Execution') {
       const p = updatedPhases.find(x => x.id === 'Closure');
-      if (p) p.status = 'Pending';
+      if (p) p.status = project.isInternalInitiative ? 'In Progress' : 'Pending';
     } else if (phaseId === 'Closure') {
+       if (project.isInternalInitiative) {
+          // Mandatory comment required, handled by handleSavePhaseComment
+          onShowToast?.('A closure comment is required to complete this initiative', 'info');
+          return;
+       }
        onUpdateProject({ ...project, phases: updatedPhases, state: 'Signed Off' });
        return;
     }
 
     onUpdateProject({ ...project, phases: updatedPhases });
+  };
+
+  const handleMilestoneChange = (milestoneId: string, state: ServiceState) => {
+    if (!canEditPhase) return;
+    const updatedMilestones = (project.milestones || []).map(m => 
+      m.id === milestoneId ? { ...m, status: state } : m
+    );
+    const allClosed = updatedMilestones.every(m => m.status === 'Closed');
+    
+    let updatedPhases = [...project.phases];
+    if (allClosed && updatedMilestones.length > 0) {
+      updatedPhases = updatedPhases.map(p => 
+        p.id === 'Execution' ? { ...p, status: 'Completed', completionDate: new Date().toISOString().split('T')[0] } : p
+      );
+      const closure = updatedPhases.find(x => x.id === 'Closure');
+      if (closure && (closure.status === 'Locked' || closure.status === 'Pending')) closure.status = 'In Progress';
+    } else {
+      const exec = updatedPhases.find(x => x.id === 'Execution');
+      if (exec && exec.status === 'Completed') {
+        exec.status = 'In Progress';
+        exec.completionDate = undefined;
+        const closure = updatedPhases.find(x => x.id === 'Closure');
+        if (closure) closure.status = 'Locked';
+      }
+    }
+
+    onUpdateProject({ ...project, milestones: updatedMilestones, phases: updatedPhases });
+  };
+
+  const handleAddMilestone = (name: string) => {
+    if (!name.trim()) return;
+    const next = [...(project.milestones || []), {
+      id: Math.random().toString(36).substr(2, 9),
+      name,
+      status: 'Not Started' as const
+    }];
+    
+    // Recalculate phase status if currently completed
+    let updatedPhases = [...project.phases];
+    const exec = updatedPhases.find(x => x.id === 'Execution');
+    if (exec && exec.status === 'Completed') {
+      exec.status = 'In Progress';
+      exec.completionDate = undefined;
+      const closure = updatedPhases.find(x => x.id === 'Closure');
+      if (closure) closure.status = 'Locked';
+    }
+
+    onUpdateProject({ ...project, milestones: next, phases: updatedPhases });
+    setNewMilestoneName('');
+    setShowAddMilestone(false);
+    onShowToast?.('Milestone added', 'success');
+  };
+
+  const handleDeleteMilestone = (id: string) => {
+    const next = (project.milestones || []).filter(m => m.id !== id);
+    if (next.length === 0) {
+      onShowToast?.('At least one milestone is required', 'error');
+      return;
+    }
+    
+    const allClosed = next.every(m => m.status === 'Closed');
+    let updatedPhases = [...project.phases];
+    if (allClosed && next.length > 0) {
+      updatedPhases = updatedPhases.map(p => 
+        p.id === 'Execution' ? { ...p, status: 'Completed', completionDate: new Date().toISOString().split('T')[0] } : p
+      );
+      const closure = updatedPhases.find(x => x.id === 'Closure');
+      if (closure && (closure.status === 'Locked' || closure.status === 'Pending')) closure.status = 'In Progress';
+    }
+    
+    onUpdateProject({ ...project, milestones: next, phases: updatedPhases });
+  };
+
+  const handleSavePhaseComment = (phaseId: string) => {
+    const text = phaseCommentInputs[phaseId];
+    if (!text?.trim()) return;
+
+    if (phaseId === 'Closure' && project.isInternalInitiative && text.trim().length < 10) {
+      onShowToast?.('Closure comment must be at least 10 characters', 'error');
+      return;
+    }
+
+    const comment = {
+      author: userRole === 'PM' ? project.assignedPM : 'Admin',
+      text: text.trim(),
+      timestamp: new Date().toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })
+    };
+
+    const nextComments = { ...project.phaseComments, [phaseId]: comment };
+    
+    if (phaseId === 'Closure' && project.isInternalInitiative) {
+      // Direct completion for Internal Initiatives
+      const updatedPhases = project.phases.map(p => 
+        p.id === 'Closure' ? { ...p, status: 'Completed', completionDate: new Date().toISOString().split('T')[0] } : p
+      );
+      onUpdateProject({ ...project, phaseComments: nextComments, phases: updatedPhases as Phase[], state: 'Closed' });
+      onShowToast?.('Initiative closed', 'success');
+    } else {
+      onUpdateProject({ ...project, phaseComments: nextComments });
+    }
+    
+    setPhaseCommentInputs({ ...phaseCommentInputs, [phaseId]: '' });
   };
 
   const handleServiceChange = (service: string, state: ServiceState) => {
@@ -228,10 +339,17 @@ export const PhaseView: React.FC<PhaseViewProps> = ({
             <ChevronLeft className="w-6 h-6 text-slate-600" />
           </button>
           <div>
-            <h2 className="text-2xl font-bold text-slate-900">{project.clientName}</h2>
+            <div className="flex items-center gap-2">
+              <h2 className="text-2xl font-bold text-slate-900">{project.clientName}</h2>
+              {project.isInternalInitiative && (
+                <span className="px-2 py-0.5 bg-purple-100 text-purple-700 text-[10px] font-black uppercase tracking-widest rounded-lg border border-purple-200">
+                  Initiative
+                </span>
+              )}
+            </div>
             <div className="flex items-center gap-3 mt-1">
               <StateBadge state={project.state} />
-              <span className="text-sm text-slate-500 font-medium">{project.packageName}</span>
+              <span className="text-sm text-slate-500 font-medium">{project.isInternalInitiative ? "Internal Initiative" : project.packageName}</span>
               {canReassign && (
                 <button 
                   onClick={onReassign}
@@ -272,7 +390,7 @@ export const PhaseView: React.FC<PhaseViewProps> = ({
         {/* Status Control — role-aware state machine */}
         {(() => {
           const state = project.state;
-          const transitions = getValidTransitions(state, userRole);
+          const transitions = getValidTransitions(project, userRole);
           const isClosed = state === 'Closed';
           const isSignedOff = state === 'Signed Off' && userRole !== 'Finance';
           const canAct = !isClosed && !isSignedOff;
@@ -524,18 +642,18 @@ export const PhaseView: React.FC<PhaseViewProps> = ({
                             </div>
 
                             {/* Phase Completion Button */}
-                            {canEditPhase && !isLocked && !isCompleted && phase.id !== 'Execution' && (
-                              <button
-                                onClick={() => handleCompletePhase(phase.id)}
-                                disabled={phase.id === 'Initiation' && !project.pidSignedOffDate}
-                                className={cn(
-                                  "px-4 py-2 rounded-xl text-xs font-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed",
-                                  theme.bg, "text-white hover:shadow-lg"
-                                )}
-                              >
-                                Mark Complete
-                              </button>
-                            )}
+                              {canEditPhase && !isLocked && !isCompleted && phase.id !== 'Execution' && (
+                                <button
+                                  onClick={() => handleCompletePhase(phase.id)}
+                                  disabled={phase.id === 'Initiation' && !project.pidSignedOffDate}
+                                  className={cn(
+                                    "px-4 py-2 rounded-xl text-xs font-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed",
+                                    theme.bg, "text-white hover:shadow-lg"
+                                  )}
+                                >
+                                  {phase.id === 'Closure' && project.isInternalInitiative ? "Confirm Closure" : "Mark Complete"}
+                                </button>
+                              )}
                           </div>
 
                           {/* Phase Specific Content */}
@@ -569,65 +687,271 @@ export const PhaseView: React.FC<PhaseViewProps> = ({
                                       <p className="text-xs text-slate-500">Must be completed before proceeding</p>
                                     </div>
                                   </div>
+                                  
+                                  {/* Phase Comments */}
+                                  {(canEdit || !project.isInternalInitiative) && (
+                                    <div className="mt-4 pt-4 border-t border-slate-100">
+                                       {project.phaseComments?.Initiation ? (
+                                         <div className="flex gap-3 bg-slate-50 p-3 rounded-xl border border-slate-100">
+                                            <div className="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center text-[10px] font-bold text-slate-500 flex-shrink-0">
+                                              {project.phaseComments.Initiation.author.split(' ').map(n => n[0]).join('')}
+                                            </div>
+                                            <div>
+                                              <div className="flex items-center gap-2 mb-1">
+                                                <span className="text-xs font-bold text-slate-900">{project.phaseComments.Initiation.author}</span>
+                                                <span className="text-[10px] text-slate-400 font-medium">{project.phaseComments.Initiation.timestamp}</span>
+                                              </div>
+                                              <p className="text-xs text-slate-600 leading-relaxed">{project.phaseComments.Initiation.text}</p>
+                                            </div>
+                                         </div>
+                                       ) : canEdit && !isCompleted && (
+                                          <div className="flex gap-2">
+                                            <input 
+                                              placeholder="Initiation notes (optional)..."
+                                              className="flex-1 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs outline-none focus:ring-1 focus:ring-slate-300"
+                                              value={phaseCommentInputs.Initiation || ''}
+                                              onChange={e => setPhaseCommentInputs({...phaseCommentInputs, Initiation: e.target.value})}
+                                            />
+                                            <button 
+                                              onClick={() => handleSavePhaseComment('Initiation')}
+                                              className={cn("p-1.5 rounded-lg text-white transition-all shadow-sm active:scale-95", theme.bg)}
+                                            >
+                                              <Check className="w-4 h-4" />
+                                            </button>
+                                          </div>
+                                       )}
+                                    </div>
+                                  )}
                                 </div>
                               )}
 
                               {phase.id === 'Execution' && (
-                                <div className="space-y-3 max-h-64 overflow-y-auto pr-2 custom-scrollbar">
-                                  {project.services.length === 0 ? (
-                                    <p className="text-sm text-slate-500 italic">No services selected.</p>
-                                  ) : (
-                                    project.services.map(service => {
-                                      const state = project.serviceStates?.[service] || 'Not Started';
-                                      return (
-                                        <div key={service} className="flex flex-col md:flex-row md:items-center justify-between gap-3 p-3 bg-slate-50 rounded-xl border border-slate-100">
-                                          <span className="text-sm font-bold text-slate-700">{service}</span>
-                                          {canEditPhase ? (
-                                            <div className="flex bg-slate-200 p-1 rounded-lg">
-                                              {(['Not Started', 'In Progress', 'Closed'] as ServiceState[]).map(s => (
-                                                <button
-                                                  key={s}
-                                                  onClick={() => handleServiceChange(service, s)}
-                                                  className={cn(
-                                                    "px-3 py-1.5 text-[10px] font-black uppercase tracking-widest rounded-md transition-all",
-                                                    state === s 
-                                                      ? s === 'Closed' ? "bg-emerald-500 text-white shadow-sm"
-                                                      : s === 'In Progress' ? "bg-amber-500 text-white shadow-sm"
-                                                      : "bg-slate-400 text-white shadow-sm"
-                                                      : "text-slate-500 hover:text-slate-700"
+                                <div className="space-y-4 pr-2 custom-scrollbar">
+                                  {project.isInternalInitiative ? (
+                                    <>
+                                      <div className="flex justify-between items-center mb-2">
+                                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                                          Execution Score: {Math.round(scores.executionScore)}% / {project.phaseWeights.execution}%
+                                        </span>
+                                        {canEdit && !isCompleted && (
+                                           <button 
+                                             onClick={() => setShowAddMilestone(!showAddMilestone)}
+                                             className={cn("px-3 py-1 bg-white border rounded-lg text-[10px] font-black uppercase transition-all", theme.text, theme.border, theme.hoverBg, "hover:text-white")}
+                                           >
+                                             {showAddMilestone ? "Cancel" : "+ Add Milestone"}
+                                           </button>
+                                        )}
+                                      </div>
+                                      
+                                      {showAddMilestone && (
+                                         <div className="flex gap-2 animate-in fade-in zoom-in duration-200 mb-4 p-3 bg-slate-50 rounded-xl border border-slate-100">
+                                            <input 
+                                              autoFocus
+                                              placeholder="Milestone name..."
+                                              className="flex-1 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs outline-none focus:ring-1"
+                                              value={newMilestoneName}
+                                              onChange={e => setNewMilestoneName(e.target.value)}
+                                              onKeyDown={e => e.key === 'Enter' && handleAddMilestone(newMilestoneName)}
+                                            />
+                                            <button 
+                                              onClick={() => handleAddMilestone(newMilestoneName)}
+                                              className={cn("px-4 py-1.5 text-white rounded-lg text-xs font-bold transition-all", theme.bg)}
+                                            >
+                                              Add
+                                            </button>
+                                         </div>
+                                      )}
+
+                                      <div className="space-y-2">
+                                        {(project.milestones || []).length === 0 ? (
+                                          <div className="p-4 border-2 border-dashed border-slate-100 rounded-xl text-center">
+                                            <p className="text-xs text-slate-400 italic font-medium">At least one milestone is required. Add a milestone to continue.</p>
+                                          </div>
+                                        ) : (
+                                          project.milestones?.map(milestone => {
+                                            const weightPerMilestone = project.phaseWeights.execution / (project.milestones?.length || 1);
+                                            return (
+                                              <div key={milestone.id} className="flex flex-col md:flex-row md:items-center justify-between gap-3 p-3 bg-slate-50 rounded-xl border border-slate-100 hover:border-slate-200 transition-colors group">
+                                                <div className="flex flex-col">
+                                                  <span className="text-sm font-bold text-slate-900">{milestone.name}</span>
+                                                  <span className="text-[9px] font-bold text-slate-400 uppercase">Contributing {weightPerMilestone.toFixed(1)}% of 60%</span>
+                                                </div>
+                                                <div className="flex items-center gap-3">
+                                                  {canEditPhase ? (
+                                                    <div className="flex bg-slate-200 p-1 rounded-lg">
+                                                      {(['Not Started', 'In Progress', 'Closed'] as ServiceState[]).map(s => (
+                                                        <button
+                                                          key={s}
+                                                          onClick={() => handleMilestoneChange(milestone.id, s)}
+                                                          className={cn(
+                                                            "px-2.5 py-1 text-[9px] font-black uppercase tracking-widest rounded-md transition-all",
+                                                            milestone.status === s 
+                                                              ? s === 'Closed' ? "bg-emerald-500 text-white shadow-sm"
+                                                              : s === 'In Progress' ? "bg-amber-500 text-white shadow-sm"
+                                                              : "bg-slate-400 text-white shadow-sm"
+                                                              : "text-slate-500 hover:text-slate-700"
+                                                          )}
+                                                        >
+                                                          {s}
+                                                        </button>
+                                                      ))}
+                                                    </div>
+                                                  ) : (
+                                                    <span className={cn(
+                                                      "px-2 py-0.5 text-[9px] font-black uppercase tracking-widest rounded-lg",
+                                                      milestone.status === 'Closed' ? "bg-emerald-100 text-emerald-700" :
+                                                      milestone.status === 'In Progress' ? "bg-amber-100 text-amber-700" : "bg-slate-200 text-slate-600"
+                                                    )}>
+                                                      {milestone.status}
+                                                    </span>
                                                   )}
-                                                >
-                                                  {s}
-                                                </button>
-                                              ))}
+                                                  {canEdit && !isCompleted && (
+                                                     <button 
+                                                       onClick={() => handleDeleteMilestone(milestone.id)}
+                                                       className="p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
+                                                     >
+                                                       <X className="w-4 h-4" />
+                                                     </button>
+                                                  )}
+                                                </div>
+                                              </div>
+                                            );
+                                          })
+                                        )}
+                                      </div>
+                                    </>
+                                  ) : (
+                                    <>
+                                      {project.services.length === 0 ? (
+                                        <p className="text-sm text-slate-500 italic">No services selected.</p>
+                                      ) : (
+                                        project.services.map(service => {
+                                          const state = project.serviceStates?.[service] || 'Not Started';
+                                          return (
+                                            <div key={service} className="flex flex-col md:flex-row md:items-center justify-between gap-3 p-3 bg-slate-50 rounded-xl border border-slate-100">
+                                              <span className="text-sm font-bold text-slate-700">{service}</span>
+                                              {canEditPhase ? (
+                                                <div className="flex bg-slate-200 p-1 rounded-lg">
+                                                  {(['Not Started', 'In Progress', 'Closed'] as ServiceState[]).map(s => (
+                                                    <button
+                                                      key={s}
+                                                      onClick={() => handleServiceChange(service, s)}
+                                                      className={cn(
+                                                        "px-3 py-1.5 text-[10px] font-black uppercase tracking-widest rounded-md transition-all",
+                                                        state === s 
+                                                          ? s === 'Closed' ? "bg-emerald-500 text-white shadow-sm"
+                                                          : s === 'In Progress' ? "bg-amber-500 text-white shadow-sm"
+                                                          : "bg-slate-400 text-white shadow-sm"
+                                                          : "text-slate-500 hover:text-slate-700"
+                                                      )}
+                                                    >
+                                                      {s}
+                                                    </button>
+                                                  ))}
+                                                </div>
+                                              ) : (
+                                                <span className={cn(
+                                                  "px-3 py-1.5 text-[10px] font-black uppercase tracking-widest rounded-lg",
+                                                  state === 'Closed' ? "bg-emerald-100 text-emerald-700" :
+                                                  state === 'In Progress' ? "bg-amber-100 text-amber-700" : "bg-slate-200 text-slate-600"
+                                                )}>
+                                                  {state}
+                                                </span>
+                                              )}
                                             </div>
-                                          ) : (
-                                            <span className={cn(
-                                              "px-3 py-1.5 text-[10px] font-black uppercase tracking-widest rounded-lg",
-                                              state === 'Closed' ? "bg-emerald-100 text-emerald-700" :
-                                              state === 'In Progress' ? "bg-amber-100 text-amber-700" : "bg-slate-200 text-slate-600"
-                                            )}>
-                                              {state}
-                                            </span>
-                                          )}
-                                        </div>
-                                      );
-                                    })
-                                  )}
-                                  {project.services.length > 0 && !isCompleted && (
-                                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-2 text-right">
-                                      Auto-completes when all services are Closed
-                                    </p>
+                                          );
+                                        })
+                                      )}
+                                      {project.services.length > 0 && !isCompleted && (
+                                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-2 text-right">
+                                          Auto-completes when all services are Closed
+                                        </p>
+                                      )}
+                                    </>
                                   )}
                                 </div>
                               )}
 
                               {phase.id === 'Planning' && (
-                                <p className="text-sm text-slate-500">Plan resources, create schedules, and prepare for execution.</p>
+                                <div className="space-y-4">
+                                  <p className="text-sm text-slate-500">Plan resources, create schedules, and prepare for execution.</p>
+                                  {(canEdit || !project.isInternalInitiative) && (
+                                    <div className={cn("mt-4 pt-4 border-t border-slate-100")}>
+                                       {project.phaseComments?.Planning ? (
+                                         <div className="flex gap-3 bg-slate-50 p-3 rounded-xl border border-slate-100">
+                                            <div className="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center text-[10px] font-bold text-slate-500 flex-shrink-0">
+                                              {project.phaseComments.Planning.author.split(' ').map(n => n[0]).join('')}
+                                            </div>
+                                            <div>
+                                              <div className="flex items-center gap-2 mb-1">
+                                                <span className="text-xs font-bold text-slate-900">{project.phaseComments.Planning.author}</span>
+                                                <span className="text-[10px] text-slate-400 font-medium">{project.phaseComments.Planning.timestamp}</span>
+                                              </div>
+                                              <p className="text-xs text-slate-600 leading-relaxed">{project.phaseComments.Planning.text}</p>
+                                            </div>
+                                         </div>
+                                       ) : canEdit && !isCompleted && (
+                                          <div className="flex gap-2">
+                                            <input 
+                                              placeholder="Planning notes (optional)..."
+                                              className="flex-1 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs outline-none focus:ring-1 focus:ring-slate-300"
+                                              value={phaseCommentInputs.Planning || ''}
+                                              onChange={e => setPhaseCommentInputs({...phaseCommentInputs, Planning: e.target.value})}
+                                            />
+                                            <button 
+                                              onClick={() => handleSavePhaseComment('Planning')}
+                                              className={cn("p-1.5 rounded-lg text-white transition-all shadow-sm active:scale-95", theme.bg)}
+                                            >
+                                              <Check className="w-4 h-4" />
+                                            </button>
+                                          </div>
+                                       )}
+                                    </div>
+                                  )}
+                                </div>
                               )}
 
                               {phase.id === 'Closure' && (
-                                <p className="text-sm text-slate-500">Finalize documentation, hand over deliverables, and close the project.</p>
+                                <div className="space-y-4">
+                                  <p className="text-sm text-slate-500">Finalize documentation, hand over deliverables, and close the project.</p>
+                                  {(canEdit || !project.isInternalInitiative) && (
+                                    <div className="mt-4 pt-4 border-t border-slate-100">
+                                       {project.phaseComments?.Closure ? (
+                                         <div className="flex gap-3 bg-slate-50 p-3 rounded-xl border border-slate-100">
+                                            <div className="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center text-[10px] font-bold text-slate-500 flex-shrink-0">
+                                              {project.phaseComments.Closure.author.split(' ').map(n => n[0]).join('')}
+                                            </div>
+                                            <div>
+                                              <div className="flex items-center gap-2 mb-1">
+                                                <span className="text-xs font-bold text-slate-900">{project.phaseComments.Closure.author}</span>
+                                                <span className="text-[10px] text-slate-400 font-medium">{project.phaseComments.Closure.timestamp}</span>
+                                              </div>
+                                              <p className="text-xs text-slate-600 leading-relaxed">{project.phaseComments.Closure.text}</p>
+                                            </div>
+                                         </div>
+                                       ) : canEdit && !isCompleted && (
+                                          <div className="flex flex-col gap-2">
+                                            <textarea 
+                                              placeholder={project.isInternalInitiative ? "Closure notes — describe how this initiative was concluded (Required, min 10 chars)..." : "Closure notes (optional)..."}
+                                              className={cn(
+                                                "w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs outline-none focus:ring-1 focus:ring-slate-300 min-h-[60px]",
+                                                project.isInternalInitiative && "border-amber-200 bg-amber-50/30"
+                                              )}
+                                              value={phaseCommentInputs.Closure || ''}
+                                              onChange={e => setPhaseCommentInputs({...phaseCommentInputs, Closure: e.target.value})}
+                                            />
+                                            <button 
+                                              onClick={() => handleSavePhaseComment('Closure')}
+                                              className={cn("self-end px-4 py-1.5 rounded-lg text-white text-xs font-bold transition-all shadow-sm active:scale-95 flex items-center gap-2", theme.bg)}
+                                            >
+                                              <Check className="w-3.5 h-3.5" />
+                                              {project.isInternalInitiative ? "Confirm & Close Initiative" : "Save Closure Notes"}
+                                            </button>
+                                          </div>
+                                       )}
+                                    </div>
+                                  )}
+                                </div>
                               )}
                             </div>
                           )}

@@ -182,6 +182,11 @@ export const ProjectList: React.FC<ProjectListProps> = ({ projects, onSelectProj
                         In-Active PM
                       </span>
                     )}
+                    {project.isInternalInitiative && (
+                      <span className="flex items-center gap-1.5 px-2 py-0.5 bg-purple-100/50 text-purple-700 rounded-md text-[9px] font-black uppercase tracking-tighter border border-purple-200/50 backdrop-blur-sm shadow-sm ring-4 ring-purple-500/5">
+                        Initiative
+                      </span>
+                    )}
                   </div>
                 </div>
                 <p className="text-[13px] text-slate-500 font-bold uppercase tracking-wider">{project.packageName}</p>
@@ -339,10 +344,11 @@ export const StateBadge = ({ state }: { state: ProjectState }) => {
 
 export const PriorityBadge = ({ priority }: { priority: string }) => {
   const styles = PRIORITY_COLORS[priority] || PRIORITY_COLORS['P2'];
+  const label = priority === 'P1' ? 'Tier 1 - Enterprise' : priority === 'P2' ? 'Tier 2 - Pro' : 'Tier 3 - Basic';
 
   return (
     <span className={cn("px-2 py-0.5 rounded text-[10px] font-bold border", styles.bg, styles.text, styles.border)}>
-      {priority}
+      {label}
     </span>
   );
 };

@@ -7,7 +7,6 @@ import { cn, formatCurrency, calculateWorkingDays, getActiveDaysCount } from '..
 import { getThemeClasses } from '../lib/theme';
 import { Project, Role, AppConfig, ImportRow, ImportRowStatus, User, ServiceBaseline, ProductLine } from '../types';
 import { ImportGuideModal } from './ImportGuideModal';
-import { PACKAGES, PRODUCT_LINES } from '../constants';
 
 interface BulkImportViewProps {
   users: User[];
@@ -63,8 +62,8 @@ export const BulkImportView: React.FC<BulkImportViewProps> = ({ users, projects,
   const moduleStatusOptions = ['Live', 'Not Started', 'Out of Scope', 'Not Ready'];
   
   // Ref to valid packages and PMs
-  const validPackages = PACKAGES.map(p => p.name);
-  const validPMs = users.filter(u => u.role === 'PM' && u.status === 'Active').map(u => u.name);
+  const validPackages = config.packages.map((p: any) => p.name);
+  const validPMs = users.filter((u: any) => u.role === 'PM' && u.status === 'Active').map((u: any) => u.name);
   
   // Validation function for a single row
   const validateRow = (row: ImportRow, rowIndex: number, allRows: ImportRow[]): ImportRow => {
@@ -265,14 +264,12 @@ export const BulkImportView: React.FC<BulkImportViewProps> = ({ users, projects,
       });
       // Deduce default services if package is present
       if (r.packageName) {
-        const pkg = PACKAGES.find(p => p.name === r.packageName);
+        const pkg = config.packages.find((p: any) => p.name === r.packageName);
         if (pkg) {
-           const autoServices = PRODUCT_LINES
-             .filter(pl => pkg.productLines.includes(pl.name))
-             .flatMap(pl => pl.services);
+           const autoServices = pkg.services;
              
            // Exclude services that were explicitly marked 'Out of Scope' in Excel
-           r.services = autoServices.filter(s => stateObj[s] !== 'Out of Scope');
+           r.services = autoServices.filter((s: string) => stateObj[s] !== 'Out of Scope');
         } else {
            r.services = [];
         }
@@ -298,12 +295,10 @@ export const BulkImportView: React.FC<BulkImportViewProps> = ({ users, projects,
     
     // Auto-update services if package changes
     if (field === 'packageName') {
-      const pkg = PACKAGES.find(p => p.name === value);
+      const pkg = config.packages.find((p: any) => p.name === value);
       if (pkg) {
-        const autoServices = PRODUCT_LINES
-           .filter(pl => pkg.productLines.includes(pl.name))
-           .flatMap(pl => pl.services)
-           .filter(s => newRows[idx].serviceStates?.[s] !== 'Out of Scope');
+        const autoServices = pkg.services
+           .filter((s: string) => newRows[idx].serviceStates?.[s] !== 'Out of Scope');
         newRows[idx].services = autoServices;
       } else {
         newRows[idx].services = [];
@@ -357,11 +352,10 @@ export const BulkImportView: React.FC<BulkImportViewProps> = ({ users, projects,
       let productLines: ProductLine[] = ['Bankone']; // Default
 
       if (row.packageName) {
-        const pkg = PACKAGES.find(p => p.name === row.packageName);
+        const pkg = config.packages.find((p: any) => p.name === row.packageName);
         if (pkg) {
-          productLines = pkg.productLines;
           baselineDays = mappedServices.reduce((acc, serviceName) => {
-            const baseline = config.serviceBaselines.find(sb => sb.name === serviceName);
+            const baseline = config.serviceBaselines.find((sb: any) => sb.name === serviceName);
             return acc + (baseline ? baseline.baselineDays : 0);
           }, 0);
         }
@@ -594,12 +588,12 @@ export const BulkImportView: React.FC<BulkImportViewProps> = ({ users, projects,
                             {row.packageName && (
                               <div className="flex flex-wrap gap-1 mt-1">
                                  {(() => {
-                                   const pkg = PACKAGES.find(p => p.name === row.packageName);
+                                   const pkg = config.packages.find((p: any) => p.name === row.packageName);
                                    if (!pkg) return null;
-                                   const allAvail = PRODUCT_LINES.filter(pl => pkg.productLines.includes(pl.name)).flatMap(pl => pl.services);
+                                   const allAvail = pkg.services;
                                    const activeServices = row.services || [];
                                    
-                                   return allAvail.map(s => {
+                                   return allAvail.map((s: string) => {
                                      const isActive = activeServices.includes(s);
                                      return (
                                        <button 

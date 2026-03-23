@@ -34,6 +34,7 @@ export const api = {
           }
         ],
       };
+      MOCK_PROJECTS.unshift(newProject);
       return newProject;
     },
     createBulk: async (projectsToAdd: Partial<Project>[], projectsToUpdate: Partial<Project>[]): Promise<void> => {

@@ -40,24 +40,23 @@ export function getAutoProjectState(
  * 'On-Track' here means either 'On-Track' or 'Delayed' — the auto-state bucket.
  */
 export function getValidTransitions(
-  currentState: string,
+  project: Project,
   userRole: string
 ): Array<{ value: string; label: string }> {
+  const currentState = project.state;
+  const isInternal = project.isInternalInitiative;
   const isPM = userRole === 'PM' || userRole === 'Team Lead' || userRole === 'Manager' || userRole === 'Superadmin';
   const isFinance = userRole === 'Finance';
 
-  if (currentState === 'On-Track') {
+  if (currentState === 'On-Track' || currentState === 'Delayed') {
     if (isFinance) return [];
-    return [
-      { value: 'Suspended', label: 'Suspend Project' },
-      { value: 'Signed Off', label: 'Sign Off' },
+    const base = [
+      { value: 'Suspended', label: 'Suspend Project' }
     ];
-  }
-  if (currentState === 'Delayed') {
-    if (isFinance) return [];
-    return [
-      { value: 'Suspended', label: 'Suspend Project' },
-    ];
+    if (!isInternal) {
+       base.push({ value: 'Signed Off', label: 'Sign Off' });
+    }
+    return base;
   }
   if (currentState === 'Suspended') {
     if (isFinance) return [];
@@ -75,7 +74,6 @@ export function getValidTransitions(
       { value: 'Closed', label: 'Close Project' },
     ];
   }
-  // Closed — no transitions
   return [];
 }
 
@@ -251,6 +249,17 @@ export function calculatePhaseScores(project: Project) {
   const executionPhase = phases.find(p => p.id === 'Execution');
   if (executionPhase?.status === 'Completed') {
     executionScore = weights.execution;
+  } else if (project.isInternalInitiative && project.milestones && project.milestones.length > 0) {
+    const weightPerMilestone = weights.execution / project.milestones.length;
+    let currentExecutionSum = 0;
+    project.milestones.forEach(m => {
+      if (m.status === 'Closed') {
+        currentExecutionSum += weightPerMilestone;
+      } else if (m.status === 'In Progress') {
+        currentExecutionSum += (weightPerMilestone * 0.5);
+      }
+    });
+    executionScore = currentExecutionSum;
   } else if (services.length > 0) {
     const weightPerService = weights.execution / services.length;
     let currentExecutionSum = 0;

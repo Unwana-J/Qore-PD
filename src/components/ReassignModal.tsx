@@ -94,7 +94,7 @@ export const ReassignModal: React.FC<ReassignModalProps> = ({
                   const workload = getPMWorkload(pm.name);
                   return (
                     <option key={pm.id} value={pm.name}>
-                      {pm.name} (P1: {workload.P1}/{workloadThresholds.P1} | P2: {workload.P2}/{workloadThresholds.P2} | P3: {workload.P3}/{workloadThresholds.P3})
+                      {pm.name} (Tier 1- Enterprise: {workload.P1}/{workloadThresholds.P1} | Tier 2- Pro: {workload.P2}/{workloadThresholds.P2} | Tier 3- Basic: {workload.P3}/{workloadThresholds.P3})
                     </option>
                   );
                 })}
@@ -105,7 +105,7 @@ export const ReassignModal: React.FC<ReassignModalProps> = ({
               <div className="p-3 bg-amber-50 border border-amber-100 rounded-xl flex gap-3 text-amber-700">
                 <AlertTriangle className="w-5 h-5 flex-shrink-0" />
                 <p className="text-xs font-bold leading-tight">
-                  This PM is at their {project.priority} limit ({currentLoad}/{limit}). You can still reassign as a Manager override.
+                  This PM is at their {project.priority === 'P1' ? 'Tier 1 - Enterprise' : project.priority === 'P2' ? 'Tier 2 - Pro' : 'Tier 3 - Basic'} limit ({currentLoad}/{limit}). You can still reassign as a Manager override.
                 </p>
               </div>
             )}

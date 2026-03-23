@@ -29,9 +29,10 @@ import {
   WeightHistory, 
   PackageConfig,
   Project,
+  ProjectPriority,
   SettingsTab
 } from '../types';
-import { PACKAGES, PROJECT_STATES } from '../constants';
+import { PROJECT_STATES } from '../constants';
 import { cn } from '../lib/utils';
 import { MOCK_USERS, MOCK_AUDIT_LOGS, MOCK_WEIGHT_HISTORY } from '../mockData';
 import { getThemeClasses } from '../lib/theme';
@@ -61,7 +62,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const [users, setUsers] = useState<User[]>(MOCK_USERS);
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>(MOCK_AUDIT_LOGS);
   const [weightHistory, setWeightHistory] = useState<WeightHistory[]>(MOCK_WEIGHT_HISTORY);
-  const [packages, setPackages] = useState<PackageConfig[]>(PACKAGES);
+  const [packages, setPackages] = useState<PackageConfig[]>(config.packages);
   const [showUserRemoveConfirm, setShowUserRemoveConfirm] = useState<User | null>(null);
 
   const theme = getThemeClasses(config.brand.themeColor);
@@ -69,7 +70,11 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   // Tab access control
   const canAccess = (tab: SettingsTab) => {
     if (userRole === 'Superadmin') return true;
-    if (userRole === 'Superadmin' || userRole === 'Manager' || userRole === 'Team Lead') {
+    
+    // Package & Service is strictly for Superadmin and Manager
+    if (tab === 'packages') return userRole === 'Manager';
+
+    if (userRole === 'Manager' || userRole === 'Team Lead') {
       return tab !== 'revenue' && tab !== 'brand'; 
     }
     if (tab === 'brand' && userRole === 'Superadmin') return true;
@@ -509,15 +514,17 @@ const PrioritySettings = ({ config, setConfig, packages, setPackages, weightHist
           <div className="space-y-3">
             {['P1', 'P2', 'P3'].map((p) => (
               <div key={p} className="flex items-center justify-between gap-4">
-                <span className="text-xs font-black text-slate-600">{p} Projects</span>
+                <span className="text-xs font-black text-slate-600">
+                  {p === 'P1' ? 'Tier 1 - Enterprise' : p === 'P2' ? 'Tier 2 - Pro' : 'Tier 3 - Basic'} Projects
+                </span>
                 <input 
                   type="number" 
                   className={cn(
                     "w-16 px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm font-black text-center outline-none focus:ring-4 transition-all",
                     theme.ring, theme.focusBorder
                   )}
-                  value={config.workloadThresholds[p]}
-                  onChange={e => updateWorkload(p, parseInt(e.target.value))}
+                  value={config.workloadThresholds[p as ProjectPriority]}
+                  onChange={e => updateWorkload(p as ProjectPriority, parseInt(e.target.value))}
                 />
               </div>
             ))}
@@ -689,23 +696,26 @@ const AuditView = ({ logs }: any) => (
   </div>
 );
 
-const PackageServiceConfig = ({ config, setConfig, userRole, theme, showToast }: any) => {
+const PackageServiceConfig = ({ config, setConfig, theme, showToast }: any) => {
+  const [subTab, setSubTab] = useState<'packages' | 'services'>('packages');
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [editForm, setEditForm] = useState({ name: '', baselineDays: 0 });
+  const [editForm, setEditForm] = useState<any>(null);
   const [isAdding, setIsAdding] = useState(false);
-  const [newForm, setNewForm] = useState({ name: '', baselineDays: 1 });
+  const [newForm, setNewForm] = useState<any>(null);
 
-  const handleEdit = (service: any) => {
-    setEditingId(service.id);
-    setEditForm({ name: service.name, baselineDays: service.baselineDays });
+  const handleEdit = (item: any) => {
+    setEditingId(item.id);
+    setEditForm({ ...item });
   };
 
   const handleCancel = () => {
     setEditingId(null);
     setIsAdding(false);
+    setEditForm(null);
+    setNewForm(null);
   };
 
-  const validate = (form: { name: string, baselineDays: number }, currentId?: string) => {
+  const validateService = (form: any, currentId?: string) => {
     if (!form.name.trim()) {
       showToast("Service name is required.", "error");
       return false;
@@ -724,143 +734,299 @@ const PackageServiceConfig = ({ config, setConfig, userRole, theme, showToast }:
     return true;
   };
 
-  const handleSaveEdit = (id: string) => {
-    if (!validate(editForm, id)) return;
-    
-    const updated = config.serviceBaselines.map((s: any) => 
-      s.id === id ? { ...s, ...editForm } : s
+  const validatePackage = (form: any, currentId?: string) => {
+    if (!form.name.trim()) {
+      showToast("Package name is required.", "error");
+      return false;
+    }
+    const isDuplicate = config.packages.some((p: any) => 
+      p.name.toLowerCase() === form.name.toLowerCase() && p.id !== currentId
     );
+    if (isDuplicate) {
+      showToast("Package name must be unique.", "error");
+      return false;
+    }
+    if (form.services.length === 0) {
+      showToast("Select at least one service for this package.", "error");
+      return false;
+    }
+    return true;
+  };
+
+  const handleSaveService = (id: string) => {
+    if (!validateService(editForm, id)) return;
+    const updated = config.serviceBaselines.map((s: any) => s.id === id ? { ...editForm } : s);
     setConfig({ ...config, serviceBaselines: updated });
-    setEditingId(null);
+    handleCancel();
     showToast("Service updated successfully.");
   };
 
-  const handleAdd = () => {
-    if (!validate(newForm)) return;
-
-    const newService = {
-      id: Math.random().toString(36).substr(2, 9),
-      ...newForm
-    };
+  const handleAddService = () => {
+    if (!validateService(newForm)) return;
+    const newService = { id: Math.random().toString(36).substr(2, 9), ...newForm };
     setConfig({ ...config, serviceBaselines: [...config.serviceBaselines, newService] });
-    setIsAdding(false);
-    setNewForm({ name: '', baselineDays: 1 });
+    handleCancel();
     showToast("Service added successfully.");
   };
 
-  const handleDelete = (id: string) => {
+  const handleSavePackage = (id: string) => {
+    if (!validatePackage(editForm, id)) return;
+    const updated = config.packages.map((p: any) => p.id === id ? { ...editForm } : p);
+    setConfig({ ...config, packages: updated });
+    handleCancel();
+    showToast("Package updated successfully.");
+  };
+
+  const handleAddPackage = () => {
+    if (!validatePackage(newForm)) return;
+    const newPackage = { id: Math.random().toString(36).substr(2, 9), weight: 1.0, ...newForm };
+    setConfig({ ...config, packages: [...config.packages, newPackage] });
+    handleCancel();
+    showToast("Package added successfully.");
+  };
+
+  const handleDeleteService = (id: string) => {
     const updated = config.serviceBaselines.filter((s: any) => s.id !== id);
     setConfig({ ...config, serviceBaselines: updated });
     showToast("Service deleted.");
+  };
+
+  const handleDeletePackage = (id: string) => {
+    const updated = config.packages.filter((p: any) => p.id !== id);
+    setConfig({ ...config, packages: updated });
+    showToast("Package deleted.");
+  };
+
+  const toggleServiceInPackage = (form: any, serviceName: string) => {
+    const services = [...form.services];
+    const idx = services.indexOf(serviceName);
+    if (idx > -1) {
+      services.splice(idx, 1);
+    } else {
+      services.push(serviceName);
+    }
+    if (editingId) setEditForm({ ...form, services });
+    else setNewForm({ ...form, services });
   };
 
   return (
     <div className="p-8 space-y-8 animate-in fade-in duration-300">
       <div className="flex justify-between items-center">
         <div>
-          <h3 className="text-xl font-black text-slate-900 tracking-tight uppercase">Package & Service Configuration</h3>
-          <p className="text-sm font-bold text-slate-500">Manage baseline durations for service delivery metrics.</p>
+          <h3 className="text-xl font-black text-slate-900 tracking-tight uppercase">Package & Service</h3>
+          <p className="text-sm font-bold text-slate-500">Configure project bundles and service delivery metrics.</p>
         </div>
-        <button 
-          onClick={() => setIsAdding(true)}
-          className={cn(
-            "flex items-center gap-2 px-4 py-2 text-white text-sm font-bold rounded-xl transition-all shadow-lg",
-            theme.bg, theme.hoverBg, theme.shadow
-          )}
-        >
-          <UserPlus className="w-4 h-4" />
-          Add Service
-        </button>
+        <div className="flex bg-slate-100 p-1 rounded-xl">
+          <button 
+            onClick={() => { setSubTab('packages'); handleCancel(); }}
+            className={cn("px-4 py-2 text-xs font-black uppercase tracking-widest rounded-lg transition-all", subTab === 'packages' ? "bg-white text-slate-900 shadow-sm" : "text-slate-400 hover:text-slate-600")}
+          >
+            Package View
+          </button>
+          <button 
+            onClick={() => { setSubTab('services'); handleCancel(); }}
+            className={cn("px-4 py-2 text-xs font-black uppercase tracking-widest rounded-lg transition-all", subTab === 'services' ? "bg-white text-slate-900 shadow-sm" : "text-slate-400 hover:text-slate-600")}
+          >
+            Service View
+          </button>
+        </div>
       </div>
 
-      <div className="bg-white border border-slate-200 rounded-3xl overflow-hidden shadow-sm">
-        <table className="w-full text-left">
-          <thead>
-            <tr className="bg-slate-50 border-b border-slate-200">
-              <th className="px-6 py-4 text-xs font-black text-slate-400 uppercase tracking-widest">Service Name</th>
-              <th className="px-6 py-4 text-xs font-black text-slate-400 uppercase tracking-widest">Baseline Duration (Days)</th>
-              <th className="px-6 py-4 text-xs font-black text-slate-400 uppercase tracking-widest text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
+      {subTab === 'packages' ? (
+        <div className="space-y-6">
+          <div className="flex justify-between items-center">
+             <h4 className="text-sm font-black text-slate-400 uppercase tracking-widest">Active Packages</h4>
+             <button 
+               onClick={() => { setIsAdding(true); setNewForm({ name: '', services: [] }); }}
+               className={cn("flex items-center gap-2 px-4 py-2 text-white text-xs font-bold rounded-xl shadow-md", theme.bg, theme.hoverBg)}
+             >
+               <RefreshCw className="w-3 h-3" />
+               Add Package
+             </button>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4">
             {isAdding && (
-              <tr className="bg-slate-50/50 animate-in slide-in-from-top-2">
-                <td className="px-6 py-4">
-                  <input 
-                    autoFocus
-                    className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-teal-500/20"
-                    placeholder="e.g. Data Migration"
-                    value={newForm.name}
-                    onChange={e => setNewForm({ ...newForm, name: e.target.value })}
-                  />
-                </td>
-                <td className="px-6 py-4">
-                  <input 
-                    type="number"
-                    className="w-32 px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-teal-500/20"
-                    value={newForm.baselineDays}
-                    onChange={e => setNewForm({ ...newForm, baselineDays: parseInt(e.target.value) || 0 })}
-                  />
-                </td>
-                <td className="px-6 py-4 text-right">
-                  <div className="flex justify-end gap-2">
-                    <button onClick={handleAdd} className={cn("p-2 rounded-xl text-white", theme.bg)}><Check className="w-4 h-4" /></button>
-                    <button onClick={handleCancel} className="p-2 rounded-xl bg-slate-200 text-slate-600"><X className="w-4 h-4" /></button>
+              <div className="bg-slate-50 p-6 rounded-3xl border border-slate-200 space-y-4 animate-in slide-in-from-top-2">
+                <input 
+                  autoFocus
+                  className="w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl font-bold outline-none ring-teal-500/20 focus:ring-4"
+                  placeholder="New Package Name..."
+                  value={newForm?.name || ''}
+                  onChange={e => setNewForm({ ...newForm, name: e.target.value })}
+                />
+                <div className="space-y-2">
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Select Services</p>
+                  <div className="flex flex-wrap gap-2">
+                    {config.serviceBaselines.map((s: any) => (
+                      <button 
+                        key={s.id}
+                        onClick={() => toggleServiceInPackage(newForm, s.name)}
+                        className={cn(
+                          "px-3 py-1.5 rounded-lg text-xs font-bold transition-all border",
+                          newForm?.services.includes(s.name) ? cn(theme.bg, "text-white border-transparent") : "bg-white text-slate-500 border-slate-200"
+                        )}
+                      >
+                        {s.name}
+                      </button>
+                    ))}
                   </div>
-                </td>
-              </tr>
+                </div>
+                <div className="flex justify-end gap-2 pt-2">
+                  <button onClick={handleCancel} className="px-5 py-2 text-slate-500 font-bold text-sm">Cancel</button>
+                  <button onClick={handleAddPackage} className={cn("px-5 py-2 text-white font-bold rounded-xl text-sm", theme.bg)}>Create Package</button>
+                </div>
+              </div>
             )}
-            {config.serviceBaselines.map((service: any) => (
-              <tr key={service.id} className="group hover:bg-slate-50/50 transition-colors">
-                <td className="px-6 py-4">
-                  {editingId === service.id ? (
+
+            {config.packages.map((pkg: any) => (
+              <div key={pkg.id} className="bg-white border border-slate-100 p-6 rounded-3xl hover:shadow-md transition-all group">
+                {editingId === pkg.id ? (
+                  <div className="space-y-4">
                     <input 
-                      className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-teal-500/20"
+                      className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl font-bold outline-none"
                       value={editForm.name}
                       onChange={e => setEditForm({ ...editForm, name: e.target.value })}
                     />
-                  ) : (
-                    <span className="text-sm font-bold text-slate-700">{service.name}</span>
-                  )}
-                </td>
-                <td className="px-6 py-4">
-                  {editingId === service.id ? (
-                    <input 
-                      type="number"
-                      className="w-32 px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-teal-500/20"
-                      value={editForm.baselineDays}
-                      onChange={e => setEditForm({ ...editForm, baselineDays: parseInt(e.target.value) || 0 })}
-                    />
-                  ) : (
-                    <span className="text-sm font-black text-slate-500">{service.baselineDays} working days</span>
-                  )}
-                </td>
-                <td className="px-6 py-4 text-right">
-                  {editingId === service.id ? (
-                    <div className="flex justify-end gap-2">
-                      <button onClick={() => handleSaveEdit(service.id)} className={cn("flex items-center gap-1.5 px-3 py-1.5 text-white text-xs font-bold rounded-lg", theme.bg)}>
-                         Save
-                      </button>
-                      <button onClick={handleCancel} className="px-3 py-1.5 bg-slate-200 text-slate-600 text-xs font-bold rounded-lg">
-                        Cancel
-                      </button>
+                    <div className="flex flex-wrap gap-2">
+                      {config.serviceBaselines.map((s: any) => (
+                        <button 
+                          key={s.id}
+                          onClick={() => toggleServiceInPackage(editForm, s.name)}
+                          className={cn(
+                            "px-3 py-1.5 rounded-lg text-xs font-bold transition-all border",
+                            editForm.services.includes(s.name) ? cn(theme.bg, "text-white border-transparent") : "bg-white text-slate-500 border-slate-200"
+                          )}
+                        >
+                          {s.name}
+                        </button>
+                      ))}
                     </div>
-                  ) : (
-                    <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button onClick={() => handleEdit(service)} className="p-2 text-slate-400 hover:text-teal-600 hover:bg-teal-50 rounded-lg transition-all">
+                    <div className="flex justify-end gap-2">
+                      <button onClick={handleCancel} className="px-4 py-1.5 text-slate-500 font-bold text-sm">Cancel</button>
+                      <button onClick={() => handleSavePackage(pkg.id)} className={cn("px-4 py-1.5 text-white font-bold rounded-xl text-sm", theme.bg)}>Save Changes</button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex justify-between items-start">
+                    <div className="space-y-2">
+                       <h5 className="text-lg font-black text-slate-900">{pkg.name}</h5>
+                       <div className="flex flex-wrap gap-1.5">
+                         {pkg.services.map((s: string) => (
+                           <span key={s} className="px-2 py-0.5 bg-slate-100 text-slate-500 rounded text-[10px] font-bold">{s}</span>
+                         ))}
+                       </div>
+                    </div>
+                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button onClick={() => handleEdit(pkg)} className="p-2 text-slate-400 hover:text-teal-600 hover:bg-teal-50 rounded-lg">
                         <SettingsIcon className="w-4 h-4" />
                       </button>
-                      <button onClick={() => handleDelete(service.id)} className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all">
+                      <button onClick={() => handleDeletePackage(pkg.id)} className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg">
                         <Trash2 className="w-4 h-4" />
                       </button>
                     </div>
-                  )}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : (
+        <div className="bg-white border border-slate-200 rounded-3xl overflow-hidden shadow-sm">
+          <table className="w-full text-left">
+            <thead>
+              <tr className="bg-slate-50 border-b border-slate-200">
+                <th className="px-6 py-4 text-xs font-black text-slate-400 uppercase tracking-widest">Service Name</th>
+                <th className="px-6 py-4 text-xs font-black text-slate-400 uppercase tracking-widest text-center">Baseline (Days)</th>
+                <th className="px-6 py-4 text-xs font-black text-slate-400 uppercase tracking-widest text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              <tr className="bg-slate-50/30">
+                <td colSpan={3} className="px-6 py-3">
+                   <button 
+                     onClick={() => { setIsAdding(true); setNewForm({ name: '', baselineDays: 1 }); }}
+                     className={cn("w-full py-2 border-2 border-dashed border-slate-200 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-400 hover:border-teal-500/30 hover:text-teal-600 transition-all", isAdding && "hidden")}
+                   >
+                     + Add New Service
+                   </button>
                 </td>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+              {isAdding && (
+                <tr className="bg-slate-50/50 animate-in slide-in-from-top-2">
+                  <td className="px-6 py-4">
+                    <input 
+                      autoFocus
+                      className="w-full px-4 py-2 bg-white border border-slate-100 rounded-xl text-sm font-bold outline-none ring-teal-500/20 focus:ring-4"
+                      placeholder="Service Name..."
+                      value={newForm?.name || ''}
+                      onChange={e => setNewForm({ ...newForm, name: e.target.value })}
+                    />
+                  </td>
+                  <td className="px-6 py-4 text-center">
+                    <input 
+                      type="number"
+                      className="w-24 px-4 py-2 bg-white border border-slate-100 rounded-xl text-sm font-bold text-center outline-none ring-teal-500/20 focus:ring-4"
+                      value={newForm?.baselineDays || 0}
+                      onChange={e => setNewForm({ ...newForm, baselineDays: parseInt(e.target.value) || 0 })}
+                    />
+                  </td>
+                  <td className="px-6 py-4 text-right">
+                    <div className="flex justify-end gap-2">
+                      <button onClick={handleAddService} className={cn("p-2 rounded-xl text-white shadow-lg shadow-teal-500/20", theme.bg)}><Check className="w-4 h-4" /></button>
+                      <button onClick={handleCancel} className="p-2 rounded-xl bg-slate-100 text-slate-400"><X className="w-4 h-4" /></button>
+                    </div>
+                  </td>
+                </tr>
+              )}
+              {config.serviceBaselines.map((service: any) => (
+                <tr key={service.id} className="group hover:bg-slate-50/50 transition-colors">
+                  <td className="px-6 py-4">
+                    {editingId === service.id ? (
+                      <input 
+                        className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm font-bold outline-none"
+                        value={editForm.name}
+                        onChange={e => setEditForm({ ...editForm, name: e.target.value })}
+                      />
+                    ) : (
+                      <span className="text-sm font-bold text-slate-700">{service.name}</span>
+                    )}
+                  </td>
+                  <td className="px-6 py-4 text-center">
+                    {editingId === service.id ? (
+                      <input 
+                        type="number"
+                        className="w-24 px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm font-bold text-center outline-none"
+                        value={editForm.baselineDays}
+                        onChange={e => setEditForm({ ...editForm, baselineDays: parseInt(e.target.value) || 0 })}
+                      />
+                    ) : (
+                      <span className="text-sm font-black text-slate-500">{service.baselineDays} Working Days</span>
+                    )}
+                  </td>
+                  <td className="px-6 py-4 text-right">
+                    {editingId === service.id ? (
+                      <div className="flex justify-end gap-2">
+                        <button onClick={() => handleSaveService(service.id)} className={cn("px-4 py-1.5 text-white text-xs font-bold rounded-lg", theme.bg)}>Save</button>
+                        <button onClick={handleCancel} className="px-4 py-1.5 bg-slate-200 text-slate-600 text-xs font-bold rounded-lg">Cancel</button>
+                      </div>
+                    ) : (
+                      <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button onClick={() => handleEdit(service)} className="p-2 text-slate-400 hover:text-teal-600 hover:bg-teal-50 rounded-lg">
+                          <SettingsIcon className="w-4 h-4" />
+                        </button>
+                        <button onClick={() => handleDeleteService(service.id)} className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg">
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 };

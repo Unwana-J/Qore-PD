@@ -43,8 +43,9 @@ export const FinanceDashboard: React.FC<FinanceDashboardProps> = ({ projects, on
 
   // Filter projects based on currency toggle
   const filteredProjects = useMemo(() => {
-    if (currencyFilter === 'All') return projects;
-    return projects.filter(p => p.currency === currencyFilter);
+    const base = projects.filter(p => !p.isInternalInitiative);
+    if (currencyFilter === 'All') return base;
+    return base.filter(p => p.currency === currencyFilter);
   }, [projects, currencyFilter]);
 
   // Revenue Stats
@@ -62,7 +63,7 @@ export const FinanceDashboard: React.FC<FinanceDashboardProps> = ({ projects, on
   
   const readyForBillingQueue = useMemo(() => {
     return projects
-      .filter(p => p.state === 'Signed Off')
+      .filter(p => p.state === 'Signed Off' && !p.isInternalInitiative)
       .sort((a, b) => {
         let comparison = 0;
         if (sortField === 'clientName') comparison = a.clientName.localeCompare(b.clientName);
@@ -76,7 +77,7 @@ export const FinanceDashboard: React.FC<FinanceDashboardProps> = ({ projects, on
       });
   }, [projects, sortField, sortOrder]);
 
-  const signedOffCount = projects.filter(p => p.state === 'Signed Off').length;
+  const signedOffCount = projects.filter(p => p.state === 'Signed Off' && !p.isInternalInitiative).length;
 
   const handleSort = (field: SortField) => {
     if (sortField === field) setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
