@@ -1,121 +1,196 @@
-import { Project, User, AuditLog, AppConfig, WeightHistory } from '../types';
-import { MOCK_PROJECTS, MOCK_USERS, MOCK_AUDIT_LOGS, INITIAL_CONFIG, MOCK_WEIGHT_HISTORY } from '../mockData';
+import { Project, User, AuditLog, AppConfig } from '../types';
+import { MOCK_PROJECTS, MOCK_USERS, MOCK_AUDIT_LOGS, INITIAL_CONFIG } from '../mockData';
+import { supabase } from './supabase';
 
-// Simulate network delay
-const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+// Helper to map DB snake_case to Frontend camelCase
+const mapProjectFromDb = (p: any): Project => ({
+  id: p.id,
+  clientName: p.client_name,
+  packageName: p.package_name,
+  services: p.services || [],
+  productLines: p.product_lines || [],
+  assignedPM: p.assigned_pm,
+  startDate: p.start_date,
+  expectedDuration: p.expected_duration,
+  expectedCompletionDate: p.expected_completion_date,
+  currentCompletionDate: p.current_completion_date,
+  value: Number(p.value),
+  currency: p.currency,
+  state: p.state,
+  phases: p.phases || [],
+  phaseWeights: p.phase_weights || {},
+  serviceStates: p.service_states || {},
+  pidSignedOffDate: p.pid_signed_off_date,
+  comments: p.comments || [],
+  risks: p.risks || [],
+  priority: p.priority,
+  createdAt: p.created_at,
+  updatedAt: p.updated_at,
+  signedOffAt: p.signed_off_at,
+  billedAt: p.billed_at,
+  activities: p.activities || [],
+  rebaselineRequests: p.rebaseline_requests || [],
+  totalActiveDays: p.total_active_days,
+  suspensionCycles: p.suspension_cycles || [],
+  isInternalInitiative: p.is_internal_initiative,
+  milestones: p.milestones || [],
+  phaseComments: p.phase_comments || {}
+});
+
+// Helper to map Frontend camelCase to DB snake_case
+const mapProjectToDb = (p: Partial<Project>) => {
+  const mapped: any = {};
+  if (p.clientName !== undefined) mapped.client_name = p.clientName;
+  if (p.packageName !== undefined) mapped.package_name = p.packageName;
+  if (p.services !== undefined) mapped.services = p.services;
+  if (p.productLines !== undefined) mapped.product_lines = p.productLines;
+  if (p.assignedPM !== undefined) mapped.assigned_pm = p.assignedPM;
+  if (p.startDate !== undefined) mapped.start_date = p.startDate;
+  if (p.expectedDuration !== undefined) mapped.expected_duration = p.expectedDuration;
+  if (p.expectedCompletionDate !== undefined) mapped.expected_completion_date = p.expectedCompletionDate;
+  if (p.currentCompletionDate !== undefined) mapped.current_completion_date = p.currentCompletionDate;
+  if (p.value !== undefined) mapped.value = p.value;
+  if (p.currency !== undefined) mapped.currency = p.currency;
+  if (p.state !== undefined) mapped.state = p.state;
+  if (p.phases !== undefined) mapped.phases = p.phases;
+  if (p.phaseWeights !== undefined) mapped.phase_weights = p.phaseWeights;
+  if (p.serviceStates !== undefined) mapped.service_states = p.serviceStates;
+  if (p.pidSignedOffDate !== undefined) mapped.pid_signed_off_date = p.pidSignedOffDate;
+  if (p.comments !== undefined) mapped.comments = p.comments;
+  if (p.risks !== undefined) mapped.risks = p.risks;
+  if (p.priority !== undefined) mapped.priority = p.priority;
+  if (p.signedOffAt !== undefined) mapped.signed_off_at = p.signedOffAt;
+  if (p.billedAt !== undefined) mapped.billed_at = p.billedAt;
+  if (p.activities !== undefined) mapped.activities = p.activities;
+  if (p.rebaselineRequests !== undefined) mapped.rebaseline_requests = p.rebaselineRequests;
+  if (p.totalActiveDays !== undefined) mapped.total_active_days = p.totalActiveDays;
+  if (p.suspensionCycles !== undefined) mapped.suspension_cycles = p.suspensionCycles;
+  if (p.isInternalInitiative !== undefined) mapped.is_internal_initiative = p.isInternalInitiative;
+  if (p.milestones !== undefined) mapped.milestones = p.milestones;
+  if (p.phaseComments !== undefined) mapped.phase_comments = p.phaseComments;
+  return mapped;
+};
 
 export const api = {
   projects: {
     getAll: async (): Promise<Project[]> => {
-      await delay(300);
-      return [...MOCK_PROJECTS];
+      const { data, error } = await supabase
+        .from('projects')
+        .select('*')
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      return (data || []).map(mapProjectFromDb);
     },
     update: async (project: Project): Promise<Project> => {
-      await delay(200);
-      // In a real app, this would hit a DB
-      return { ...project };
+      const { data, error } = await supabase
+        .from('projects')
+        .update(mapProjectToDb(project))
+        .eq('id', project.id)
+        .select()
+        .single();
+      
+      if (error) throw error;
+      return mapProjectFromDb(data);
     },
     create: async (projectData: Partial<Project>): Promise<Project> => {
-      await delay(200);
-      const newProject: Project = {
-        ...projectData as any,
-        id: Math.random().toString(36).substr(2, 9),
-        createdAt: new Date().toISOString().split('T')[0],
-        updatedAt: new Date().toISOString().split('T')[0],
-        comments: [],
-        risks: [],
-        activities: [
-          { 
-            id: Math.random().toString(36).substr(2, 9), 
-            type: 'System', 
-            user: 'System', 
-            description: 'Project created from intake form', 
-            timestamp: new Date().toLocaleString([], { dateStyle: 'short', timeStyle: 'short' }) 
-          }
-        ],
-      };
-      MOCK_PROJECTS.unshift(newProject);
-      return newProject;
+      const { data, error } = await supabase
+        .from('projects')
+        .insert(mapProjectToDb(projectData))
+        .select()
+        .single();
+      
+      if (error) throw error;
+      return mapProjectFromDb(data);
     },
     createBulk: async (projectsToAdd: Partial<Project>[], projectsToUpdate: Partial<Project>[]): Promise<void> => {
-      await delay(500);
-      
-      // Simulate atomic behavior by performing validation before modifying our array
-      // In this mock setup, we just append or mutate the MOCK_PROJECTS array.
-      
-      // Update existing ones
-      projectsToUpdate.forEach(updatedData => {
-        const idx = MOCK_PROJECTS.findIndex(p => p.clientName.toLowerCase() === updatedData.clientName?.toLowerCase());
-        if (idx !== -1) {
-          MOCK_PROJECTS[idx] = {
-            ...MOCK_PROJECTS[idx],
-            ...updatedData,
-            updatedAt: new Date().toISOString().split('T')[0]
-          } as Project;
+      if (projectsToUpdate.length > 0) {
+        for (const p of projectsToUpdate) {
+          await supabase.from('projects')
+            .update(mapProjectToDb(p))
+            .ilike('client_name', p.clientName || '');
         }
-      });
-
-      // Insert new ones
-      const now = new Date();
-      const newProjects: Project[] = projectsToAdd.map((projectData) => ({
-        ...projectData as any,
-        id: Math.random().toString(36).substr(2, 9),
-        phases: [
-          { id: 'Initiation', name: 'Initiation', status: 'In Progress' },
-          { id: 'Planning', name: 'Planning', status: 'Pending' },
-          { id: 'Execution', name: 'Execution', status: 'Pending' },
-          { id: 'Closure', name: 'Closure', status: 'Pending' }
-        ],
-        phaseWeights: {
-          initiation: 10,
-          planning: 20,
-          execution: 50,
-          closure: 20
-        },
-        rebaselineRequests: [],
-        suspensionCycles: [],
-        createdAt: now.toISOString().split('T')[0],
-        updatedAt: now.toISOString().split('T')[0],
-        comments: [],
-        risks: [],
-        activities: [
-          { 
-            id: Math.random().toString(36).substr(2, 9), 
-            type: 'System', 
-            user: 'System', 
-            description: 'Project created from bulk import', 
-            timestamp: now.toLocaleString([], { dateStyle: 'short', timeStyle: 'short' }) 
-          }
-        ],
-      }));
-      
-      MOCK_PROJECTS.push(...newProjects);
+      }
+      if (projectsToAdd.length > 0) {
+        await supabase.from('projects').insert(projectsToAdd.map(mapProjectToDb));
+      }
+    },
+    // Admin tool to seed the database initially
+    seed: async () => {
+      const { count } = await supabase.from('projects').select('*', { count: 'exact', head: true });
+      if (count === 0) {
+         await supabase.from('projects').insert(MOCK_PROJECTS.map(mapProjectToDb));
+         await supabase.from('audit_logs').insert(MOCK_AUDIT_LOGS.map(l => ({
+           action: l.action,
+           user: l.user,
+           details: l.details,
+           timestamp: l.timestamp,
+           category: l.category
+         })));
+         await supabase.from('app_config').insert({ id: 1, config: INITIAL_CONFIG });
+         await supabase.from('users').insert(MOCK_USERS.map(u => ({
+           name: u.name,
+           email: u.email,
+           role: u.role,
+           status: u.status,
+           avatar: u.avatar
+         })));
+      }
     }
   },
   users: {
     getAll: async (): Promise<User[]> => {
-      await delay(300);
-      return [...MOCK_USERS];
+      const { data, error } = await supabase.from('users').select('*');
+      if (error) throw error;
+      return (data || []).map(u => ({
+        id: u.id,
+        name: u.name,
+        email: u.email,
+        role: u.role,
+        status: u.status,
+        avatar: u.avatar,
+        invitedAt: u.invited_at,
+        lastLogin: u.last_login
+      }));
     }
   },
   config: {
     get: async (): Promise<AppConfig> => {
-      await delay(100);
-      return { ...INITIAL_CONFIG };
+      const { data, error } = await supabase.from('app_config').select('config').eq('id', 1).maybeSingle();
+      if (error) throw error;
+      return data?.config || INITIAL_CONFIG;
     },
     update: async (config: AppConfig): Promise<AppConfig> => {
-      await delay(100);
-      return { ...config };
+      const { data, error } = await supabase
+        .from('app_config')
+        .upsert({ id: 1, config })
+        .select('config')
+        .single();
+      if (error) throw error;
+      return data.config;
     }
   },
   audit: {
     addLog: async (log: Omit<AuditLog, 'id'>) => {
-      await delay(100);
-      MOCK_AUDIT_LOGS.unshift({ ...log, id: Math.random().toString(36).substr(2,9) });
+      await supabase.from('audit_logs').insert({
+        action: log.action,
+        user: log.user,
+        details: log.details,
+        timestamp: log.timestamp,
+        category: log.category
+      });
     },
     getLogs: async (): Promise<AuditLog[]> => {
-      await delay(200);
-      return [...MOCK_AUDIT_LOGS];
+      const { data, error } = await supabase.from('audit_logs').select('*').order('timestamp', { ascending: false });
+      if (error) throw error;
+      return (data || []).map(l => ({
+        id: l.id,
+        action: l.action,
+        user: l.user,
+        details: l.details,
+        timestamp: l.timestamp,
+        category: l.category as any
+      }));
     }
   }
 };

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Sidebar } from './components/layout/Sidebar';
 import { Header } from './components/layout/Header';
@@ -17,6 +17,7 @@ import { INITIAL_CONFIG, MOCK_USERS } from './mockData';
 import { Role, AppConfig, SettingsTab, Project } from './types';
 import { useProjects } from './hooks/useProjects';
 import { Toast } from './components/common/Toast';
+import { api } from './lib/api';
 
 type View = 'dashboard' | 'projects' | 'risks' | 'settings' | 'rebaseline-requests';
 
@@ -58,6 +59,11 @@ export default function App() {
     dismissNotification,
     loading
   } = useProjects(userRole, config);
+
+  useEffect(() => {
+    // Initial check to seed the database if empty
+    api.projects.seed().catch(err => console.error('Seeding error:', err));
+  }, []);
 
   const addProject = async (p: Partial<Project>, force?: boolean) => {
     try {
