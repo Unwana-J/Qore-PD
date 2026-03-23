@@ -162,10 +162,10 @@ export const api = {
       if (error) throw error;
       return data || [];
     },
-    send: async (email: string, role: string) => {
+    send: async (email: string, role: string, name?: string) => {
       const { data, error } = await supabase
         .from('invites')
-        .insert({ email, role, status: 'Pending' })
+        .insert({ email, role, name, status: 'Pending' })
         .select()
         .single();
       if (error) throw error;

@@ -47,12 +47,11 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
     spiThresholds: { ...(config.spiThresholds || { onTrack: 1.0, atRisk: 0.8 }) }
   });
 
-  const [invites, setInvites] = useState<{ email: string; role: Role }[]>([]);
-  const [newInvite, setNewInvite] = useState<{ email: string; role: Role }>({ email: '', role: 'PM' });
+  const [invites, setInvites] = useState<{ email: string; role: Role; name: string }[]>([]);
+  const [newInvite, setNewInvite] = useState<{ email: string; role: Role; name: string }>({ email: '', role: 'PM', name: '' });
   const [inviteError, setInviteError] = useState<string | null>(null);
   const [inviteStatus, setInviteStatus] = useState<'idle' | 'sending' | 'success' | 'error'>('idle');
   const [inviteMessage, setInviteMessage] = useState<string | null>(null);
-
 
   const steps: Step[] = ['welcome', 'profile', 'services', 'thresholds', 'team', 'import'];
   const stepIndex = steps.indexOf(currentStep);
@@ -84,7 +83,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
 
     try {
       const results = await Promise.allSettled(
-        invites.map(invite => api.invites.send(invite.email, invite.role))
+        invites.map(invite => api.invites.send(invite.email, invite.role, invite.name))
       );
 
       const successfulInvites = results.filter(r => r.status === 'fulfilled').length;
@@ -190,7 +189,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
                 <select 
                   className="w-full px-5 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl font-bold focus:outline-none focus:border-teal-500 transition-all appearance-none cursor-pointer"
                   value={formData.defaultCurrency}
-                  onChange={e => setFormData({ ...formData, defaultCurrency: e.target.value })}
+                  onChange={e => setFormData({ ...formData, defaultCurrency: e.target.value as Currency })}
                 >
                   <option value="NGN">NGN - Nigerian Naira</option>
                   <option value="USD">USD - US Dollar</option>
@@ -464,6 +463,16 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
             <div className="bg-white p-8 rounded-[2.5rem] border-2 border-slate-100 shadow-sm space-y-6">
                <div className="flex flex-col sm:flex-row gap-4">
                  <div className="flex-1 space-y-2">
+                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Full Name</label>
+                   <input 
+                    type="text" 
+                    className="w-full px-5 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl font-bold focus:outline-none focus:border-teal-500"
+                    placeholder="John Doe"
+                    value={newInvite.name}
+                    onChange={e => setNewInvite({ ...newInvite, name: e.target.value })}
+                   />
+                 </div>
+                 <div className="flex-1 space-y-2">
                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Email Address</label>
                    <div className="relative">
                       <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300" />
@@ -492,14 +501,14 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
                  </div>
                  <div className="flex items-end">
                    <button 
-                     disabled={!newInvite.email || inviteStatus === 'sending'}
+                     disabled={!newInvite.email || !newInvite.name || inviteStatus === 'sending'}
                      onClick={() => {
                         if (invites.some(i => i.email === newInvite.email)) {
                           setInviteError('This email has already been added to the list');
                           return;
                         }
                         setInvites([...invites, newInvite]);
-                        setNewInvite({ email: '', role: 'PM' });
+                        setNewInvite({ email: '', role: 'PM', name: '' });
                      }}
                      className="h-[60px] px-6 bg-slate-900 text-white rounded-2xl font-black hover:bg-slate-800 transition-all active:scale-95 disabled:opacity-50"
                    >
@@ -519,7 +528,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
                               {invite.role[0]}
                             </div>
                             <div>
-                               <p className="text-sm font-bold text-slate-900">{invite.email}</p>
+                               <p className="text-sm font-bold text-slate-900">{invite.name || invite.email}</p>
                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{invite.role}</p>
                             </div>
                          </div>
@@ -559,7 +568,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
                   Skip this step
                 </button>
                 <button 
-                  onClick={handleSaveStep}
+                  onClick={handleSendInvites}
                   disabled={inviteStatus === 'sending'}
                   className="px-8 py-4 bg-teal-600 text-white rounded-2xl font-black shadow-lg shadow-teal-100 hover:bg-teal-700 transition-all flex items-center gap-2 disabled:opacity-50"
                 >

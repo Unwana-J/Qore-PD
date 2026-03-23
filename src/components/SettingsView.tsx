@@ -38,6 +38,7 @@ import { cn } from '../lib/utils';
 import { MOCK_USERS, MOCK_AUDIT_LOGS, MOCK_WEIGHT_HISTORY } from '../mockData';
 import { getThemeClasses } from '../lib/theme';
 import { ConfirmationModal } from './common/ConfirmationModal';
+import { api } from '../lib/api';
 
 interface SettingsViewProps {
   userRole: Role;
@@ -213,7 +214,7 @@ const UserManagement = ({ users, setUsers, invites, setInvites, projects, onUpda
   const handleInvite = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const invite = await api.invites.send(newUser.email, newUser.role);
+      const invite = await api.invites.send(newUser.email, newUser.role, newUser.name);
       setInvites([invite, ...invites]);
       setIsAdding(false);
       setNewUser({ name: '', email: '', role: 'PM' });
@@ -225,7 +226,7 @@ const UserManagement = ({ users, setUsers, invites, setInvites, projects, onUpda
 
   const filteredItems = [
     ...users.map(u => ({ ...u, statusType: 'Active' })),
-    ...invites.map(i => ({ ...i, statusType: 'Pending', name: 'Invitee' }))
+    ...invites.map(i => ({ ...i, statusType: 'Pending', name: i.name || 'Invitee' }))
   ].filter(item => filter === 'All' || item.statusType === filter);
 
   return (
@@ -266,7 +267,14 @@ const UserManagement = ({ users, setUsers, invites, setInvites, projects, onUpda
 
       {isAdding && (
         <form onSubmit={handleInvite} className="p-6 bg-slate-50 rounded-2xl border border-slate-200 space-y-4 animate-in slide-in-from-top-2">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <input 
+              required
+              placeholder="Full Name"
+              className="px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm outline-none"
+              value={newUser.name}
+              onChange={e => setNewUser({...newUser, name: e.target.value})}
+            />
             <input 
               required
               type="email"
@@ -288,7 +296,7 @@ const UserManagement = ({ users, setUsers, invites, setInvites, projects, onUpda
             </select>
           </div>
           <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-1">
-            New users will be automatically assigned their role when they sign up with this email.
+            New users will be automatically assigned their role and name when they sign up.
           </p>
           <div className="flex gap-3 justify-end">
             <button type="button" onClick={() => setIsAdding(false)} className="px-6 py-2 text-slate-500 font-bold text-sm">Cancel</button>
