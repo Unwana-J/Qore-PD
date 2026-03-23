@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { X, Calendar, Clock } from 'lucide-react';
+import { X, Calendar, Clock, AlertTriangle } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
 import { Project, Phase, Role, ServiceBaseline, PackageConfig, ProductLineConfig } from '../types';
 import { cn, calculateWorkingDays } from '../lib/utils';
 import { getThemeClasses } from '../lib/theme';
@@ -179,6 +180,36 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
       prev.includes(service) ? prev.filter(s => s !== service) : [...prev, service]
     );
   };
+  if (isOpen && userRole === 'PM' && (serviceBaselines || []).length === 0) {
+    return (
+      <div className="fixed inset-0 z-[150] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="bg-white w-full max-w-md rounded-3xl shadow-2xl p-8 text-center space-y-6"
+        >
+          <div className="w-20 h-20 bg-amber-50 rounded-2xl flex items-center justify-center mx-auto border-2 border-amber-100">
+            <AlertTriangle className="w-10 h-10 text-amber-500" />
+          </div>
+          <div className="space-y-2">
+            <h3 className="text-xl font-black text-slate-900">Project Creation Blocked</h3>
+            <p className="text-sm text-slate-500 font-medium leading-relaxed">
+              Projects cannot be created until your admin has configured service types. Please contact your Super Admin or Manager.
+            </p>
+          </div>
+          <button 
+            type="button"
+            onClick={onClose}
+            className="w-full py-4 bg-slate-900 text-white rounded-2xl font-black hover:bg-slate-800 transition-all font-bold"
+          >
+            Acknowledge
+          </button>
+        </motion.div>
+      </div>
+    );
+  }
+
+  if (!isOpen) return null;
 
   return (
     <>

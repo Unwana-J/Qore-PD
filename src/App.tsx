@@ -13,26 +13,34 @@ import { SettingsView } from './components/SettingsView';
 import { RebaselineRequestsView } from './components/RebaselineRequestsView';
 import { ExecutiveDashboard } from './components/ExecutiveDashboard';
 import { BulkImportView } from './components/BulkImportView';
-import { INITIAL_CONFIG, MOCK_USERS } from './mockData';
+import { INITIAL_CONFIG } from './mockData';
 import { Role, AppConfig, SettingsTab, Project } from './types';
 import { useProjects } from './hooks/useProjects';
 import { Toast } from './components/common/Toast';
 import { api } from './lib/api';
+import { OnboardingWizard } from './components/OnboardingWizard';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { AuthView } from './components/AuthView';
 
 type View = 'dashboard' | 'projects' | 'risks' | 'settings' | 'rebaseline-requests';
 
-export default function App() {
+function AppContent() {
+  const { user, profile, loading: authLoading, signOut } = useAuth();
   const [currentView, setCurrentView] = useState<View>('dashboard');
-  const [userRole, setUserRole] = useState<Role>('Manager');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [activeSettingsTab, setActiveSettingsTab] = useState<SettingsTab>('account');
   const [isBulkImportOpen, setIsBulkImportOpen] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(false);
   const [config, setConfig] = useState<AppConfig>(INITIAL_CONFIG);
+  const [users, setUsers] = useState<any[]>([]);
+  const [invites, setInvites] = useState<any[]>([]);
   const [projectToReassign, setProjectToReassign] = useState<Project | null>(null);
 
   const [toast, setToast] = useState<{ message: string, type: 'success' | 'error' | 'info' } | null>(null);
+
+  const userRole = profile?.role || 'PM';
 
   const showToast = (message: string, type: 'success' | 'error' | 'info' = 'success') => {
     setToast({ message, type });
@@ -57,13 +65,35 @@ export default function App() {
     validateStateTransition,
     notifications,
     dismissNotification,
-    loading
-  } = useProjects(userRole, config);
+    loading: projectsLoading
+  } = useProjects(userRole, config, profile?.name || 'User');
 
   useEffect(() => {
-    // Initial check to seed the database if empty
-    api.projects.seed().catch(err => console.error('Seeding error:', err));
-  }, []);
+    if (!user) return;
+    
+    // Load config and seed if empty
+    const init = async () => {
+      try {
+        await api.projects.seed();
+        const [serverConfig, serverUsers, serverInvites] = await Promise.all([
+          api.config.get(),
+          api.users.getAll(),
+          api.invites.getAll()
+        ]);
+        setConfig(serverConfig);
+        setUsers(serverUsers);
+        setInvites(serverInvites);
+        
+        // Trigger onboarding check
+        if ((userRole === 'Superadmin' || userRole === 'Manager') && !serverConfig.isSetupComplete) {
+          setShowOnboarding(true);
+        }
+      } catch (err) {
+        console.error('Initialization error:', err);
+      }
+    };
+    init();
+  }, [userRole, user]);
 
   const addProject = async (p: Partial<Project>, force?: boolean) => {
     try {
@@ -87,7 +117,7 @@ export default function App() {
     }
   };
 
-  if (loading) {
+  if (authLoading || (user && projectsLoading)) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 gap-6">
         <div className="relative">
@@ -102,6 +132,10 @@ export default function App() {
     );
   }
 
+  if (!user) {
+    return <AuthView />;
+  }
+
   return (
     <div className="min-h-screen bg-slate-50 flex font-sans text-slate-900">
       <Sidebar 
@@ -110,13 +144,15 @@ export default function App() {
         selectedProject={selectedProject}
         setSelectedProject={setSelectedProject}
         userRole={userRole}
-        setUserRole={setUserRole}
+        setUserRole={() => {}} // Disabled for now as it's profile-based
         config={config}
         isSidebarOpen={isSidebarOpen}
         setIsSidebarOpen={setIsSidebarOpen}
         isSidebarCollapsed={isSidebarCollapsed}
         setIsSidebarCollapsed={setIsSidebarCollapsed}
         pendingRebaselineCount={allRebaselineRequests.filter(r => r.status === 'Pending').length}
+        onSignOut={signOut}
+        userName={profile?.name}
       />
 
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
@@ -133,6 +169,7 @@ export default function App() {
           onNavigateBack={() => setSelectedProject(null)}
           setIsModalOpen={setIsModalOpen}
           setIsBulkImportOpen={setIsBulkImportOpen}
+          userName={profile?.name}
         />
 
         <div className="flex-1 overflow-y-auto bg-slate-50/50">
@@ -175,7 +212,7 @@ export default function App() {
                       ) : userRole === 'Executive' ? (
                         <ExecutiveDashboard 
                           projects={filteredProjects}
-                          users={MOCK_USERS}
+                          users={users}
                           themeColor={config.brand.themeColor}
                           onSelectProject={setSelectedProject}
                           staleThresholdDays={config.staleThresholdDays}
@@ -190,6 +227,15 @@ export default function App() {
                           userRole={userRole}
                           onReassignProject={setProjectToReassign}
                           config={config}
+                          onUpdateConfig={async (updates) => {
+                            const newConfig = { ...config, ...updates };
+                            await api.config.update(newConfig);
+                            setConfig(newConfig);
+                          }}
+                          onNavigateToSettings={(tab) => {
+                            setCurrentView('settings');
+                            setActiveSettingsTab(tab as SettingsTab);
+                          }}
                         />
                       )
                     )}
@@ -200,7 +246,7 @@ export default function App() {
                         themeColor={config.brand.themeColor}
                         staleThresholdDays={config.staleThresholdDays}
                         userRole={userRole}
-                        users={MOCK_USERS}
+                        users={users}
                         onReassignProject={setProjectToReassign}
                         spiThresholds={config.spiThresholds}
                       />
@@ -230,6 +276,10 @@ export default function App() {
                           activeTab={activeSettingsTab}
                           setActiveTab={setActiveSettingsTab}
                           showToast={showToast}
+                          users={users}
+                          setUsers={setUsers}
+                          invites={invites}
+                          setInvites={setInvites}
                         />
                     )}
                   </>
@@ -249,7 +299,7 @@ export default function App() {
         workloadThresholds={config.workloadThresholds}
         currencies={config.currencies}
         themeColor={config.brand.themeColor}
-        users={MOCK_USERS}
+        users={users}
         serviceBaselines={config.serviceBaselines}
         packages={config.packages}
         productLines={config.productLines}
@@ -260,7 +310,7 @@ export default function App() {
           isOpen={!!projectToReassign}
           onClose={() => setProjectToReassign(null)}
           project={projectToReassign}
-          users={MOCK_USERS}
+          users={users}
           getPMWorkload={getPMWorkload}
           workloadThresholds={config.workloadThresholds}
           onReassign={reassignProject}
@@ -272,7 +322,7 @@ export default function App() {
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 lg:p-10 hide-scrollbar overflow-y-auto">
           <div className="bg-white w-full h-[calc(100vh-100px)] rounded-3xl shadow-2xl relative overflow-hidden flex flex-col">
             <BulkImportView 
-              users={MOCK_USERS}
+              users={users}
               projects={projects}
               config={config}
               userRole={userRole}
@@ -283,6 +333,20 @@ export default function App() {
             />
           </div>
         </div>
+      )}
+
+      {showOnboarding && (
+        <OnboardingWizard 
+          config={config}
+          userRole={userRole}
+          onUpdateConfig={async (updates) => {
+            const newConfig = { ...config, ...updates };
+            await api.config.update(newConfig);
+            setConfig(newConfig);
+          }}
+          onFinish={() => setShowOnboarding(false)}
+          onSkip={() => setShowOnboarding(false)}
+        />
       )}
 
       <div className="fixed bottom-6 right-6 z-[100] pointer-events-none flex flex-col gap-2 items-end">
@@ -307,5 +371,13 @@ export default function App() {
         </AnimatePresence>
       </div>
     </div>
+  );
+}
+
+export default function App() {
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
   );
 }

@@ -8,6 +8,7 @@ import { cn, formatCurrency } from '../lib/utils';
 import { TrendingUp, Briefcase, Layers, Award, DollarSign, Activity, Clock, RefreshCw } from 'lucide-react';
 import { getThemeClasses } from '../lib/theme';
 import { PMScorecard } from './PMScorecard';
+import { SetupBanner } from './SetupBanner';
 
 interface DashboardProps {
   projects: Project[];
@@ -17,9 +18,20 @@ interface DashboardProps {
   userRole?: Role;
   onReassignProject?: (project: Project) => void;
   config: AppConfig;
+  onUpdateConfig: (updates: Partial<AppConfig>) => Promise<void>;
+  onNavigateToSettings: (tab: string) => void;
 }
 
-export const Dashboard: React.FC<DashboardProps> = ({ projects, workloadThresholds, themeColor = 'teal', userRole, onReassignProject, config }) => {
+export const Dashboard: React.FC<DashboardProps> = ({ 
+  projects, 
+  workloadThresholds, 
+  themeColor = 'teal', 
+  userRole, 
+  onReassignProject, 
+  config,
+  onUpdateConfig,
+  onNavigateToSettings
+}) => {
   const theme = getThemeClasses(themeColor);
   const [chartCurrency, setChartCurrency] = useState<'NGN' | 'USD'>('NGN');
 
@@ -97,6 +109,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ projects, workloadThreshol
 
   return (
     <div className="space-y-6 p-6">
+      <SetupBanner 
+        config={config} 
+        userRole={userRole!} 
+        onUpdateConfig={onUpdateConfig}
+        onNavigateToSettings={onNavigateToSettings}
+        themeColor={themeColor}
+      />
+
       {/* Revenue Panel */}
       <section id="revenue">
         <div className="flex items-center gap-2 mb-4">

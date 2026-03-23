@@ -4,7 +4,7 @@ import { Project, Role, AppConfig, ProjectPriority, ProjectActivity, ActivityTyp
 import { api } from '../lib/api';
 import { calculateWorkingDays, getActiveDaysCount, calculateSPI, getAutoProjectState } from '../lib/utils';
 
-export function useProjects(userRole: Role, config: AppConfig) {
+export function useProjects(userRole: Role, config: AppConfig, userName: string = 'User') {
   const [projects, setProjects] = useState<Project[]>([]);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
@@ -95,14 +95,16 @@ export function useProjects(userRole: Role, config: AppConfig) {
 
   const filteredProjects = useMemo(() => {
     if (userRole === 'PM') {
-      return projects.filter(p => p.assignedPM === 'Sarah Jenkins');
+      // PMs can only see projects assigned to them
+      return projects.filter(p => p.assignedPM === userName);
     }
     return projects;
-  }, [projects, userRole]);
+  }, [projects, userRole, userName]);
 
   const addProject = async (newProjectData: Partial<Project>, force: boolean = false) => {
     const priority = newProjectData.priority || 'P2';
-    const pmName = newProjectData.assignedPM || '';
+    // If a PM is creating, they must be the assigned PM
+    const pmName = userRole === 'PM' ? userName : (newProjectData.assignedPM || '');
     
     if (!force && pmName) {
       const workload = getPMWorkload(pmName);
@@ -152,6 +154,7 @@ export function useProjects(userRole: Role, config: AppConfig) {
 
       const newProject = await api.projects.create({
         ...newProjectData,
+        assignedPM: pmName,
         productLines,
         expectedDuration: isInternalInitiative ? 0 : baselineDays,
         expectedCompletionDate,
@@ -177,7 +180,6 @@ export function useProjects(userRole: Role, config: AppConfig) {
 
       const newActivities: ProjectActivity[] = [...(project.activities || [])];
       const now = new Date().toLocaleString([], { dateStyle: 'short', timeStyle: 'short' });
-      const userName = userRole === 'PM' ? 'Sarah Jenkins' : 'Admin User';
 
       if (oldProject.state !== project.state) {
         newActivities.unshift({
@@ -294,7 +296,7 @@ export function useProjects(userRole: Role, config: AppConfig) {
           action: 'SPI Anomaly Detected',
           user: userName,
           details: `Project "${project.clientName}" recorded unusually high SPI (${newSpi.value})`,
-          timestamp: format(now, 'yyyy-MM-dd HH:mm'),
+          timestamp: now,
           category: 'Project'
         });
       }
@@ -316,7 +318,6 @@ export function useProjects(userRole: Role, config: AppConfig) {
 
     const now = new Date();
     const formattedNow = format(now, 'yyyy-MM-dd HH:mm');
-    const financeUser = 'Finance Team';
 
     const updatedProject: Project = {
       ...project,
@@ -326,7 +327,7 @@ export function useProjects(userRole: Role, config: AppConfig) {
         {
           id: Math.random().toString(36).substr(2, 9),
           type: 'StateChange',
-          user: financeUser,
+          user: userName,
           description: `Project marked as Billed by Finance`,
           timestamp: formattedNow
         },
@@ -350,7 +351,6 @@ export function useProjects(userRole: Role, config: AppConfig) {
     const previousPm = project.assignedPM;
     const now = new Date();
     const formattedNow = format(now, 'yyyy-MM-dd HH:mm');
-    const userName = userRole === 'PM' ? 'Sarah Jenkins' : 'Admin User';
 
     const updatedProject: Project = {
       ...project,
@@ -380,7 +380,7 @@ export function useProjects(userRole: Role, config: AppConfig) {
       id: Math.random().toString(36).substr(2, 9),
       projectId,
       projectName: project.clientName,
-      submittedBy: userRole === 'PM' ? 'Sarah Jenkins' : 'Admin User',
+      submittedBy: userName,
       extensionDays,
       pmComment: comment,
       currentCompletionDate: project.currentCompletionDate,
@@ -404,8 +404,6 @@ export function useProjects(userRole: Role, config: AppConfig) {
     const request = project.rebaselineRequests.find(r => r.id === requestId);
     if (!request) return;
 
-    const userName = userRole === 'PM' ? 'Sarah Jenkins' : 'Admin User';
-    
     const updatedRequests = project.rebaselineRequests.map(r => 
       r.id === requestId ? { ...r, status: 'Approved' as const, reviewedBy: userName, reviewedAt: new Date().toISOString(), reviewerComment } : r
     );
@@ -433,8 +431,6 @@ export function useProjects(userRole: Role, config: AppConfig) {
     const project = projects.find(p => p.id === projectId);
     if (!project) return;
 
-    const userName = userRole === 'PM' ? 'Sarah Jenkins' : 'Admin User';
-
     const updatedRequests = project.rebaselineRequests.map(r => 
       r.id === requestId ? { ...r, status: 'Declined' as const, reviewedBy: userName, reviewedAt: new Date().toISOString(), reviewerComment } : r
     );
@@ -460,8 +456,6 @@ export function useProjects(userRole: Role, config: AppConfig) {
   const importBulkProjects = async (projectsToAdd: Partial<Project>[], projectsToUpdate: Partial<Project>[], skippedCount: number) => {
     try {
       if (projectsToAdd.length === 0 && projectsToUpdate.length === 0) return;
-      
-      const userName = userRole === 'PM' ? 'Sarah Jenkins' : 'Admin User';
       
       await api.projects.createBulk(projectsToAdd, projectsToUpdate);
       

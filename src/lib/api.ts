@@ -140,18 +140,40 @@ export const api = {
   },
   users: {
     getAll: async (): Promise<User[]> => {
-      const { data, error } = await supabase.from('users').select('*');
+      const { data, error } = await supabase.from('profiles').select('*');
       if (error) throw error;
       return (data || []).map(u => ({
         id: u.id,
         name: u.name,
-        email: u.email,
+        email: '', 
         role: u.role,
-        status: u.status,
-        avatar: u.avatar,
-        invitedAt: u.invited_at,
-        lastLogin: u.last_login
+        status: 'Active',
+        avatar: u.name?.substring(0, 2).toUpperCase() || 'U',
+        lastLogin: u.updated_at
       }));
+    }
+  },
+  invites: {
+    getAll: async () => {
+      const { data, error } = await supabase
+        .from('invites')
+        .select('*')
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+    send: async (email: string, role: string) => {
+      const { data, error } = await supabase
+        .from('invites')
+        .insert({ email, role, status: 'Pending' })
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    delete: async (id: string) => {
+      const { error } = await supabase.from('invites').delete().eq('id', id);
+      if (error) throw error;
     }
   },
   config: {

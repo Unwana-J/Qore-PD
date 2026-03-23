@@ -19,7 +19,8 @@ import {
   Box,
   Save,
   Palette,
-  Filter
+  Filter,
+  Link as LinkIcon
 } from 'lucide-react';
 import { 
   Role, 
@@ -47,6 +48,10 @@ interface SettingsViewProps {
   activeTab: SettingsTab;
   setActiveTab: (tab: SettingsTab) => void;
   showToast: (message: string, type?: 'success' | 'error' | 'info') => void;
+  users: User[];
+  setUsers: React.Dispatch<React.SetStateAction<User[]>>;
+  invites: any[];
+  setInvites: React.Dispatch<React.SetStateAction<any[]>>;
 }
 
 export const SettingsView: React.FC<SettingsViewProps> = ({ 
@@ -57,13 +62,16 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   onUpdateConfig,
   activeTab,
   setActiveTab,
-  showToast
+  showToast,
+  users,
+  setUsers,
+  invites,
+  setInvites
 }) => {
-  const [users, setUsers] = useState<User[]>(MOCK_USERS);
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>(MOCK_AUDIT_LOGS);
   const [weightHistory, setWeightHistory] = useState<WeightHistory[]>(MOCK_WEIGHT_HISTORY);
   const [packages, setPackages] = useState<PackageConfig[]>(config.packages);
-  const [showUserRemoveConfirm, setShowUserRemoveConfirm] = useState<User | null>(null);
+  const [showUserRemoveConfirm, setShowUserRemoveConfirm] = useState<any | null>(null);
 
   const theme = getThemeClasses(config.brand.themeColor);
   
@@ -84,10 +92,20 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     return false;
   };
 
-  const handleConfirmedRemove = () => {
+  const handleConfirmedRemove = async () => {
     if (showUserRemoveConfirm) {
-      setUsers(users.filter((u: any) => u.id !== showUserRemoveConfirm.id));
-      showToast(`${showUserRemoveConfirm.name} has been removed.`, 'success');
+      try {
+        if (showUserRemoveConfirm.status === 'Pending') {
+          await api.invites.delete(showUserRemoveConfirm.id);
+          setInvites(invites.filter(i => i.id !== showUserRemoveConfirm.id));
+        } else {
+          // Future: Add user deletion logic
+          setUsers(users.filter(u => u.id !== showUserRemoveConfirm.id));
+        }
+        showToast(`${showUserRemoveConfirm.email || showUserRemoveConfirm.name} has been removed.`, 'success');
+      } catch (err) {
+        showToast("Failed to remove user/invite", "error");
+      }
       setShowUserRemoveConfirm(null);
     }
   };
@@ -148,6 +166,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           <UserManagement 
             users={users} 
             setUsers={setUsers} 
+            invites={invites}
+            setInvites={setInvites}
             projects={projects}
             onUpdateProjects={onUpdateProjects}
             currentUserRole={userRole}
@@ -169,9 +189,11 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         isOpen={!!showUserRemoveConfirm}
         onClose={() => setShowUserRemoveConfirm(null)}
         onConfirm={handleConfirmedRemove}
-        title="Delete User"
-        message={showUserRemoveConfirm ? `Are you sure you want to permanently delete ${showUserRemoveConfirm.name}? This action is irreversible.` : ''}
-        confirmLabel="Delete User"
+        title={showUserRemoveConfirm?.status === 'Pending' ? "Cancel Invitation" : "Remove User"}
+        message={showUserRemoveConfirm?.status === 'Pending' 
+          ? `Are you sure you want to cancel the invitation for ${showUserRemoveConfirm.email}?` 
+          : `Are you sure you want to remove ${showUserRemoveConfirm?.name}? This action cannot be undone.`}
+        confirmLabel={showUserRemoveConfirm?.status === 'Pending' ? "Cancel Invite" : "Remove User"}
         variant="danger"
         themeColor={config.brand.themeColor}
       />
@@ -182,53 +204,36 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 // --- Sub-components ---
 
 
-const UserManagement = ({ users, setUsers, projects, onUpdateProjects, currentUserRole, config, showToast, setShowUserRemoveConfirm }: any) => {
+const UserManagement = ({ users, setUsers, invites, setInvites, projects, onUpdateProjects, currentUserRole, config, showToast, setShowUserRemoveConfirm }: any) => {
   const theme = getThemeClasses(config.brand.themeColor);
   const [isAdding, setIsAdding] = useState(false);
   const [newUser, setNewUser] = useState({ name: '', email: '', role: 'PM' as Role });
-  const [filter, setFilter] = useState<'All' | 'Active' | 'Inactive' | 'Invited'>('All');
+  const [filter, setFilter] = useState<'All' | 'Active' | 'Pending'>('All');
 
-  const handleAddUser = (e: React.FormEvent) => {
+  const handleInvite = async (e: React.FormEvent) => {
     e.preventDefault();
-    const user: User = {
-      id: Math.random().toString(36).substr(2, 9),
-      ...newUser,
-      status: 'Invited',
-      invitedAt: new Date().toISOString(),
-      avatar: newUser.name.split(' ').map(n => n[0]).join('').toUpperCase()
-    };
-    setUsers([...users, user]);
-    setIsAdding(false);
-    showToast(`Invite sent to ${user.email}`, 'success');
+    try {
+      const invite = await api.invites.send(newUser.email, newUser.role);
+      setInvites([invite, ...invites]);
+      setIsAdding(false);
+      setNewUser({ name: '', email: '', role: 'PM' });
+      showToast(`Invitation sent to ${newUser.email}`, 'success');
+    } catch (err: any) {
+      showToast(err.message || "Failed to send invite", "error");
+    }
   };
 
-  const toggleUserStatus = (id: string) => {
-    const user = users.find((u: any) => u.id === id);
-    if (!user) return;
-
-    if (user.role === 'Superadmin' && user.status === 'Active') {
-      const activeSuperadmins = users.filter((u: any) => u.role === 'Superadmin' && u.status === 'Active');
-      if (activeSuperadmins.length <= 1) {
-        showToast("Cannot deactivate the last active Superadmin.", 'error');
-        return;
-      }
-    }
-
-    if (currentUserRole === 'Manager' && (user.role === 'Superadmin' || user.role === 'Manager')) {
-      showToast("Managers cannot modify other Managers or Superadmins.", 'error');
-      return;
-    }
-
-    setUsers(users.map((u: any) => u.id === id ? { ...u, status: u.status === 'Active' ? 'Inactive' : 'Active' } : u));
-    showToast(`${user.name} status updated.`, 'info');
-  };
+  const filteredItems = [
+    ...users.map(u => ({ ...u, statusType: 'Active' })),
+    ...invites.map(i => ({ ...i, statusType: 'Pending', name: 'Invitee' }))
+  ].filter(item => filter === 'All' || item.statusType === filter);
 
   return (
     <div className="p-8 space-y-8 animate-in fade-in duration-300">
       <div className="flex justify-between items-center">
         <div>
           <h3 className="text-lg font-bold text-slate-900">User Management</h3>
-          <p className="text-sm text-slate-500">Manage team members, roles, and access status.</p>
+          <p className="text-sm text-slate-500">Manage team members, roles, and pending invitations.</p>
         </div>
         <button 
           onClick={() => setIsAdding(true)}
@@ -243,7 +248,7 @@ const UserManagement = ({ users, setUsers, projects, onUpdateProjects, currentUs
       </div>
 
       <div className="flex gap-2">
-        {['All', 'Active', 'Inactive', 'Invited'].map((f: any) => (
+        {['All', 'Active', 'Pending'].map((f: any) => (
             <button
               key={f}
               onClick={() => setFilter(f)}
@@ -260,15 +265,8 @@ const UserManagement = ({ users, setUsers, projects, onUpdateProjects, currentUs
       </div>
 
       {isAdding && (
-        <form onSubmit={handleAddUser} className="p-6 bg-slate-50 rounded-2xl border border-slate-200 space-y-4 animate-in slide-in-from-top-2">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <input 
-              required
-              placeholder="Full Name"
-              className="px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm outline-none"
-              value={newUser.name}
-              onChange={e => setNewUser({...newUser, name: e.target.value})}
-            />
+        <form onSubmit={handleInvite} className="p-6 bg-slate-50 rounded-2xl border border-slate-200 space-y-4 animate-in slide-in-from-top-2">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <input 
               required
               type="email"
@@ -282,13 +280,16 @@ const UserManagement = ({ users, setUsers, projects, onUpdateProjects, currentUs
               value={newUser.role}
               onChange={e => setNewUser({...newUser, role: e.target.value as Role})}
             >
-              <option value="PM">PM</option>
+              <option value="PM">Project Manager</option>
               <option value="Manager">Manager</option>
               {currentUserRole === 'Superadmin' && <option value="Superadmin">Superadmin</option>}
               <option value="Finance">Finance</option>
               <option value="Executive">Executive</option>
             </select>
           </div>
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-1">
+            New users will be automatically assigned their role when they sign up with this email.
+          </p>
           <div className="flex gap-3 justify-end">
             <button type="button" onClick={() => setIsAdding(false)} className="px-6 py-2 text-slate-500 font-bold text-sm">Cancel</button>
             <button type="submit" className={cn("px-6 py-2 text-white font-bold rounded-xl text-sm", theme.bg)}>Send Invite</button>
@@ -297,36 +298,62 @@ const UserManagement = ({ users, setUsers, projects, onUpdateProjects, currentUs
       )}
 
       <div className="grid grid-cols-1 gap-4">
-        {users.filter((u: any) => filter === 'All' || u.status === filter).map((user: any) => (
-          <div key={user.id} className={cn(
+        {filteredItems.map((item: any) => (
+          <div key={item.id} className={cn(
             "flex items-center justify-between p-4 bg-white border rounded-2xl transition-all group",
-            user.status === 'Inactive' ? "opacity-60 grayscale border-slate-100" : cn("border-slate-100", theme.hoverBorder)
+            item.statusType === 'Pending' ? "border-amber-100 bg-amber-50/20" : cn("border-slate-100", theme.hoverBorder)
           )}>
             <div className="flex items-center gap-4">
               <div className={cn(
                 "w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm",
-                user.status === 'Invited' ? "bg-amber-50 text-amber-600 border border-amber-100" : cn(theme.lightBg, theme.text)
+                item.statusType === 'Pending' ? "bg-amber-100 text-amber-600" : cn(theme.lightBg, theme.text)
               )}>
-                {user.avatar}
+                {item.avatar || item.email?.substring(0, 2).toUpperCase() || 'U'}
               </div>
               <div>
-                <p className="text-sm font-bold text-slate-900">{user.name}</p>
-                <p className="text-xs text-slate-500">{user.email}</p>
+                <p className="text-sm font-bold text-slate-900">{item.name || item.email}</p>
+                <p className="text-xs text-slate-500">{item.email}</p>
               </div>
             </div>
-            <div className="flex items-center gap-4">
-              <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest">{user.role}</span>
+            <div className="flex items-center gap-6">
+              <div className="text-right">
+                <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest block">{item.role}</span>
+                <span className={cn(
+                  "text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full",
+                  item.statusType === 'Active' ? "bg-emerald-100 text-emerald-600" : "bg-amber-100 text-amber-600"
+                )}>
+                  {item.statusType}
+                </span>
+              </div>
               <div className="flex gap-1">
-                <button onClick={() => toggleUserStatus(user.id)} className="p-2 text-slate-400 hover:bg-slate-50 rounded-lg">
-                  <RefreshCw className="w-4 h-4" />
-                </button>
-                <button onClick={() => setShowUserRemoveConfirm(user)} className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg">
-                  <Trash2 className="w-4 h-4" />
-                </button>
+                {item.statusType === 'Pending' && (
+                  <button 
+                    onClick={() => {
+                        const inviteLink = `${window.location.origin}`;
+                        navigator.clipboard.writeText(inviteLink);
+                        showToast(`Signup link copied! Send this to ${item.email}.`, 'success');
+                    }}
+                    title="Copy Signup Link"
+                    className="p-2 text-slate-400 hover:text-teal-600 hover:bg-teal-50 rounded-lg transition-colors"
+                  >
+                    <LinkIcon className="w-4 h-4" />
+                  </button>
+                )}
+                {(currentUserRole === 'Superadmin' || (currentUserRole === 'Manager' && item.role !== 'Superadmin')) && (
+                  <button onClick={() => setShowUserRemoveConfirm(item)} className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                )}
               </div>
             </div>
           </div>
         ))}
+        {filteredItems.length === 0 && (
+          <div className="py-20 text-center">
+            <Users className="w-12 h-12 text-slate-200 mx-auto mb-4" />
+            <p className="text-slate-400 font-bold uppercase tracking-widest text-xs">No {filter.toLowerCase()} users found</p>
+          </div>
+        )}
       </div>
     </div>
   );

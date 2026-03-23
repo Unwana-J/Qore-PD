@@ -27,6 +27,8 @@ interface SidebarProps {
   isSidebarCollapsed: boolean;
   setIsSidebarCollapsed: (isCollapsed: boolean) => void;
   pendingRebaselineCount?: number;
+  onSignOut: () => void;
+  userName?: string;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -41,7 +43,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
   setIsSidebarOpen,
   isSidebarCollapsed,
   setIsSidebarCollapsed,
-  pendingRebaselineCount = 0
+  pendingRebaselineCount = 0,
+  onSignOut,
+  userName = 'User'
 }) => {
   const theme = getThemeClasses(config.brand.themeColor);
 
@@ -141,22 +145,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </nav>
 
           <div className="mt-auto pt-6 border-t border-slate-100 flex flex-col gap-4">
-            <div className={cn("px-2", isSidebarCollapsed && "hidden")}>
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 block">Switch Role</label>
-              <select 
-                value={userRole}
-                onChange={(e) => setUserRole(e.target.value as Role)}
-                className="w-full text-[11px] font-medium bg-slate-50 border border-slate-200 rounded-lg px-2 py-2 outline-none focus:ring-2 ring-slate-100 transition-all cursor-pointer hover:bg-slate-100"
-              >
-                <option value="Superadmin">Superadmin</option>
-                <option value="Manager">Manager</option>
-                <option value="Team Lead">Team Lead</option>
-                <option value="PM">PM (Sarah Jenkins)</option>
-                <option value="Finance">Finance</option>
-                <option value="Executive">Executive</option>
-              </select>
-            </div>
-
             <div className={cn(
               "flex items-center gap-3 px-2",
               isSidebarCollapsed && "justify-center"
@@ -166,16 +154,19 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </div>
               {!isSidebarCollapsed && (
                 <div className="min-w-0 animate-in fade-in slide-in-from-left-2 duration-300">
-                  <p className="text-sm font-bold text-slate-900 truncate">{userRole === 'PM' ? 'Sarah Jenkins' : 'Admin User'}</p>
+                  <p className="text-sm font-bold text-slate-900 truncate">{userName}</p>
                   <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">{userRole}</p>
                 </div>
               )}
             </div>
             
-            <button className={cn(
-              "w-full flex items-center gap-3 px-3 py-2.5 text-slate-600 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all group",
-              isSidebarCollapsed && "justify-center"
-            )}>
+            <button 
+              onClick={onSignOut}
+              className={cn(
+                "w-full flex items-center gap-3 px-3 py-2.5 text-slate-600 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all group",
+                isSidebarCollapsed && "justify-center"
+              )}
+            >
               <LogOut className="w-5 h-5 text-slate-500 group-hover:text-red-500 flex-shrink-0" />
               {!isSidebarCollapsed && <span className="font-semibold text-sm">Logout</span>}
             </button>

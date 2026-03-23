@@ -26,6 +26,7 @@ interface HeaderProps {
   onNavigateBack?: () => void;
   setIsModalOpen: (isOpen: boolean) => void;
   setIsBulkImportOpen: (isOpen: boolean) => void;
+  userName?: string;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -40,7 +41,8 @@ export const Header: React.FC<HeaderProps> = ({
   userRole,
   onNavigateBack,
   setIsModalOpen,
-  setIsBulkImportOpen
+  setIsBulkImportOpen,
+  userName = 'User'
 }) => {
   const theme = getThemeClasses(themeColor);
   const now = new Date();
@@ -103,20 +105,14 @@ export const Header: React.FC<HeaderProps> = ({
 
     // 2. Dashboard Page Header
     if (currentView === 'dashboard') {
-      if (userRole === 'PM') {
-        return (
-          <div className="flex flex-col">
-            <h1 className="text-lg font-bold text-slate-900 leading-tight">
-              {getGreeting()}, Sarah 👋
-            </h1>
-            <p className="text-xs text-slate-500 font-medium">Here's your project overview.</p>
-          </div>
-        );
-      }
       return (
         <div className="flex flex-col">
-          <h1 className="text-lg font-bold text-slate-900 leading-tight">Dashboard</h1>
-          <p className="text-xs text-slate-500 font-medium">{format(now, 'EEEE, d MMMM yyyy')}</p>
+          <h1 className="text-lg font-bold text-slate-900 leading-tight">
+            {getGreeting()}, {userName.split(' ')[0]} 👋
+          </h1>
+          <p className="text-xs text-slate-500 font-medium">
+            {userRole === 'PM' ? "Here's your project overview." : format(now, 'EEEE, d MMMM yyyy')}
+          </p>
         </div>
       );
     }

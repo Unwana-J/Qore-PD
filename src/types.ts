@@ -184,6 +184,13 @@ export interface AppConfig {
   pmScorecardWeights: PMScorecardWeights;
   maxImportRows: number;
   hideImportGuide: boolean;
+  
+  // Onboarding & Setup
+  orgName?: string;
+  logoUrl?: string;
+  defaultCurrency?: string;
+  isSetupComplete?: boolean;
+  dismissedChecklistItems?: string[];
 }
 
 export interface WeightHistory {
