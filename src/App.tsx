@@ -73,15 +73,15 @@ function AppContent() {
     
     // Load config and seed if empty
     const init = async () => {
-      console.log("[Diagnostics] Initializing app config & seeding...");
+      console.log("[Diagnostics] Initializing app config & seeding in parallel...");
       try {
-        await api.projects.seed();
         const [serverConfig, serverUsers, serverInvites] = await Promise.all([
           api.config.get(),
           api.users.getAll(),
-          api.invites.getAll()
+          api.invites.getAll(),
+          api.projects.seed() // Run seeding in parallel instead of sequentially
         ]);
-        console.log("[Diagnostics] Received server data.");
+        console.log("[Diagnostics] Received initial server results.");
         setConfig(serverConfig);
         setUsers(serverUsers);
         setInvites(serverInvites);
