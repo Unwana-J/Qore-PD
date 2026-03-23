@@ -186,24 +186,21 @@ export const api = {
         throw new Error('A user with this email already exists.');
       }
 
-      const { data, error } = await supabase
-        .from('invites')
-        .insert({ email: normalizedEmail, role, name, status: 'Pending' })
-        .select()
-        .single();
+      // Send invite email via secure Edge Function (uses service role server-side).
+      const { data, error } = await supabase.functions.invoke('invite-user', {
+        body: {
+          email: normalizedEmail,
+          role,
+          name
+        }
+      });
       if (error) {
-        if (error.code === '23505') {
-          throw new Error('This email has already been invited.');
-        }
-        if (error.code === '42P01') {
-          throw new Error('Invites table is missing. Run supabase_setup.sql in Supabase SQL Editor.');
-        }
-        if (error.code === '42501') {
-          throw new Error('You do not have permission to invite users. Ensure your profile role is Manager, Team Lead, or Superadmin.');
-        }
         throw new Error(error.message || 'Failed to send invite.');
       }
-      return data;
+      if (!data?.invite) {
+        throw new Error('Invite created but no response payload returned.');
+      }
+      return data.invite;
     },
     delete: async (id: string) => {
       const { error } = await supabase.from('invites').delete().eq('id', id);

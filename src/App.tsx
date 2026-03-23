@@ -71,15 +71,14 @@ function AppContent() {
   useEffect(() => {
     if (!user) return;
     
-    // Load config and seed if empty
+    // Load config and user/invite data
     const init = async () => {
-      console.log("[Diagnostics] Initializing app config & seeding in parallel...");
+      console.log("[Diagnostics] Initializing app data...");
       try {
         const [serverConfig, serverUsers, serverInvites] = await Promise.all([
           api.config.get(),
           api.users.getAll(),
-          api.invites.getAll(),
-          api.projects.seed() // Run seeding in parallel instead of sequentially
+          api.invites.getAll()
         ]);
         console.log("[Diagnostics] Received initial server results.");
         setConfig(serverConfig);
