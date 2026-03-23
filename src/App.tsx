@@ -73,6 +73,7 @@ function AppContent() {
     
     // Load config and seed if empty
     const init = async () => {
+      console.log("[Diagnostics] Initializing app config & seeding...");
       try {
         await api.projects.seed();
         const [serverConfig, serverUsers, serverInvites] = await Promise.all([
@@ -80,16 +81,18 @@ function AppContent() {
           api.users.getAll(),
           api.invites.getAll()
         ]);
+        console.log("[Diagnostics] Received server data.");
         setConfig(serverConfig);
         setUsers(serverUsers);
         setInvites(serverInvites);
         
         // Trigger onboarding check
         if ((userRole === 'Superadmin' || userRole === 'Manager') && !serverConfig.isSetupComplete) {
+          console.log("[Diagnostics] Triggering onboarding wizard.");
           setShowOnboarding(true);
         }
       } catch (err) {
-        console.error('Initialization error:', err);
+        console.error('[Diagnostics] Initialization error:', err);
       }
     };
     init();

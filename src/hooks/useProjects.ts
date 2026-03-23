@@ -53,9 +53,13 @@ export function useProjects(userRole: Role, config: AppConfig, userName: string 
   };
 
   useEffect(() => {
+    let isMounted = true;
+    
     async function fetchProjects() {
+      console.log("[Diagnostics] Starting projects sync...");
       try {
         const data = await api.projects.getAll();
+        console.log(`[Diagnostics] Fetched ${data.length} projects.`);
         
         // Auto-correct stale states upon loading from backend
         // (If SPI drops below threshold due to elapsed days, it becomes 'Delayed' today)
@@ -70,14 +74,34 @@ export function useProjects(userRole: Role, config: AppConfig, userName: string 
           return p;
         });
 
-        setProjects(correctedData);
+        if (isMounted) {
+          setProjects(correctedData);
+          console.log("[Diagnostics] Projects state updated.");
+        }
       } catch (error) {
-        console.error('Failed to fetch projects', error);
+        console.error('[Diagnostics] Failed to fetch projects:', error);
       } finally {
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+          console.log("[Diagnostics] Projects loading set to false.");
+        }
       }
     }
+
+    // Safety timeout — force loading to false if fetch hangs
+    const timeout = setTimeout(() => {
+      if (loading && isMounted) {
+        console.warn("[Diagnostics] Projects sync timeout reached — forcing loading to false.");
+        setLoading(false);
+      }
+    }, 8000);
+
     fetchProjects();
+    
+    return () => {
+      isMounted = false;
+      clearTimeout(timeout);
+    };
   }, [config.spiThresholds.atRisk, config.spiThresholds.onTrack]);
 
   const getPMWorkload = useCallback((pmName: string) => {
