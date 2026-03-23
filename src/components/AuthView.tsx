@@ -188,6 +188,16 @@ export const AuthView: React.FC = () => {
                 </>
               )}
             </button>
+
+            <div className="pt-6 text-center">
+              <button 
+                type="button"
+                onClick={() => setIsLogin(!isLogin)}
+                className="text-[10px] font-black text-slate-400 hover:text-teal-600 uppercase tracking-widest transition-colors"
+              >
+                {isLogin ? "Don't have an account? Create one" : "Already have an account? Sign in"}
+              </button>
+            </div>
           </form>
         </motion.div>
 
