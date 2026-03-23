@@ -21,7 +21,7 @@ export const PMScorecard: React.FC<PMScorecardProps> = ({ projects, config, user
   const [statusFilter, setStatusFilter] = useState('All');
   const [sortBy, setSortBy] = useState('Weighted Score');
   const [expandedPMs, setExpandedPMs] = useState<string[]>([]);
-  const [isPackagePerformanceExpanded, setIsPackagePerformanceExpanded] = useState(false);
+  const [isServicePerformanceExpanded, setIsServicePerformanceExpanded] = useState(false);
   
   const togglePM = (pm: string) => {
     setExpandedPMs(prev => prev.includes(pm) ? prev.filter(p => p !== pm) : [...prev, pm]);
@@ -388,11 +388,11 @@ export const PMScorecard: React.FC<PMScorecardProps> = ({ projects, config, user
         </div>
       </div>
 
-      {/* Package Performance */}
+      {/* Service Performance */}
       <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
         <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2 mb-6">
           <Layers className={cn("w-5 h-5", theme.text)} />
-          Package Performance
+          Service Performance
         </h2>
         
         <div className="overflow-x-auto">
@@ -407,7 +407,7 @@ export const PMScorecard: React.FC<PMScorecardProps> = ({ projects, config, user
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
-              {(isPackagePerformanceExpanded ? packageStats : packageStats.slice(0, 5)).map((pkg, i) => (
+              {(isServicePerformanceExpanded ? packageStats : packageStats.slice(0, 5)).map((pkg, i) => (
                 <tr key={i} className="hover:bg-slate-50 transition-colors">
                   <td className="py-4 font-bold text-slate-900">{pkg.name}</td>
                   <td className="py-4 text-center text-sm font-bold text-slate-600">{pkg.projectsWithService}</td>
@@ -442,10 +442,10 @@ export const PMScorecard: React.FC<PMScorecardProps> = ({ projects, config, user
                 <tr>
                   <td colSpan={5} className="py-4 px-2">
                     <button 
-                      onClick={() => setIsPackagePerformanceExpanded(!isPackagePerformanceExpanded)}
+                      onClick={() => setIsServicePerformanceExpanded(!isServicePerformanceExpanded)}
                       className="w-full py-3 bg-slate-50 hover:bg-slate-100 rounded-xl text-xs font-black text-slate-500 hover:text-slate-800 uppercase tracking-widest transition-colors flex items-center justify-center gap-2"
                     >
-                      {isPackagePerformanceExpanded ? (
+                      {isServicePerformanceExpanded ? (
                         <>
                           <ChevronDown className="w-4 h-4 rotate-180" />
                           Show less services
