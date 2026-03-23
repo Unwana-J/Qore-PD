@@ -159,21 +159,60 @@ export const api = {
         .from('invites')
         .select('*')
         .order('created_at', { ascending: false });
-      if (error) throw error;
+      if (error) {
+        if (error.code === '42P01') {
+          throw new Error('Invites table is missing. Run supabase_setup.sql in Supabase SQL Editor.');
+        }
+        if (error.code === '42501') {
+          throw new Error('You do not have permission to view invites. Ensure your profile role is Manager, Team Lead, or Superadmin.');
+        }
+        throw new Error(error.message || 'Failed to load invites.');
+      }
       return data || [];
     },
     send: async (email: string, role: string, name?: string) => {
+      const normalizedEmail = email.trim().toLowerCase();
+
+      // Prevent inviting existing users.
+      const { data: existingProfile, error: profileError } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('email', normalizedEmail)
+        .maybeSingle();
+      if (profileError && profileError.code !== 'PGRST116') {
+        throw new Error(profileError.message || 'Failed checking existing users.');
+      }
+      if (existingProfile) {
+        throw new Error('A user with this email already exists.');
+      }
+
       const { data, error } = await supabase
         .from('invites')
-        .insert({ email, role, name, status: 'Pending' })
+        .insert({ email: normalizedEmail, role, name, status: 'Pending' })
         .select()
         .single();
-      if (error) throw error;
+      if (error) {
+        if (error.code === '23505') {
+          throw new Error('This email has already been invited.');
+        }
+        if (error.code === '42P01') {
+          throw new Error('Invites table is missing. Run supabase_setup.sql in Supabase SQL Editor.');
+        }
+        if (error.code === '42501') {
+          throw new Error('You do not have permission to invite users. Ensure your profile role is Manager, Team Lead, or Superadmin.');
+        }
+        throw new Error(error.message || 'Failed to send invite.');
+      }
       return data;
     },
     delete: async (id: string) => {
       const { error } = await supabase.from('invites').delete().eq('id', id);
-      if (error) throw error;
+      if (error) {
+        if (error.code === '42501') {
+          throw new Error('You do not have permission to cancel invites.');
+        }
+        throw new Error(error.message || 'Failed to delete invite.');
+      }
     }
   },
   config: {

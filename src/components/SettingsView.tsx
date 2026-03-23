@@ -214,11 +214,21 @@ const UserManagement = ({ users, setUsers, invites, setInvites, projects, onUpda
   const handleInvite = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const invite = await api.invites.send(newUser.email, newUser.role, newUser.name);
+      const email = newUser.email.trim().toLowerCase();
+      if (users.some((u: any) => (u.email || '').toLowerCase() === email)) {
+        showToast('A user with this email already exists.', 'error');
+        return;
+      }
+      if (invites.some((i: any) => (i.email || '').toLowerCase() === email)) {
+        showToast('This email has already been invited.', 'error');
+        return;
+      }
+
+      const invite = await api.invites.send(email, newUser.role, newUser.name);
       setInvites([invite, ...invites]);
       setIsAdding(false);
       setNewUser({ name: '', email: '', role: 'PM' });
-      showToast(`Invitation sent to ${newUser.email}`, 'success');
+      showToast(`Invitation sent to ${email}`, 'success');
     } catch (err: any) {
       showToast(err.message || "Failed to send invite", "error");
     }
