@@ -45,14 +45,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     };
 
-    // Circuit breaker for production auth hangs (5s limit)
+    // Circuit breaker for production auth hangs (10s limit)
     const authTimeout = setTimeout(() => {
-      if (loading) {
-        console.warn('[Safety] Auth check timed out. Force-releasing loading state.');
+      if (loading || profileLoading) {
+        console.warn('[Safety] Auth/Profile sync timed out. Force-releasing loading state.');
         setLoading(false);
         setProfileLoading(false);
       }
-    }, 5000);
+    }, 10000);
 
     fetchSession().finally(() => clearTimeout(authTimeout));
 
@@ -83,22 +83,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const fetchProfile = async (userId: string) => {
+    // Add a race condition to prevent profile fetch from hanging the app
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Profile fetch timeout')), 10000)
+    );
+
     try {
-      const { data, error } = await supabase
+      const profilePromise = supabase
         .from('profiles')
         .select('name, role')
         .eq('id', userId)
         .single();
+      
+      const result = await Promise.race([profilePromise, timeoutPromise]) as any;
+      const { data, error } = result;
 
       if (error) {
         console.error('Error fetching profile:', error);
-        // Fallback or handle missing profile
         setProfile({ name: user?.email?.split('@')[0] || 'User', role: 'PM' });
       } else {
         setProfile(data);
       }
     } catch (err) {
-      console.error('Unexpected profile error:', err);
+      console.error('Unexpected profile error or timeout:', err);
+      // Fallback on timeout/error
+      setProfile({ name: user?.email?.split('@')[0] || 'User', role: 'PM' });
+    } finally {
+      setProfileLoading(false);
     }
   };
 
