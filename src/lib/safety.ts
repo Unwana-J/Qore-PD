@@ -29,10 +29,7 @@ export const safety = {
       }
       return data;
     } catch (err) {
-      console.error(`[Safety] Failed to read or parse ${type}Storage key: ${key}`, err);
-      localStorage.clear();
-      sessionStorage.clear();
-      window.location.reload();
+      console.error(`[Safety] Cache read issue for key: ${key}`, err);
       return null;
     }
   },
@@ -43,10 +40,7 @@ export const safety = {
       const storage = type === 'local' ? localStorage : sessionStorage;
       storage.setItem(key, value);
     } catch (err) {
-      console.error(`[Safety] Failed to write ${type}Storage key: ${key}`, err);
-      localStorage.clear();
-      sessionStorage.clear();
-      window.location.reload();
+      console.error(`[Safety] Cache write issue for key: ${key}`, err);
     }
   },
 

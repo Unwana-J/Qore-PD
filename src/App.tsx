@@ -70,17 +70,7 @@ function AppContent() {
     dismissNotification,
     loading: projectsLoading
   } = useProjects(userRole, config, profile?.name || 'User');
-  useEffect(() => {
-    // 10 second sync timeout safety
-    const syncTimeout = setTimeout(() => {
-      if (authLoading || projectsLoading) {
-        console.error('[Safety] App synchronization timeout. Clearing storage and redirecting.');
-        safety.clearAllDataAndLogout();
-      }
-    }, 10000);
-
-    return () => clearTimeout(syncTimeout);
-  }, [authLoading, projectsLoading]);
+    // Removing aggressive sync timeout that cleared storage
 
   useEffect(() => {
     if (!user) return;
@@ -110,8 +100,8 @@ function AppContent() {
         showToast(`Failed to sync data: ${err.message || 'Unknown error'}`, 'error');
         // Explicitly handle 401/403 or other sync errors
         if (err?.status === 401 || err?.status === 403 || err?.code === 'PGRST301') {
-          console.error('[Safety] Auth error detected during sync. Logging out.');
-          safety.clearAllDataAndLogout();
+          console.error('[Safety] Auth error detected during sync.');
+          // safety.clearAllDataAndLogout(); // Disabled to prevent unintentional data loss
         }
       }
     };
