@@ -77,35 +77,28 @@ function AppContent() {
     
     // Load config and user/invite data
     const init = async () => {
+      if (!user) return;
+      
+      const localOnboardingSkip = localStorage.getItem('onboarding_skipped');
+      
       console.log("[Diagnostics] Initializing app data...");
       try {
         // Completely non-blocking background initialization
-        console.log("[Diagnostics] Background synchronization started.");
-        
         api.config.get().then(c => {
-          console.log("[Diagnostics] Config retrieved.");
           setConfig(c);
-          if (hasRole(userRole, ['Superadmin', 'Manager']) && !c.isSetupComplete) {
+          if (hasRole(userRole, ['Superadmin', 'Manager']) && !c.isSetupComplete && !localOnboardingSkip) {
             setShowOnboarding(true);
           }
         }).catch(err => console.error("Config fetch failed", err));
 
         api.users.getAll().then(setUsers).catch(err => console.error("User fetch failed", err));
         api.invites.getAll().then(setInvites).catch(err => console.error("Invite fetch failed", err));
-        
-        console.log("[Diagnostics] App initialization complete (Lazy).");
       } catch (err: any) {
         console.error('[Diagnostics] Initialization error:', err);
-        showToast(`Failed to sync data: ${err.message || 'Unknown error'}`, 'error');
-        // Explicitly handle 401/403 or other sync errors
-        if (err?.status === 401 || err?.status === 403 || err?.code === 'PGRST301') {
-          console.error('[Safety] Auth error detected during sync.');
-          // safety.clearAllDataAndLogout(); // Disabled to prevent unintentional data loss
-        }
       }
     };
     init();
-  }, [userRole, user]);
+  }, [user?.id, userRole]); // Trigger correctly on user identity or role shift
 
 
   const addProject = async (p: Partial<Project>, force?: boolean) => {
@@ -358,8 +351,20 @@ function AppContent() {
             await api.config.update(newConfig);
             setConfig(newConfig);
           }}
-          onFinish={() => setShowOnboarding(false)}
-          onSkip={() => setShowOnboarding(false)}
+          onFinish={async () => {
+            const newConfig = { ...config, isSetupComplete: true };
+            await api.config.update(newConfig);
+            setConfig(newConfig);
+            setShowOnboarding(false);
+            localStorage.setItem('onboarding_skipped', 'true');
+          }}
+          onSkip={async () => {
+            const newConfig = { ...config, isSetupComplete: true };
+            await api.config.update(newConfig);
+            setConfig(newConfig);
+            setShowOnboarding(false);
+            localStorage.setItem('onboarding_skipped', 'true');
+          }}
         />
       )}
 
