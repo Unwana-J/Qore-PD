@@ -88,11 +88,19 @@ export function useProjects(userRole: Role, config: AppConfig, userName: string 
       }
     }
 
-    // Removed aggressive sync timeout that forced loading to false
-    fetchProjects();
+    // Safety timeout for project sync (15s)
+    const syncTimeout = setTimeout(() => {
+      if (loading && isMounted) {
+        console.warn("[Diagnostics] Projects sync timed out. Releasing UI lock.");
+        setLoading(false);
+      }
+    }, 15000);
+
+    fetchProjects().finally(() => clearTimeout(syncTimeout));
     
     return () => {
       isMounted = false;
+      clearTimeout(syncTimeout);
     };
   }, [config.spiThresholds.atRisk, config.spiThresholds.onTrack]);
 

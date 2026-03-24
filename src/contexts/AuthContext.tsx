@@ -112,14 +112,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signOut = async () => {
     try {
+      // Force loading state to prevent UI flickers
+      setLoading(true);
       await supabase.auth.signOut();
     } catch (e) {
       console.error('Logout error:', e);
     } finally {
+      // Unconditional cleanup
       setUser(null);
       setProfile(null);
+      setLoading(false);
       setProfileLoading(false);
-      import('../lib/safety').then(({ safety }) => safety.clearAllDataAndLogout());
+      
+      // Extensive local cleanup via safety utility
+      const { safety } = await import('../lib/safety');
+      safety.clearAllDataAndLogout();
     }
   };
 
