@@ -6,7 +6,7 @@ import {
 import { 
   TrendingUp, Activity, Award, AlertTriangle, Clock, 
   Layers, DollarSign, Target, Zap, ShieldAlert,
-  ChevronRight, Calendar, User as UserIcon, Briefcase, AlertCircle
+  ChevronRight, Calendar, User as UserIcon, Briefcase, AlertCircle, RefreshCw
 } from 'lucide-react';
 import { format, differenceInDays, parseISO } from 'date-fns';
 import { Project, Role, RevenueTrend, ProjectState, ProjectPriority, User } from '../types';
@@ -21,6 +21,7 @@ interface ExecutiveDashboardProps {
   onSelectProject: (p: Project) => void;
   staleThresholdDays: number;
   spiThresholds: { onTrack: number; atRisk: number };
+  loading?: boolean;
 }
 
 export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
@@ -28,7 +29,8 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
   users,
   themeColor = 'teal',
   onSelectProject,
-  spiThresholds
+  spiThresholds,
+  loading = false
 }) => {
   const [currencyFilter, setCurrencyFilter] = useState<'All' | 'NGN' | 'USD'>('All');
   const [globalFilter, setGlobalFilter] = useState<'All' | 'Enterprise' | 'Initiative'>('All');
@@ -218,6 +220,13 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
           ))}
         </div>
       </div>
+
+      {loading && (
+        <div className="flex items-center gap-2 px-1 text-slate-400">
+          <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+          <span className="text-[10px] font-bold uppercase tracking-widest">Synchronizing portfolio data...</span>
+        </div>
+      )}
 
       {/* Row 1: Project Counts */}
       <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-4">

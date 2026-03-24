@@ -7,6 +7,7 @@ interface AuthContextType {
   user: User | null;
   profile: { name: string; role: Role } | null;
   loading: boolean;
+  profileLoading: boolean;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
 }
@@ -17,6 +18,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<{ name: string; role: Role } | null>(null);
   const [loading, setLoading] = useState(true);
+  const [profileLoading, setProfileLoading] = useState(false);
 
   useEffect(() => {
     // Check active sessions and subscribe to auth changes
@@ -26,19 +28,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (sessionError) throw sessionError;
 
         if (session?.user) {
-          // Double verify with getUser to ensure token is still valid on server
-          const { data: { user: verifiedUser }, error: userError } = await supabase.auth.getUser();
-          
-          if (userError || !verifiedUser) {
-            console.warn('[Safety] Session exists but user token is invalid/expired. Clearing.');
-            await supabase.auth.signOut();
-            setUser(null);
-          } else {
-            setUser(verifiedUser);
-            await fetchProfile(verifiedUser.id);
-          }
+          setUser(session.user);
+          setProfileLoading(true);
+          await fetchProfile(session.user.id);
         } else {
           setUser(null);
+          setProfile(null);
         }
       } catch (err) {
         console.error('[Safety] Auth initialization error:', err);
@@ -46,13 +41,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setProfile(null);
       } finally {
         setLoading(false);
+        setProfileLoading(false);
       }
     };
 
     // Circuit breaker for production auth hangs (5s limit)
     const authTimeout = setTimeout(() => {
-      console.warn('[Safety] Auth check timed out. Force-releasing loading state.');
-      setLoading(false);
+      if (loading) {
+        console.warn('[Safety] Auth check timed out. Force-releasing loading state.');
+        setLoading(false);
+        setProfileLoading(false);
+      }
     }, 5000);
 
     fetchSession().finally(() => clearTimeout(authTimeout));
@@ -62,6 +61,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser(null);
         setProfile(null);
         setLoading(false);
+        setProfileLoading(false);
         // Clear data and redirect on sign out
         import('../lib/safety').then(({ safety }) => safety.clearAllDataAndLogout());
         return;
@@ -69,14 +69,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (session?.user) {
         setUser(session.user);
+        setProfileLoading(true);
         await fetchProfile(session.user.id);
+        setProfileLoading(false);
       } else {
         setUser(null);
         setProfile(null);
       }
       setLoading(false);
     });
-
 
     return () => subscription.unsubscribe();
   }, []);
@@ -103,7 +104,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const refreshProfile = async () => {
     if (user?.id) {
+      setProfileLoading(true);
       await fetchProfile(user.id);
+      setProfileLoading(false);
     }
   };
 
@@ -112,15 +115,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       await supabase.auth.signOut();
     } catch (e) {
       console.error('Logout error:', e);
-      // Force clear even if signOut fails
+    } finally {
       setUser(null);
       setProfile(null);
+      setProfileLoading(false);
       import('../lib/safety').then(({ safety }) => safety.clearAllDataAndLogout());
     }
   };
 
   return (
-    <AuthContext.Provider value={{ user, profile, loading, signOut, refreshProfile }}>
+    <AuthContext.Provider value={{ user, profile, loading, profileLoading, signOut, refreshProfile }}>
       {children}
     </AuthContext.Provider>
   );

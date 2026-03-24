@@ -20,6 +20,7 @@ interface DashboardProps {
   config: AppConfig;
   onUpdateConfig: (updates: Partial<AppConfig>) => Promise<void>;
   onNavigateToSettings: (tab: string) => void;
+  loading?: boolean;
 }
 
 export const Dashboard: React.FC<DashboardProps> = ({ 
@@ -30,7 +31,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
   onReassignProject, 
   config,
   onUpdateConfig,
-  onNavigateToSettings
+  onNavigateToSettings,
+  loading = false
 }) => {
   const theme = getThemeClasses(themeColor);
   const [chartCurrency, setChartCurrency] = useState<'NGN' | 'USD'>('NGN');
@@ -116,6 +118,13 @@ export const Dashboard: React.FC<DashboardProps> = ({
         onNavigateToSettings={onNavigateToSettings}
         themeColor={themeColor}
       />
+
+      {loading && (
+        <div className="flex items-center gap-2 px-1 text-slate-400">
+          <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+          <span className="text-[10px] font-bold uppercase tracking-widest">Synchronizing latest project data...</span>
+        </div>
+      )}
 
       {/* Revenue Panel */}
       <section id="revenue">

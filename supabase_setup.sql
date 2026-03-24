@@ -107,7 +107,7 @@ USING (
         SELECT 1 FROM public.profiles
         WHERE id = auth.uid() AND role IN ('Manager', 'Team Lead', 'Superadmin')
     )
-    OR email = (SELECT email FROM auth.users WHERE id = auth.uid())
+    OR email = (auth.jwt() ->> 'email')
 );
 
 DROP POLICY IF EXISTS "Invites can be sent by Managers, Team Leads and Superadmins" ON public.invites;

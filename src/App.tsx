@@ -29,7 +29,7 @@ type View = 'dashboard' | 'projects' | 'risks' | 'settings' | 'rebaseline-reques
 import { safety } from './lib/safety';
 
 function AppContent() {
-  const { user, profile, loading: authLoading, signOut } = useAuth();
+  const { user, profile, loading: authLoading, profileLoading, signOut } = useAuth();
   const [currentView, setCurrentView] = useState<View>('dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
@@ -130,10 +130,14 @@ function AppContent() {
     }
   };
 
-  if (authLoading) {
+  // Show loading while auth OR profile is being fetched for the first time
+  if (authLoading || (user && profileLoading && !profile)) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50">
+      <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 gap-6">
         <div className="w-12 h-12 border-4 border-slate-100 border-t-teal-600 rounded-full animate-spin"></div>
+        <p className="text-xs font-bold text-slate-400 uppercase tracking-widest animate-pulse">
+          {profileLoading ? 'Loading Profile...' : 'Synchronizing...'}
+        </p>
       </div>
     );
   }
@@ -214,6 +218,7 @@ function AppContent() {
                           onBillProject={billProject}
                           currencies={config.currencies}
                           themeColor={config.brand.themeColor}
+                          loading={projectsLoading}
                         />
                       ) : userRole === 'Executive' ? (
                         <ExecutiveDashboard 
@@ -223,6 +228,7 @@ function AppContent() {
                           onSelectProject={setSelectedProject}
                           staleThresholdDays={config.staleThresholdDays}
                           spiThresholds={config.spiThresholds}
+                          loading={projectsLoading}
                         />
                       ) : (
                         <Dashboard 
@@ -233,6 +239,7 @@ function AppContent() {
                           userRole={userRole}
                           onReassignProject={setProjectToReassign}
                           config={config}
+                          loading={projectsLoading}
                           onUpdateConfig={async (updates) => {
                             const newConfig = { ...config, ...updates };
                             await api.config.update(newConfig);

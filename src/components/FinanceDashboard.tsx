@@ -14,6 +14,7 @@ import {
   ArrowUpDown,
   Check,
   ChevronRight,
+  RefreshCw,
   Filter,
   X
 } from 'lucide-react';
@@ -26,12 +27,13 @@ interface FinanceDashboardProps {
   onBillProject: (projectId: string) => Promise<any>;
   themeColor?: string;
   currencies: any[];
+  loading?: boolean;
 }
 
 type SortField = 'clientName' | 'signedOffAt' | 'value' | 'assignedPM';
 type SortOrder = 'asc' | 'desc';
 
-export const FinanceDashboard: React.FC<FinanceDashboardProps> = ({ projects, onBillProject, themeColor = 'teal', currencies }) => {
+export const FinanceDashboard: React.FC<FinanceDashboardProps> = ({ projects, onBillProject, themeColor = 'teal', currencies, loading = false }) => {
   const theme = getThemeClasses(themeColor);
   const [currencyFilter, setCurrencyFilter] = useState<'All' | string>('All');
   const [sortField, setSortField] = useState<SortField>('signedOffAt');
@@ -133,6 +135,13 @@ export const FinanceDashboard: React.FC<FinanceDashboardProps> = ({ projects, on
           ))}
         </div>
       </div>
+
+      {loading && (
+        <div className="flex items-center gap-2 px-1 text-slate-400">
+          <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+          <span className="text-[10px] font-bold uppercase tracking-widest">Synchronizing billing queue...</span>
+        </div>
+      )}
 
       {/* Row 1 - KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
