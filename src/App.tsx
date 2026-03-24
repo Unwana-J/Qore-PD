@@ -107,6 +107,7 @@ function AppContent() {
         }
       } catch (err: any) {
         console.error('[Diagnostics] Initialization error:', err);
+        showToast(`Failed to sync data: ${err.message || 'Unknown error'}`, 'error');
         // Explicitly handle 401/403 or other sync errors
         if (err?.status === 401 || err?.status === 403 || err?.code === 'PGRST301') {
           console.error('[Safety] Auth error detected during sync. Logging out.');
