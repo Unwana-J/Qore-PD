@@ -79,23 +79,21 @@ function AppContent() {
     const init = async () => {
       console.log("[Diagnostics] Initializing app data...");
       try {
-        console.log("[Diagnostics] Fetching config...");
-        const serverConfig = await api.config.get();
-        console.log("[Diagnostics] Config success. Fetching users/invites...");
-        const [serverUsers, serverInvites] = await Promise.all([
-          api.users.getAll().catch(e => { console.warn("User fetch slow/failed", e); return []; }),
-          api.invites.getAll().catch(e => { console.warn("Invite fetch slow/failed", e); return []; })
-        ]);
-        console.log("[Diagnostics] Received initial server results.");
-        setConfig(serverConfig);
-        setUsers(serverUsers);
-        setInvites(serverInvites);
+        // Completely non-blocking background initialization
+        console.log("[Diagnostics] Background synchronization started.");
         
-        // Trigger onboarding check
-        if (hasRole(userRole, ['Superadmin', 'Manager']) && !serverConfig.isSetupComplete) {
-          console.log("[Diagnostics] Triggering onboarding wizard.");
-          setShowOnboarding(true);
-        }
+        api.config.get().then(c => {
+          console.log("[Diagnostics] Config retrieved.");
+          setConfig(c);
+          if (hasRole(userRole, ['Superadmin', 'Manager']) && !c.isSetupComplete) {
+            setShowOnboarding(true);
+          }
+        }).catch(err => console.error("Config fetch failed", err));
+
+        api.users.getAll().then(setUsers).catch(err => console.error("User fetch failed", err));
+        api.invites.getAll().then(setInvites).catch(err => console.error("Invite fetch failed", err));
+        
+        console.log("[Diagnostics] App initialization complete (Lazy).");
       } catch (err: any) {
         console.error('[Diagnostics] Initialization error:', err);
         showToast(`Failed to sync data: ${err.message || 'Unknown error'}`, 'error');
