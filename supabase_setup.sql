@@ -28,8 +28,67 @@ CREATE POLICY "Users can update their own profile"
 ON public.profiles FOR UPDATE
 USING (auth.uid() = id);
 
--- 4. RLS for Invites
-ALTER TABLE public.invites ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Superadmins can update any profile"
+ON public.profiles FOR UPDATE
+USING (
+    EXISTS (
+        SELECT 1 FROM public.profiles
+        WHERE id = auth.uid() AND role = 'Superadmin'
+    )
+);
+
+-- 4. Create Audit Logs Table
+CREATE TABLE IF NOT EXISTS public.audit_logs (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    action TEXT NOT NULL,
+    "user" TEXT,
+    details TEXT,
+    timestamp TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    category TEXT
+);
+
+ALTER TABLE public.audit_logs ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Audit logs can be viewed by Executives and Superadmins"
+ON public.audit_logs FOR SELECT
+USING (
+    EXISTS (
+        SELECT 1 FROM public.profiles
+        WHERE id = auth.uid() AND role IN ('Executive', 'Superadmin')
+    )
+);
+
+-- 5. Create App Config Table
+CREATE TABLE IF NOT EXISTS public.app_config (
+    id BIGINT PRIMARY KEY,
+    config JSONB NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+ALTER TABLE public.app_config ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "App config can be viewed by anyone"
+ON public.app_config FOR SELECT
+USING (true);
+
+CREATE POLICY "App config can be updated by Managers and Superadmins"
+ON public.app_config FOR UPDATE
+USING (
+    EXISTS (
+        SELECT 1 FROM public.profiles
+        WHERE id = auth.uid() AND role IN ('Manager', 'Superadmin')
+    )
+);
+
+CREATE POLICY "App config can be inserted by Managers and Superadmins"
+ON public.app_config FOR INSERT
+WITH CHECK (
+    EXISTS (
+        SELECT 1 FROM public.profiles
+        WHERE id = auth.uid() AND role IN ('Manager', 'Superadmin')
+    )
+);
+
+-- 6. RLS for Invites (already defined above, ensure it has INSERT/DELETE)
+-- ... [rest of handle_new_user and trigger]
 
 CREATE POLICY "Invites can be viewed by Managers, Team Leads and Superadmins"
 ON public.invites FOR SELECT
