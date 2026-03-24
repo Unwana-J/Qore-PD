@@ -104,37 +104,50 @@ export const api = {
       return mapProjectFromDb(data);
     },
     createBulk: async (projectsToAdd: Partial<Project>[], projectsToUpdate: Partial<Project>[]): Promise<void> => {
-      // 1. Process Updates
-      if (projectsToUpdate.length > 0) {
-        for (const p of projectsToUpdate) {
-          // Use client_name and package_name as a unique identifier for institutional data
-          await supabase.from('projects')
-            .update(mapProjectToDb(p))
-            .ilike('client_name', p.clientName || '')
-            .ilike('package_name', p.packageName || '');
+      // Merge all projects to handle in a single bulk operation
+      const allProjects = [...projectsToAdd, ...projectsToUpdate];
+      if (allProjects.length === 0) return;
+
+      // Map to DB structure
+      const dbRows = allProjects.map(mapProjectToDb);
+
+      // Strategy: Since unique constraints are tricky to rely on without direct DB access,
+      // we'll fetch existing records for this batch in ONE go to identify conflicts.
+      const clientNames = Array.from(new Set(allProjects.map(p => p.clientName || '').filter(Boolean)));
+      const { data: existingRecords } = await supabase
+        .from('projects')
+        .select('id, client_name, package_name')
+        .in('client_name', clientNames);
+
+      const existingMap = new Map<string, string>(); // "client|package" -> id
+      existingRecords?.forEach(r => {
+        existingMap.set(`${r.client_name?.toLowerCase()}|${r.package_name?.toLowerCase()}`, r.id);
+      });
+
+      const toInsert: any[] = [];
+      const toUpdate: any[] = [];
+
+      dbRows.forEach((row, idx) => {
+        const key = `${row.client_name?.toLowerCase()}|${row.package_name?.toLowerCase()}`;
+        const existingId = existingMap.get(key);
+        
+        if (existingId) {
+          toUpdate.push({ ...row, id: existingId });
+        } else {
+          toInsert.push(row);
         }
+      });
+
+      // Execute bulk operations
+      if (toInsert.length > 0) {
+        const { error } = await supabase.from('projects').insert(toInsert);
+        if (error) console.error("[API] Bulk Insert error:", error);
       }
 
-      // 2. Process Additions with simple deduplication check
-      if (projectsToAdd.length > 0) {
-        for (const p of projectsToAdd) {
-          // Check if this project already exists to prevent accidental double-imports
-          const { data: existing } = await supabase
-            .from('projects')
-            .select('id')
-            .ilike('client_name', p.clientName || '')
-            .ilike('package_name', p.packageName || '')
-            .maybeSingle();
-
-          if (!existing) {
-            await supabase.from('projects').insert(mapProjectToDb(p));
-          } else {
-            // Optionally update instead of skipping
-            await supabase.from('projects')
-              .update(mapProjectToDb(p))
-              .eq('id', existing.id);
-          }
-        }
+      if (toUpdate.length > 0) {
+        // Supabase upsert with IDs will perform updates
+        const { error } = await supabase.from('projects').upsert(toUpdate);
+        if (error) console.error("[API] Bulk Upsert (Update) error:", error);
       }
     },
     // Admin tool to seed the database initially
