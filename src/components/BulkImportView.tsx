@@ -170,23 +170,50 @@ export const BulkImportView: React.FC<BulkImportViewProps> = ({ users, projects,
             }
           });
         } else {
-          // Excel parse
+          // Excel parse: we try to find the sheet that actually contains our headers
           const data = new Uint8Array(e.target?.result as ArrayBuffer);
           const workbook = XLSX.read(data, { type: 'array' });
-          const sheetName = workbook.SheetNames[0];
-          const sheet = workbook.Sheets[sheetName];
-          const json = XLSX.utils.sheet_to_json(sheet, { header: 1 }) as any[][];
           
-          if (json.length > 0) {
-            headers = json[0] as string[];
-            for(let i=1; i<json.length; i++) {
-              let obj: any = {};
-              headers.forEach((h, idx) => {
-                obj[h] = json[i][idx];
-              });
+          let targetSheet: XLSX.WorkSheet | null = null;
+          let bestHeaders: string[] = [];
+          
+          // Look for the first sheet that has an "Institution Name" column or any match
+          for (const sName of workbook.SheetNames) {
+            const currentSheet = workbook.Sheets[sName];
+            const json = XLSX.utils.sheet_to_json(currentSheet, { header: 1 }) as any[][];
+            if (json.length > 1) {
+              const currentHeaders = (json[0] as any[]).map(h => String(h || '').trim());
+              const matchCount = REQUIRED_FIELDS.filter(rf => 
+                currentHeaders.some(h => h.toLowerCase() === rf.label.toLowerCase())
+              ).length;
+              
+              if (matchCount > 0) {
+                targetSheet = currentSheet;
+                bestHeaders = currentHeaders;
+                break;
+              }
+            }
+          }
+          
+          // Fallback to the first sheet if no mapping found
+          if (!targetSheet) {
+            targetSheet = workbook.Sheets[workbook.SheetNames[0]];
+            const json = XLSX.utils.sheet_to_json(targetSheet, { header: 1 }) as any[][];
+            bestHeaders = (json[0] as any[]).map(h => String(h || '').trim());
+          }
+          
+          const json = XLSX.utils.sheet_to_json(targetSheet, { header: 1 }) as any[][];
+          headers = bestHeaders;
+          for(let i=1; i<json.length; i++) {
+            let obj: any = {};
+            headers.forEach((h, idx) => {
+              if (h) obj[h] = json[i][idx];
+            });
+            if (Object.values(obj).some(v => v !== undefined && v !== '')) {
               rows.push(obj);
             }
           }
+          
           processParsedData(headers, rows);
         }
       } catch (err) {
