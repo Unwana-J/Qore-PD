@@ -82,8 +82,7 @@ function AppContent() {
         const [serverConfig, serverUsers, serverInvites] = await Promise.all([
           api.config.get(),
           api.users.getAll(),
-          api.invites.getAll(),
-          api.projects.seed() 
+          api.invites.getAll()
         ]);
         console.log("[Diagnostics] Received initial server results.");
         setConfig(serverConfig);
