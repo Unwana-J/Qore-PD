@@ -124,8 +124,8 @@ export const BulkImportView: React.FC<BulkImportViewProps> = ({ users, invites, 
         let d: Date;
         
         // Handle native JS Date objects if Excel provided them
-        if (row.startDate instanceof Date) {
-          d = row.startDate;
+        if ((row.startDate as any) instanceof Date) {
+          d = row.startDate as any;
         } else if (sDateRaw.includes('/')) {
           // Check for dd/mm/yyyy format
           const parts = sDateRaw.split('/');
