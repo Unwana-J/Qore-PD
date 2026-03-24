@@ -117,24 +117,33 @@ export const api = {
     },
     // Admin tool to seed the database initially
     seed: async () => {
-      const { count } = await supabase.from('projects').select('*', { count: 'exact', head: true });
-      if (count === 0) {
-         await supabase.from('projects').insert(MOCK_PROJECTS.map(mapProjectToDb));
-         await supabase.from('audit_logs').insert(MOCK_AUDIT_LOGS.map(l => ({
-           action: l.action,
-           user: l.user,
-           details: l.details,
-           timestamp: l.timestamp,
-           category: l.category
-         })));
-         await supabase.from('app_config').insert({ id: 1, config: INITIAL_CONFIG });
-         await supabase.from('users').insert(MOCK_USERS.map(u => ({
-           name: u.name,
-           email: u.email,
-           role: u.role,
-           status: u.status,
-           avatar: u.avatar
-         })));
+      try {
+        const { count, error } = await supabase.from('projects').select('*', { count: 'exact', head: true });
+        if (error || count !== 0) return;
+
+        // Only seed projects if empty
+        await supabase.from('projects').insert(MOCK_PROJECTS.map(mapProjectToDb));
+        
+        // Optional seeds for other tables - we wrap these to prevent hard failures on permission issues
+        try {
+          await supabase.from('audit_logs').insert(MOCK_AUDIT_LOGS.map(l => ({
+            action: l.action,
+            user: l.user,
+            details: l.details,
+            timestamp: l.timestamp,
+            category: l.category
+          })));
+        } catch (e) {
+          console.warn("[API] Failed to seed audit_logs - probably permissions or missing table.");
+        }
+
+        try {
+          await supabase.from('app_config').insert({ id: 1, config: INITIAL_CONFIG });
+        } catch (e) {
+          console.warn("[API] Failed to seed app_config - probably duplicate or permissions.");
+        }
+      } catch (err) {
+        console.warn("[API] Seed process encountered an error, but app will continue.");
       }
     }
   },
