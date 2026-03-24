@@ -217,6 +217,7 @@ export const BulkImportView: React.FC<BulkImportViewProps> = ({ users, projects,
           processParsedData(headers, rows);
         }
       } catch (err) {
+        console.error("[Excel Parse Error]", err);
         onShowToast('Failed to parse file. It might be corrupted.', 'error');
         setIsParsing(false);
       }
