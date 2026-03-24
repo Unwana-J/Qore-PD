@@ -49,7 +49,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     };
 
-    fetchSession();
+    // Circuit breaker for production auth hangs (3s limit)
+    const authTimeout = setTimeout(() => {
+      console.warn('[Safety] Auth check timed out. Force-releasing loading state.');
+      setLoading(false);
+    }, 3000);
+
+    fetchSession().finally(() => clearTimeout(authTimeout));
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (event === 'SIGNED_OUT') {
