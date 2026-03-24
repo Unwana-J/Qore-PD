@@ -204,8 +204,10 @@ export const api = {
     },
     send: async (email: string, role: string, name?: string) => {
       const normalizedEmail = email.trim().toLowerCase();
+      console.log("[Invites] Starting invite process for:", normalizedEmail);
 
       // Prevent inviting existing users.
+      console.log("[Invites] Checking for existing profile...");
       const { data: existingProfile } = await supabase
         .from('profiles')
         .select('id')
@@ -213,10 +215,12 @@ export const api = {
         .maybeSingle();
       
       if (existingProfile) {
+        console.warn("[Invites] Profile already exists for:", normalizedEmail);
         throw new Error('A user with this email already exists.');
       }
 
       // Record the invite in the database first.
+      console.log("[Invites] Inserting record into 'invites' table...");
       const { data: invite, error: inviteError } = await supabase
         .from('invites')
         .insert({ 
@@ -228,11 +232,15 @@ export const api = {
         .select()
         .single();
 
-      if (inviteError) throw inviteError;
+      if (inviteError) {
+        console.error("[Invites] Insert failed:", inviteError);
+        throw inviteError;
+      }
+
+      console.log("[Invites] Successfully recorded invite in DB:", invite.id);
 
       // Email functionality via Edge Function is currently disabled to prevent UI hangs.
-      // Invitations are correctly recorded in the database, enabling signup.
-      console.log("[Invites] Invite recorded successfully for:", normalizedEmail);
+      console.log("[Invites] Invite process complete.");
 
       return invite;
     },
