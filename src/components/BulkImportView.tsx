@@ -65,34 +65,40 @@ export const BulkImportView: React.FC<BulkImportViewProps> = ({ users, projects,
   const validPackages = config.packages.map((p: any) => p.name);
   const validPMs = users.filter((u: any) => u.role === 'PM' && u.status === 'Active').map((u: any) => u.name);
   
+  // Helper to safely trim values that might not be strings
+  const safeTrim = (val: any) => String(val ?? '').trim();
+
   // Validation function for a single row
   const validateRow = (row: ImportRow, rowIndex: number, allRows: ImportRow[]): ImportRow => {
     const errors: string[] = [];
     let status: ImportRowStatus = 'clean';
 
     // Required checks
-    if (!row.clientName?.trim()) errors.push('Institution Name is blank');
+    if (!safeTrim(row.clientName)) errors.push('Institution Name is blank');
     
     // Config validation
-    if (row.packageName && !validPackages.includes(row.packageName.trim())) {
-      errors.push(`Package '${row.packageName}' not found in configuration`);
-    } else if (!row.packageName?.trim()) {
+    const pName = safeTrim(row.packageName);
+    if (pName && !validPackages.includes(pName)) {
+      errors.push(`Package '${pName}' not found in configuration`);
+    } else if (!pName) {
       errors.push('Package is blank');
     }
 
-    if (row.assignedPM && !validPMs.includes(row.assignedPM.trim())) {
-      errors.push(`PM '${row.assignedPM}' not found in system users`);
-    } else if (!row.assignedPM?.trim()) {
+    const apm = safeTrim(row.assignedPM);
+    if (apm && !validPMs.includes(apm)) {
+      errors.push(`PM '${apm}' not found in system users`);
+    } else if (!apm) {
       errors.push('Project Manager is blank');
     }
 
     // Date validation
     let normalizedStartDate = row.startDate;
-    if (!row.startDate?.trim()) {
+    const sDate = safeTrim(row.startDate);
+    if (!sDate) {
       errors.push('Start Date is missing');
     } else {
       try {
-        const d = new Date(row.startDate);
+        const d = new Date(sDate);
         if (isNaN(d.getTime())) {
           errors.push('Start Date is invalid');
         } else {
@@ -114,13 +120,13 @@ export const BulkImportView: React.FC<BulkImportViewProps> = ({ users, projects,
       }
     }
 
-    if (!row.currency?.trim()) errors.push('Currency is missing');
+    if (!safeTrim(row.currency)) errors.push('Currency is missing');
     
     // Duplicate calculation
-    const currentName = row.clientName?.trim().toLowerCase();
+    const currentName = safeTrim(row.clientName).toLowerCase();
     
     const isDuplicateInDb = projects.some(p => p.clientName.toLowerCase() === currentName);
-    const duplicatesInFile = allRows.filter((r, idx) => idx !== rowIndex && r.clientName?.trim().toLowerCase() === currentName);
+    const duplicatesInFile = allRows.filter((r, idx) => idx !== rowIndex && safeTrim(r.clientName).toLowerCase() === currentName);
 
     if (errors.length > 0) {
       status = 'error';
@@ -283,7 +289,7 @@ export const BulkImportView: React.FC<BulkImportViewProps> = ({ users, projects,
           // Treat unmapped known module names as modules
           const val = row[header];
           if (val) {
-             const mStatus = val.toString().trim();
+             const mStatus = safeTrim(val);
              if (moduleStatusOptions.includes(mStatus)) {
                stateObj[header] = mStatus;
              }
