@@ -230,14 +230,9 @@ export const api = {
 
       if (inviteError) throw inviteError;
 
-      // Attempt to send email via Edge Function, but don't block if it fails.
-      try {
-        await supabase.functions.invoke('invite-user', {
-          body: { email: normalizedEmail, role, name }
-        });
-      } catch (e) {
-        console.warn("[API] Edge Function for email failed, but invite was recorded in DB:", e);
-      }
+      // Email functionality via Edge Function is currently disabled to prevent UI hangs.
+      // Invitations are correctly recorded in the database, enabling signup.
+      console.log("[Invites] Invite recorded successfully for:", normalizedEmail);
 
       return invite;
     },
