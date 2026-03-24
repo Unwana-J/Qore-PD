@@ -20,14 +20,17 @@ CREATE TABLE IF NOT EXISTS public.invites (
 -- 3. RLS for Profiles
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Profiles can be viewed by anyone in the same organisation" ON public.profiles;
 CREATE POLICY "Profiles can be viewed by anyone in the same organisation"
 ON public.profiles FOR SELECT
-USING (true); -- Simplified for now, adjust based on organisation logic later
+USING (true);
 
+DROP POLICY IF EXISTS "Users can update their own profile" ON public.profiles;
 CREATE POLICY "Users can update their own profile"
 ON public.profiles FOR UPDATE
 USING (auth.uid() = id);
 
+DROP POLICY IF EXISTS "Superadmins can update any profile" ON public.profiles;
 CREATE POLICY "Superadmins can update any profile"
 ON public.profiles FOR UPDATE
 USING (
@@ -48,6 +51,8 @@ CREATE TABLE IF NOT EXISTS public.audit_logs (
 );
 
 ALTER TABLE public.audit_logs ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Audit logs can be viewed by Executives and Superadmins" ON public.audit_logs;
 CREATE POLICY "Audit logs can be viewed by Executives and Superadmins"
 ON public.audit_logs FOR SELECT
 USING (
@@ -65,10 +70,13 @@ CREATE TABLE IF NOT EXISTS public.app_config (
 );
 
 ALTER TABLE public.app_config ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "App config can be viewed by anyone" ON public.app_config;
 CREATE POLICY "App config can be viewed by anyone"
 ON public.app_config FOR SELECT
 USING (true);
 
+DROP POLICY IF EXISTS "App config can be updated by Managers and Superadmins" ON public.app_config;
 CREATE POLICY "App config can be updated by Managers and Superadmins"
 ON public.app_config FOR UPDATE
 USING (
@@ -78,6 +86,7 @@ USING (
     )
 );
 
+DROP POLICY IF EXISTS "App config can be inserted by Managers and Superadmins" ON public.app_config;
 CREATE POLICY "App config can be inserted by Managers and Superadmins"
 ON public.app_config FOR INSERT
 WITH CHECK (
@@ -87,9 +96,10 @@ WITH CHECK (
     )
 );
 
--- 6. RLS for Invites (already defined above, ensure it has INSERT/DELETE)
--- ... [rest of handle_new_user and trigger]
+-- 6. RLS for Invites
+ALTER TABLE public.invites ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Invites can be viewed by Managers, Team Leads and Superadmins" ON public.invites;
 CREATE POLICY "Invites can be viewed by Managers, Team Leads and Superadmins"
 ON public.invites FOR SELECT
 USING (
@@ -100,6 +110,7 @@ USING (
     OR email = (SELECT email FROM auth.users WHERE id = auth.uid())
 );
 
+DROP POLICY IF EXISTS "Invites can be sent by Managers, Team Leads and Superadmins" ON public.invites;
 CREATE POLICY "Invites can be sent by Managers, Team Leads and Superadmins"
 ON public.invites FOR INSERT
 WITH CHECK (
@@ -109,6 +120,7 @@ WITH CHECK (
     )
 );
 
+DROP POLICY IF EXISTS "Invites can be deleted by Managers, Team Leads and Superadmins" ON public.invites;
 CREATE POLICY "Invites can be deleted by Managers, Team Leads and Superadmins"
 ON public.invites FOR DELETE
 USING (
@@ -118,7 +130,7 @@ USING (
     )
 );
 
--- 5. Trigger for automated profile creation on signup
+-- 7. Trigger for automated profile creation on signup
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS trigger AS $$
 DECLARE
