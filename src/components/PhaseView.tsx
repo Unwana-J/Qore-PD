@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Project, Phase, Comment, Risk, Role, RebaselineRequest, ServiceState } from '../types';
 import { StateBadge } from './ProjectList';
-import { formatCurrency, cn, calculatePhaseScores, getActiveDaysCount, getValidTransitions, isRole, hasRole } from '../lib/utils';
+import { formatCurrency, cn, calculatePhaseScores, getActiveDaysCount, getValidTransitions, isRole, hasRole, getAutoProjectState } from '../lib/utils';
 import { 
   Calendar, 
   User, 
@@ -348,7 +348,7 @@ export const PhaseView: React.FC<PhaseViewProps> = ({
               )}
             </div>
             <div className="flex items-center gap-3 mt-1">
-              <StateBadge state={project.state} />
+              <StateBadge state={getAutoProjectState(project, spiThresholds)} />
               <span className="text-sm text-slate-500 font-medium">{project.isInternalInitiative ? "Internal Initiative" : project.packageName}</span>
               {canReassign && (
                 <button 

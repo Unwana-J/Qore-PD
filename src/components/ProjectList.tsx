@@ -5,7 +5,7 @@ import { motion } from 'motion/react';
 import { PROJECT_STATES } from '../constants';
 import { PROJECT_STATE_COLORS, PRIORITY_COLORS, getThemeClasses } from '../lib/theme';
 import { differenceInDays, parseISO, subDays, format } from 'date-fns';
-import { getActiveDaysCount, calculateSPI } from '../lib/utils';
+import { getActiveDaysCount, calculateSPI, getAutoProjectState } from '../lib/utils';
 import { AlertCircle, AlertTriangle, DollarSign, Search, Filter, MoreHorizontal, Calendar, User, ChevronRight, TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import { Role } from '../types';
 
@@ -146,7 +146,7 @@ export const ProjectList: React.FC<ProjectListProps> = ({ projects, onSelectProj
                     <div className="flex items-center gap-2 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-100">
                       <span className="text-[11px] font-black text-slate-500 uppercase tracking-widest">{getActiveDaysCount(project).text}</span>
                       <span className="text-slate-300">|</span>
-                      <StateBadge state={project.state} />
+                      <StateBadge state={getAutoProjectState(project, spiThresholds)} />
                       
                       {(() => {
                         const spiNow = calculateSPI(project, spiThresholds);

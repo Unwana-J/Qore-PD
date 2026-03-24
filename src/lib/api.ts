@@ -121,8 +121,8 @@ export const api = {
         const { count, error } = await supabase.from('projects').select('*', { count: 'exact', head: true });
         if (error || count !== 0) return;
 
-        // Only seed projects if empty
-        await supabase.from('projects').insert(MOCK_PROJECTS.map(mapProjectToDb));
+        // Seeds disabled to prevent mixing dummy data with real institutional data
+        // await supabase.from('projects').insert(MOCK_PROJECTS.map(mapProjectToDb));
         
         // Optional seeds for other tables - we wrap these to prevent hard failures on permission issues
         try {
