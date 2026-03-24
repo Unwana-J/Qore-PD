@@ -625,10 +625,10 @@ export const BulkImportView: React.FC<BulkImportViewProps> = ({ users, invites, 
                   {processedRows.length === 0 ? (
                      <div className="py-20 text-center text-slate-500">No rows to preview</div>
                   ) : (
-                    processedRows.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage).map((row) => {
-                      const idx = row.index;
+                    processedRows.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage).map((row, i) => {
+                      const actualIdx = (currentPage - 1) * rowsPerPage + i;
                       return (
-                      <div key={idx} className={cn(
+                      <div key={row.index} className={cn(
                         "bg-white border text-sm rounded-xl p-4 shadow-sm flex items-start gap-4 transition-colors relative overflow-hidden group",
                         row.status === 'clean' ? "border-emerald-200 border-l-4 border-l-emerald-500" :
                         row.status === 'error' ? "border-red-200 border-l-4 border-l-red-500" :
@@ -641,7 +641,7 @@ export const BulkImportView: React.FC<BulkImportViewProps> = ({ users, invites, 
                             <span className="block text-[10px] uppercase font-bold text-slate-400 mb-1">Institution</span>
                             <input 
                                value={row.clientName || ''} 
-                               onChange={(e) => updateRowField(idx, 'clientName', e.target.value)}
+                               onChange={(e) => updateRowField(actualIdx, 'clientName', e.target.value)}
                                className={cn("w-full bg-transparent font-semibold border-b border-transparent hover:border-slate-300 focus:border-teal-500 outline-none transition-colors", 
                                 !row.clientName?.trim() ? 'bg-red-50 text-red-600' : 'text-slate-900')}
                             />
@@ -652,7 +652,7 @@ export const BulkImportView: React.FC<BulkImportViewProps> = ({ users, invites, 
                             <span className="block text-[10px] uppercase font-bold text-slate-400 mb-1">Package & Services</span>
                             <select 
                                value={row.packageName || ''} 
-                               onChange={(e) => updateRowField(idx, 'packageName', e.target.value)}
+                               onChange={(e) => updateRowField(actualIdx, 'packageName', e.target.value)}
                                className={cn("w-full bg-transparent font-medium border-b border-transparent hover:border-slate-300 focus:border-teal-500 outline-none transition-colors mb-2", 
                                  (!row.packageName || !validPackages.includes(row.packageName)) ? 'bg-red-50 text-red-600' : 'text-slate-700')}
                             >
@@ -675,7 +675,7 @@ export const BulkImportView: React.FC<BulkImportViewProps> = ({ users, invites, 
                                          key={s}
                                          onClick={() => {
                                            const newSet = isActive ? activeServices.filter(x => x !== s) : [...activeServices, s];
-                                           updateRowField(idx, 'services', newSet);
+                                           updateRowField(actualIdx, 'services', newSet);
                                          }}
                                          className={cn(
                                            "text-[9px] font-bold px-1.5 py-0.5 rounded transition-all",
@@ -697,7 +697,7 @@ export const BulkImportView: React.FC<BulkImportViewProps> = ({ users, invites, 
                             <span className="block text-[10px] uppercase font-bold text-slate-400 mb-1">PM</span>
                             <select 
                                value={row.assignedPM || ''} 
-                               onChange={(e) => updateRowField(idx, 'assignedPM', e.target.value)}
+                               onChange={(e) => updateRowField(actualIdx, 'assignedPM', e.target.value)}
                                className={cn("w-full bg-transparent font-medium border-b border-transparent hover:border-slate-300 focus:border-teal-500 outline-none transition-colors", 
                                  (!row.assignedPM || !validPMs.includes(row.assignedPM)) ? 'bg-red-50 text-red-600' : 'text-slate-700')}
                             >
@@ -712,13 +712,13 @@ export const BulkImportView: React.FC<BulkImportViewProps> = ({ users, invites, 
                             <div className="flex gap-2">
                                <input 
                                  value={row.currency || ''} 
-                                 onChange={(e) => updateRowField(idx, 'currency', e.target.value)}
+                                 onChange={(e) => updateRowField(actualIdx, 'currency', e.target.value)}
                                  className={cn("w-12 bg-transparent font-mono font-bold text-xs border-b border-transparent hover:border-slate-300 outline-none", !row.currency ? 'bg-red-50' : 'text-slate-500')}
                                  placeholder="CUR"
                                />
                                <input 
                                  value={row.value || ''} 
-                                 onChange={(e) => updateRowField(idx, 'value', e.target.value)}
+                                 onChange={(e) => updateRowField(actualIdx, 'value', e.target.value)}
                                  className={cn("w-full bg-transparent font-mono font-bold border-b border-transparent hover:border-slate-300 focus:border-teal-500 outline-none transition-colors", 
                                    (row.value === undefined || row.value === '') ? 'bg-red-50 text-red-600' : 'text-slate-900')}
                                />
@@ -731,7 +731,7 @@ export const BulkImportView: React.FC<BulkImportViewProps> = ({ users, invites, 
                             <input 
                                type="date"
                                value={row.startDate || ''} 
-                               onChange={(e) => updateRowField(idx, 'startDate', e.target.value)}
+                               onChange={(e) => updateRowField(actualIdx, 'startDate', e.target.value)}
                                className={cn("w-full bg-transparent font-medium border-b border-transparent hover:border-slate-300 focus:border-teal-500 outline-none transition-colors", 
                                 !row.startDate ? 'bg-red-50 text-red-600' : 'text-slate-700')}
                             />
@@ -744,8 +744,8 @@ export const BulkImportView: React.FC<BulkImportViewProps> = ({ users, invites, 
                               <div className="flex flex-col gap-1 w-full">
                                 <span className="text-[10px] font-bold text-amber-600 uppercase w-full bg-amber-50 px-2 py-1 rounded-md mb-1 text-center border border-amber-200">Duplicate</span>
                                 <div className="flex gap-1 w-full">
-                                  <button onClick={() => handleDuplicateAction(idx, 'overwrite')} className="flex-1 text-[10px] font-bold py-1.5 bg-white text-slate-700 hover:bg-slate-100 border border-slate-300 rounded shadow-sm">Overrite</button>
-                                  <button onClick={() => handleDuplicateAction(idx, 'skip')} className="flex-1 text-[10px] font-bold py-1.5 bg-white text-slate-700 hover:bg-slate-100 border border-slate-300 rounded shadow-sm">Skip</button>
+                                  <button onClick={() => handleDuplicateAction(actualIdx, 'overwrite')} className="flex-1 text-[10px] font-bold py-1.5 bg-white text-slate-700 hover:bg-slate-100 border border-slate-300 rounded shadow-sm">Overrite</button>
+                                  <button onClick={() => handleDuplicateAction(actualIdx, 'skip')} className="flex-1 text-[10px] font-bold py-1.5 bg-white text-slate-700 hover:bg-slate-100 border border-slate-300 rounded shadow-sm">Skip</button>
                                 </div>
                               </div>
                            )}
@@ -753,7 +753,7 @@ export const BulkImportView: React.FC<BulkImportViewProps> = ({ users, invites, 
                            {row.status === 'duplicate' && row.duplicateAction && (
                               <div className="flex items-center gap-2">
                                 <span className="text-xs font-bold text-slate-500 px-2 py-1 bg-slate-100 rounded-md">Action: {row.duplicateAction}</span>
-                                <button onClick={() => updateRowField(idx, 'duplicateAction', undefined)} className="text-slate-400 hover:text-slate-700">
+                                <button onClick={() => updateRowField(actualIdx, 'duplicateAction', undefined)} className="text-slate-400 hover:text-slate-700">
                                    <X className="w-4 h-4"/>
                                 </button>
                               </div>
@@ -768,7 +768,7 @@ export const BulkImportView: React.FC<BulkImportViewProps> = ({ users, invites, 
                               </div>
                            )}
 
-                           <button onClick={() => deleteRow(idx)} className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors mt-auto">
+                           <button onClick={() => deleteRow(actualIdx)} className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors mt-auto">
                               <Archive className="w-4 h-4" />
                            </button>
                         </div>

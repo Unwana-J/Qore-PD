@@ -5,14 +5,8 @@ export const safety = {
     try {
       const storedVersion = localStorage.getItem('app_storage_version');
       if (storedVersion !== APP_STORAGE_VERSION) {
-        console.warn(`[Safety] Version mismatch (Stored: ${storedVersion}, App: ${APP_STORAGE_VERSION}). Clearing storage.`);
-        localStorage.clear();
-        sessionStorage.clear();
+        console.warn(`[Safety] Version mismatch (Stored: ${storedVersion}, App: ${APP_STORAGE_VERSION}). Skipping auto-clear.`);
         localStorage.setItem('app_storage_version', APP_STORAGE_VERSION);
-        // Force reload to ensure fresh state
-        if (storedVersion) {
-            window.location.reload();
-        }
       }
     } catch (err) {
       console.error('[Safety] Cache version check failed:', err);
