@@ -104,47 +104,45 @@ export const api = {
       return mapProjectFromDb(data);
     },
     createBulk: async (projectsToAdd: Partial<Project>[], projectsToUpdate: Partial<Project>[]): Promise<void> => {
+      // 1. Process Updates
       if (projectsToUpdate.length > 0) {
         for (const p of projectsToUpdate) {
+          // Use client_name and package_name as a unique identifier for institutional data
           await supabase.from('projects')
             .update(mapProjectToDb(p))
-            .ilike('client_name', p.clientName || '');
+            .ilike('client_name', p.clientName || '')
+            .ilike('package_name', p.packageName || '');
         }
       }
+
+      // 2. Process Additions with simple deduplication check
       if (projectsToAdd.length > 0) {
-        await supabase.from('projects').insert(projectsToAdd.map(mapProjectToDb));
+        for (const p of projectsToAdd) {
+          // Check if this project already exists to prevent accidental double-imports
+          const { data: existing } = await supabase
+            .from('projects')
+            .select('id')
+            .ilike('client_name', p.clientName || '')
+            .ilike('package_name', p.packageName || '')
+            .maybeSingle();
+
+          if (!existing) {
+            await supabase.from('projects').insert(mapProjectToDb(p));
+          } else {
+            // Optionally update instead of skipping
+            await supabase.from('projects')
+              .update(mapProjectToDb(p))
+              .eq('id', existing.id);
+          }
+        }
       }
     },
     // Admin tool to seed the database initially
     seed: async () => {
-      try {
-        const { count, error } = await supabase.from('projects').select('*', { count: 'exact', head: true });
-        if (error || count !== 0) return;
-
-        // Seeds disabled to prevent mixing dummy data with real institutional data
-        // await supabase.from('projects').insert(MOCK_PROJECTS.map(mapProjectToDb));
-        
-        // Optional seeds for other tables - we wrap these to prevent hard failures on permission issues
-        try {
-          await supabase.from('audit_logs').insert(MOCK_AUDIT_LOGS.map(l => ({
-            action: l.action,
-            user: l.user,
-            details: l.details,
-            timestamp: l.timestamp,
-            category: l.category
-          })));
-        } catch (e) {
-          console.warn("[API] Failed to seed audit_logs - probably permissions or missing table.");
-        }
-
-        try {
-          await supabase.from('app_config').insert({ id: 1, config: INITIAL_CONFIG });
-        } catch (e) {
-          console.warn("[API] Failed to seed app_config - probably duplicate or permissions.");
-        }
-      } catch (err) {
-        console.warn("[API] Seed process encountered an error, but app will continue.");
-      }
+      // Seeding is permanently disabled to ensure 100% clean production environment.
+      // All institutional data must be imported via CSV/Excel or created manually.
+      console.log("[API] Seeding skipped (Disabled for Production).");
+      return;
     }
   },
   users: {
