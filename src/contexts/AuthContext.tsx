@@ -100,9 +100,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const signOut = async () => {
-    await supabase.auth.signOut();
-    setUser(null);
-    setProfile(null);
+    try {
+      await supabase.auth.signOut();
+    } catch (e) {
+      console.error('Logout error:', e);
+    } finally {
+      setUser(null);
+      setProfile(null);
+      import('../lib/safety').then(({ safety }) => safety.clearAllDataAndLogout());
+    }
   };
 
   return (

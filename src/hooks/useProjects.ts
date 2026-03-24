@@ -88,19 +88,11 @@ export function useProjects(userRole: Role, config: AppConfig, userName: string 
       }
     }
 
-    // Safety timeout — force loading to false if fetch hangs
-    const timeout = setTimeout(() => {
-      if (loading && isMounted) {
-        console.warn("[Diagnostics] Projects sync timeout reached — forcing loading to false.");
-        setLoading(false);
-      }
-    }, 8000);
-
+    // Removed aggressive sync timeout that forced loading to false
     fetchProjects();
     
     return () => {
       isMounted = false;
-      clearTimeout(timeout);
     };
   }, [config.spiThresholds.atRisk, config.spiThresholds.onTrack]);
 
