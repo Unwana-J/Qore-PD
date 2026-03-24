@@ -197,33 +197,40 @@ export const api = {
       const normalizedEmail = email.trim().toLowerCase();
 
       // Prevent inviting existing users.
-      const { data: existingProfile, error: profileError } = await supabase
+      const { data: existingProfile } = await supabase
         .from('profiles')
         .select('id')
         .eq('email', normalizedEmail)
         .maybeSingle();
-      if (profileError && profileError.code !== 'PGRST116') {
-        throw new Error(profileError.message || 'Failed checking existing users.');
-      }
+      
       if (existingProfile) {
         throw new Error('A user with this email already exists.');
       }
 
-      // Send invite email via secure Edge Function (uses service role server-side).
-      const { data, error } = await supabase.functions.invoke('invite-user', {
-        body: {
-          email: normalizedEmail,
-          role,
-          name
-        }
-      });
-      if (error) {
-        throw new Error(error.message || 'Failed to send invite.');
+      // Record the invite in the database first.
+      const { data: invite, error: inviteError } = await supabase
+        .from('invites')
+        .insert({ 
+          email: normalizedEmail, 
+          role, 
+          name, 
+          status: 'Pending' 
+        })
+        .select()
+        .single();
+
+      if (inviteError) throw inviteError;
+
+      // Attempt to send email via Edge Function, but don't block if it fails.
+      try {
+        await supabase.functions.invoke('invite-user', {
+          body: { email: normalizedEmail, role, name }
+        });
+      } catch (e) {
+        console.warn("[API] Edge Function for email failed, but invite was recorded in DB:", e);
       }
-      if (!data?.invite) {
-        throw new Error('Invite created but no response payload returned.');
-      }
-      return data.invite;
+
+      return invite;
     },
     delete: async (id: string) => {
       const { error } = await supabase.from('invites').delete().eq('id', id);
