@@ -79,10 +79,12 @@ function AppContent() {
     const init = async () => {
       console.log("[Diagnostics] Initializing app data...");
       try {
-        const [serverConfig, serverUsers, serverInvites] = await Promise.all([
-          api.config.get(),
-          api.users.getAll(),
-          api.invites.getAll()
+        console.log("[Diagnostics] Fetching config...");
+        const serverConfig = await api.config.get();
+        console.log("[Diagnostics] Config success. Fetching users/invites...");
+        const [serverUsers, serverInvites] = await Promise.all([
+          api.users.getAll().catch(e => { console.warn("User fetch slow/failed", e); return []; }),
+          api.invites.getAll().catch(e => { console.warn("Invite fetch slow/failed", e); return []; })
         ]);
         console.log("[Diagnostics] Received initial server results.");
         setConfig(serverConfig);
