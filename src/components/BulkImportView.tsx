@@ -63,7 +63,8 @@ export const BulkImportView: React.FC<BulkImportViewProps> = ({ users, projects,
   
   // Ref to valid packages and PMs
   const validPackages = config.packages.map((p: any) => p.name);
-  const validPMs = users.filter((u: any) => u.role === 'PM' && u.status === 'Active').map((u: any) => u.name);
+  // Allow Active and Pending (invited) PMs
+  const validPMs = users.filter((u: any) => u.role === 'PM').map((u: any) => u.name);
   
   // Helper to safely trim values that might not be strings
   const safeTrim = (val: any) => String(val ?? '').trim();
@@ -76,29 +77,58 @@ export const BulkImportView: React.FC<BulkImportViewProps> = ({ users, projects,
     // Required checks
     if (!safeTrim(row.clientName)) errors.push('Institution Name is blank');
     
-    // Config validation
+    // Config validation with fuzzy matching
     const pName = safeTrim(row.packageName);
-    if (pName && !validPackages.includes(pName)) {
-      errors.push(`Package '${pName}' not found in configuration`);
-    } else if (!pName) {
+    if (!pName) {
       errors.push('Package is blank');
+    } else {
+      const match = validPackages.find(p => p.toLowerCase() === pName.toLowerCase() || p.toLowerCase().includes(pName.toLowerCase()));
+      if (match) {
+        row.packageName = match;
+      } else {
+        errors.push(`Package '${pName}' not found in configuration`);
+      }
     }
 
     const apm = safeTrim(row.assignedPM);
-    if (apm && !validPMs.includes(apm)) {
-      errors.push(`PM '${apm}' not found in system users`);
-    } else if (!apm) {
+    if (!apm) {
       errors.push('Project Manager is blank');
+    } else {
+      // Fuzzy PM matching (first name or substring)
+      const match = validPMs.find(pm => {
+        const full = pm.toLowerCase();
+        const input = apm.toLowerCase();
+        return full === input || full.includes(input) || input.includes(full.split(' ')[0]);
+      });
+      
+      if (match) {
+        row.assignedPM = match;
+      } else {
+        errors.push(`PM '${apm}' not found in system users`);
+      }
     }
 
-    // Date validation
+    // Date validation - Support dd/mm/yyyy explicitly
     let normalizedStartDate = row.startDate;
-    const sDate = safeTrim(row.startDate);
-    if (!sDate) {
+    const sDateRaw = safeTrim(row.startDate);
+    if (!sDateRaw) {
       errors.push('Start Date is missing');
     } else {
       try {
-        const d = new Date(sDate);
+        let d: Date;
+        // Check for dd/mm/yyyy format
+        if (sDateRaw.includes('/')) {
+          const parts = sDateRaw.split('/');
+          if (parts.length === 3) {
+            // Assume dd/mm/yyyy
+            d = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
+          } else {
+            d = new Date(sDateRaw);
+          }
+        } else {
+          d = new Date(sDateRaw);
+        }
+
         if (isNaN(d.getTime())) {
           errors.push('Start Date is invalid');
         } else {
