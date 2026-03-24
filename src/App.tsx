@@ -130,17 +130,10 @@ function AppContent() {
     }
   };
 
-  if (authLoading || (user && projectsLoading)) {
+  if (authLoading) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 gap-6">
-        <div className="relative">
-          <div className="w-16 h-16 border-4 border-slate-200 rounded-2xl animate-[pulse_2s_infinite]"></div>
-          <div className="absolute inset-0 w-16 h-16 border-t-4 border-teal-600 rounded-2xl animate-spin"></div>
-        </div>
-        <div className="text-center">
-          <h2 className="text-lg font-extrabold text-slate-900 tracking-tight">Qore Tracker</h2>
-          <p className="text-[10px] text-slate-500 font-bold uppercase tracking-[0.2em] mt-1 pulse opacity-70">Synchronizing Data...</p>
-        </div>
+      <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50">
+        <div className="w-12 h-12 border-4 border-slate-100 border-t-teal-600 rounded-full animate-spin"></div>
       </div>
     );
   }
