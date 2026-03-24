@@ -151,10 +151,33 @@ export const api = {
         avatar: u.name?.substring(0, 2).toUpperCase() || 'U',
         lastLogin: u.updated_at
       }));
+    },
+    update: async (userId: string, updates: Partial<User>): Promise<void> => {
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          role: updates.role,
+          name: updates.name
+        })
+        .eq('id', userId);
+      if (error) throw error;
     }
   },
   invites: {
     getAll: async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Unauthorized");
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single();
+      
+      if (!profile || profile.role.toLowerCase() !== 'superadmin') {
+        return [];
+      }
+
       const { data, error } = await supabase
         .from('invites')
         .select('*')

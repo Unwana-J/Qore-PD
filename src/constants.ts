@@ -9,3 +9,6 @@ export const PROJECT_STATES: ProjectState[] = [
   'Closed',
 ];
 
+export const APP_STORAGE_VERSION = 'v1.0.1'; // Increment this if you change your storage schema
+
+

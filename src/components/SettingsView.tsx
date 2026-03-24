@@ -25,7 +25,7 @@ import {
 import { 
   Role, 
   User, 
-  AuditLog, 
+  AuditLog,
   AppConfig, 
   WeightHistory, 
   PackageConfig,
@@ -34,9 +34,10 @@ import {
   SettingsTab
 } from '../types';
 import { PROJECT_STATES } from '../constants';
-import { cn } from '../lib/utils';
-import { MOCK_USERS, MOCK_AUDIT_LOGS, MOCK_WEIGHT_HISTORY } from '../mockData';
+import { cn, isRole, hasRole } from '../lib/utils';
 import { getThemeClasses } from '../lib/theme';
+import { useAuth } from '../contexts/AuthContext';
+import { MOCK_USERS, MOCK_AUDIT_LOGS, MOCK_WEIGHT_HISTORY } from '../mockData';
 import { ConfirmationModal } from './common/ConfirmationModal';
 import { api } from '../lib/api';
 
@@ -69,6 +70,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   invites,
   setInvites
 }) => {
+  const { refreshProfile } = useAuth();
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>(MOCK_AUDIT_LOGS);
   const [weightHistory, setWeightHistory] = useState<WeightHistory[]>(MOCK_WEIGHT_HISTORY);
   const [packages, setPackages] = useState<PackageConfig[]>(config.packages);
@@ -78,18 +80,17 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   
   // Tab access control
   const canAccess = (tab: SettingsTab) => {
-    if (userRole === 'Superadmin') return true;
+    if (isRole(userRole, 'Superadmin')) return true;
     
-    // Package & Service is strictly for Superadmin and Manager
-    if (tab === 'packages') return userRole === 'Manager';
-
-    if (userRole === 'Manager' || userRole === 'Team Lead') {
-      return tab !== 'revenue' && tab !== 'brand'; 
-    }
-    if (tab === 'brand' && userRole === 'Superadmin') return true;
+    // Non-superadmin access rules
     if (tab === 'account') return true;
-    if (tab === 'audit' && (userRole === 'Executive' || userRole === 'Superadmin')) return true;
-    if (tab === 'revenue' && (userRole === 'Finance' || userRole === 'Superadmin')) return true;
+    if (tab === 'project' && hasRole(userRole, ['Manager', 'Team Lead'])) return true;
+    if (tab === 'packages' && isRole(userRole, 'Manager')) return true;
+    if (tab === 'brand' && isRole(userRole, 'Superadmin')) return true;
+    if (tab === 'audit' && hasRole(userRole, ['Executive', 'Superadmin'])) return true;
+    if (tab === 'revenue' && hasRole(userRole, ['Finance', 'Superadmin'])) return true;
+    if (tab === 'users' && isRole(userRole, 'Manager')) return true;
+
     return false;
   };
 
@@ -175,6 +176,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             config={config}
             showToast={showToast}
             setShowUserRemoveConfirm={setShowUserRemoveConfirm}
+            refreshProfile={refreshProfile}
           />
         }
         {activeTab === 'priority' && <PrioritySettings config={config} setConfig={onUpdateConfig} packages={packages} setPackages={setPackages} weightHistory={weightHistory} setWeightHistory={setWeightHistory} userRole={userRole} theme={theme} />}
@@ -205,14 +207,17 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 // --- Sub-components ---
 
 
-const UserManagement = ({ users, setUsers, invites, setInvites, projects, onUpdateProjects, currentUserRole, config, showToast, setShowUserRemoveConfirm }: any) => {
+const UserManagement = ({ users, setUsers, invites, setInvites, projects, onUpdateProjects, currentUserRole, config, showToast, setShowUserRemoveConfirm, refreshProfile }: any) => {
   const theme = getThemeClasses(config.brand.themeColor);
   const [isAdding, setIsAdding] = useState(false);
   const [newUser, setNewUser] = useState({ name: '', email: '', role: 'PM' as Role });
   const [filter, setFilter] = useState<'All' | 'Active' | 'Pending'>('All');
 
+  const [isSendingInvite, setIsSendingInvite] = useState(false);
   const handleInvite = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsSendingInvite(true);
+    
     try {
       const email = newUser.email.trim().toLowerCase();
       if (users.some((u: any) => (u.email || '').toLowerCase() === email)) {
@@ -230,7 +235,23 @@ const UserManagement = ({ users, setUsers, invites, setInvites, projects, onUpda
       setNewUser({ name: '', email: '', role: 'PM' });
       showToast(`Invitation sent to ${email}`, 'success');
     } catch (err: any) {
-      showToast(err.message || "Failed to send invite", "error");
+      showToast(err.message || "Permission Denied: Check Superadmin status", "error");
+    } finally {
+      setIsSendingInvite(false);
+    }
+  };
+
+  const handleRoleUpdate = async (userId: string, newRole: Role) => {
+    try {
+      await api.users.update(userId, { role: newRole });
+      setUsers(users.map((u: any) => u.id === userId ? { ...u, role: newRole } : u));
+      
+      // Force refresh of current profile in case the updated user is the current user
+      await refreshProfile();
+      
+      showToast(`User role updated to ${newRole}`, 'success');
+    } catch (err: any) {
+      showToast("Failed to update user role", "error");
     }
   };
 
@@ -300,7 +321,7 @@ const UserManagement = ({ users, setUsers, invites, setInvites, projects, onUpda
             >
               <option value="PM">Project Manager</option>
               <option value="Manager">Manager</option>
-              {currentUserRole === 'Superadmin' && <option value="Superadmin">Superadmin</option>}
+              {isRole(currentUserRole, 'Superadmin') && <option value="Superadmin">Superadmin</option>}
               <option value="Finance">Finance</option>
               <option value="Executive">Executive</option>
             </select>
@@ -309,8 +330,15 @@ const UserManagement = ({ users, setUsers, invites, setInvites, projects, onUpda
             New users will be automatically assigned their role and name when they sign up.
           </p>
           <div className="flex gap-3 justify-end">
-            <button type="button" onClick={() => setIsAdding(false)} className="px-6 py-2 text-slate-500 font-bold text-sm">Cancel</button>
-            <button type="submit" className={cn("px-6 py-2 text-white font-bold rounded-xl text-sm", theme.bg)}>Send Invite</button>
+            <button type="button" disabled={isSendingInvite} onClick={() => setIsAdding(false)} className="px-6 py-2 text-slate-500 font-bold text-sm">Cancel</button>
+            <button type="submit" disabled={isSendingInvite} className={cn("px-6 py-2 text-white font-bold rounded-xl text-sm flex items-center gap-2", theme.bg)}>
+              {isSendingInvite ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  Sending...
+                </>
+              ) : "Send Invite"}
+            </button>
           </div>
         </form>
       )}
@@ -335,7 +363,22 @@ const UserManagement = ({ users, setUsers, invites, setInvites, projects, onUpda
             </div>
             <div className="flex items-center gap-6">
               <div className="text-right">
-                <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest block">{item.role}</span>
+                {item.statusType === 'Active' && (isRole(currentUserRole, 'Superadmin') || (isRole(currentUserRole, 'Manager') && !isRole(item.role, 'Superadmin'))) ? (
+                  <select 
+                    className="text-[10px] font-black uppercase text-slate-400 tracking-widest bg-transparent outline-none cursor-pointer hover:text-slate-600"
+                    value={item.role}
+                    onChange={(e) => handleRoleUpdate(item.id, e.target.value as Role)}
+                  >
+                    <option value="PM">PM</option>
+                    <option value="Manager">Manager</option>
+                    <option value="Team Lead">Team Lead</option>
+                    <option value="Finance">Finance</option>
+                    <option value="Executive">Executive</option>
+                    <option value="Superadmin">Superadmin</option>
+                  </select>
+                ) : (
+                  <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest block">{item.role}</span>
+                )}
                 <span className={cn(
                   "text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full",
                   item.statusType === 'Active' ? "bg-emerald-100 text-emerald-600" : "bg-amber-100 text-amber-600"
@@ -357,7 +400,7 @@ const UserManagement = ({ users, setUsers, invites, setInvites, projects, onUpda
                     <LinkIcon className="w-4 h-4" />
                   </button>
                 )}
-                {(currentUserRole === 'Superadmin' || (currentUserRole === 'Manager' && item.role !== 'Superadmin')) && (
+                {(isRole(currentUserRole, 'Superadmin') || (isRole(currentUserRole, 'Manager') && !isRole(item.role, 'Superadmin'))) && (
                   <button onClick={() => setShowUserRemoveConfirm(item)} className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
                     <Trash2 className="w-4 h-4" />
                   </button>

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Project, Phase, Comment, Risk, Role, RebaselineRequest, ServiceState } from '../types';
 import { StateBadge } from './ProjectList';
-import { formatCurrency, cn, calculatePhaseScores, getActiveDaysCount, getValidTransitions } from '../lib/utils';
+import { formatCurrency, cn, calculatePhaseScores, getActiveDaysCount, getValidTransitions, isRole, hasRole } from '../lib/utils';
 import { 
   Calendar, 
   User, 
@@ -83,7 +83,7 @@ export const PhaseView: React.FC<PhaseViewProps> = ({
   const scores = calculatePhaseScores(project);
 
   const isOwner = project.assignedPM === 'Sarah Jenkins';
-  const canEdit = userRole === 'Superadmin' || userRole === 'Manager' || userRole === 'Team Lead' || (userRole === 'PM' && isOwner);
+  const canEdit = hasRole(userRole, ['Superadmin', 'Manager', 'Team Lead']) || (isRole(userRole, 'PM') && isOwner);
   const canEditPhase = canEdit; // Relaxed for testing ease, initially restricted to Superadmin/PM
 
   const handleStatusChange = (newState: string) => {
@@ -213,7 +213,7 @@ export const PhaseView: React.FC<PhaseViewProps> = ({
     }
 
     const comment = {
-      author: userRole === 'PM' ? project.assignedPM : 'Admin',
+      author: isRole(userRole, 'PM') ? project.assignedPM : 'Admin',
       text: text.trim(),
       timestamp: new Date().toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })
     };
@@ -272,7 +272,7 @@ export const PhaseView: React.FC<PhaseViewProps> = ({
 
     const comment: Comment = {
       id: Math.random().toString(36).substr(2, 9),
-      author: userRole === 'PM' ? 'Sarah Jenkins' : 'Admin User',
+      author: isRole(userRole, 'PM') ? 'Sarah Jenkins' : 'Admin User',
       text: commentText,
       timestamp: new Date().toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })
     };
@@ -321,12 +321,12 @@ export const PhaseView: React.FC<PhaseViewProps> = ({
     }
   };
 
-  const canChangeState = userRole === 'Superadmin' || userRole === 'Manager' || userRole === 'Team Lead' || (userRole === 'PM' && isOwner) || userRole === 'Finance';
-  const canEditValue = (userRole === 'Superadmin' || userRole === 'Manager' || userRole === 'Finance') && 
+  const canChangeState = hasRole(userRole, ['Superadmin', 'Manager', 'Team Lead', 'Finance']) || (isRole(userRole, 'PM') && isOwner);
+  const canEditValue = hasRole(userRole, ['Superadmin', 'Manager', 'Finance']) && 
                        (project.state === 'On-Track' || project.state === 'Delayed' || project.state === 'Suspended');
-  const canEditCurrency = userRole === 'Superadmin' || userRole === 'Manager';
-  const canReassign = ['Superadmin', 'Manager', 'Team Lead'].includes(userRole);
-  const canRequestRebaseline = userRole === 'PM' && isOwner;
+  const canEditCurrency = hasRole(userRole, ['Superadmin', 'Manager']);
+  const canReassign = hasRole(userRole, ['Superadmin', 'Manager', 'Team Lead']);
+  const canRequestRebaseline = isRole(userRole, 'PM') && isOwner;
 
   return (
     <div className="p-6 space-y-8 animate-in slide-in-from-right-4 duration-300">

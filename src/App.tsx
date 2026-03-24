@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { Loader2, AlertCircle } from 'lucide-react';
+import { cn, isRole, hasRole } from './lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
 import { Sidebar } from './components/layout/Sidebar';
 import { Header } from './components/layout/Header';
@@ -24,6 +26,8 @@ import { AuthView } from './components/AuthView';
 
 type View = 'dashboard' | 'projects' | 'risks' | 'settings' | 'rebaseline-requests';
 
+import { safety } from './lib/safety';
+
 function AppContent() {
   const { user, profile, loading: authLoading, signOut } = useAuth();
   const [currentView, setCurrentView] = useState<View>('dashboard');
@@ -37,7 +41,6 @@ function AppContent() {
   const [users, setUsers] = useState<any[]>([]);
   const [invites, setInvites] = useState<any[]>([]);
   const [projectToReassign, setProjectToReassign] = useState<Project | null>(null);
-
   const [toast, setToast] = useState<{ message: string, type: 'success' | 'error' | 'info' } | null>(null);
 
   const userRole = profile?.role || 'PM';
@@ -67,6 +70,17 @@ function AppContent() {
     dismissNotification,
     loading: projectsLoading
   } = useProjects(userRole, config, profile?.name || 'User');
+  useEffect(() => {
+    // 10 second sync timeout safety
+    const syncTimeout = setTimeout(() => {
+      if (authLoading || projectsLoading) {
+        console.error('[Safety] App synchronization timeout. Clearing storage and redirecting.');
+        safety.clearAllDataAndLogout();
+      }
+    }, 10000);
+
+    return () => clearTimeout(syncTimeout);
+  }, [authLoading, projectsLoading]);
 
   useEffect(() => {
     if (!user) return;
@@ -78,7 +92,8 @@ function AppContent() {
         const [serverConfig, serverUsers, serverInvites] = await Promise.all([
           api.config.get(),
           api.users.getAll(),
-          api.invites.getAll()
+          api.invites.getAll(),
+          api.projects.seed() 
         ]);
         console.log("[Diagnostics] Received initial server results.");
         setConfig(serverConfig);
@@ -86,16 +101,22 @@ function AppContent() {
         setInvites(serverInvites);
         
         // Trigger onboarding check
-        if ((userRole === 'Superadmin' || userRole === 'Manager') && !serverConfig.isSetupComplete) {
+        if (hasRole(userRole, ['Superadmin', 'Manager']) && !serverConfig.isSetupComplete) {
           console.log("[Diagnostics] Triggering onboarding wizard.");
           setShowOnboarding(true);
         }
-      } catch (err) {
+      } catch (err: any) {
         console.error('[Diagnostics] Initialization error:', err);
+        // Explicitly handle 401/403 or other sync errors
+        if (err?.status === 401 || err?.status === 403 || err?.code === 'PGRST301') {
+          console.error('[Safety] Auth error detected during sync. Logging out.');
+          safety.clearAllDataAndLogout();
+        }
       }
     };
     init();
   }, [userRole, user]);
+
 
   const addProject = async (p: Partial<Project>, force?: boolean) => {
     try {

@@ -8,6 +8,23 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 /**
+ * Case-insensitive role check
+ */
+export function isRole(userRole: string | undefined, targetRole: string): boolean {
+  if (!userRole) return false;
+  return userRole.toLowerCase() === targetRole.toLowerCase();
+}
+
+/**
+ * Checks if userRole is one of the allowed roles (case-insensitive)
+ */
+export function hasRole(userRole: string | undefined, allowedRoles: string[]): boolean {
+  if (!userRole) return false;
+  const roles = allowedRoles.map(r => r.toLowerCase());
+  return roles.includes(userRole.toLowerCase());
+}
+
+/**
  * Derives the auto-managed state for a project.
  * - If suspended, the suspension takes visual priority — return 'Suspended'.
  * - If today > currentCompletionDate and not terminal-state, return 'Delayed'.

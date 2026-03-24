@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect, useCallback } from 'react';
 import { format } from 'date-fns';
 import { Project, Role, AppConfig, ProjectPriority, ProjectActivity, ActivityType, RebaselineRequest, Phase, ServiceState, ProjectState } from '../types';
 import { api } from '../lib/api';
-import { calculateWorkingDays, getActiveDaysCount, calculateSPI, getAutoProjectState } from '../lib/utils';
+import { calculateWorkingDays, getActiveDaysCount, calculateSPI, getAutoProjectState, isRole, hasRole } from '../lib/utils';
 
 export function useProjects(userRole: Role, config: AppConfig, userName: string = 'User') {
   const [projects, setProjects] = useState<Project[]>([]);
@@ -26,7 +26,7 @@ export function useProjects(userRole: Role, config: AppConfig, userName: string 
     const current = project.state;
 
     // Billed can only be set by Finance
-    if (newState === 'Billed' && userRole !== 'Finance') {
+    if (newState === 'Billed' && !isRole(userRole, 'Finance')) {
       return 'Only Finance can mark a project as Billed.';
     }
     // Closed requires Billed
@@ -118,7 +118,7 @@ export function useProjects(userRole: Role, config: AppConfig, userName: string 
   }, [projects]);
 
   const filteredProjects = useMemo(() => {
-    if (userRole === 'PM') {
+    if (isRole(userRole, 'PM')) {
       // PMs can only see projects assigned to them
       return projects.filter(p => p.assignedPM === userName);
     }
@@ -135,11 +135,11 @@ export function useProjects(userRole: Role, config: AppConfig, userName: string 
       const currentCount = workload[priority];
       const maxCount = config.workloadThresholds[priority];
 
-      if (currentCount >= maxCount && !['Superadmin', 'Manager', 'Team Lead'].includes(userRole)) {
+      if (currentCount >= maxCount && !hasRole(userRole, ['Superadmin', 'Manager', 'Team Lead'])) {
         throw new Error(`This PM has reached their ${priority} limit (${currentCount}/${maxCount}).`);
       }
       
-      if (currentCount >= maxCount && ['Superadmin', 'Manager', 'Team Lead'].includes(userRole)) {
+      if (currentCount >= maxCount && hasRole(userRole, ['Superadmin', 'Manager', 'Team Lead'])) {
         return { warning: `PM is at limit (${currentCount}/${maxCount}). Override?` };
       }
     }

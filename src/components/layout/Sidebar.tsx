@@ -9,7 +9,7 @@ import {
   Clock 
 } from 'lucide-react';
 import { Role, AppConfig } from '../../types';
-import { cn } from '../../lib/utils';
+import { cn, isRole, hasRole } from '../../lib/utils';
 import { getThemeClasses } from '../../lib/theme';
 
 type View = 'dashboard' | 'projects' | 'risks' | 'settings' | 'rebaseline-requests';
@@ -123,10 +123,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <nav className="flex-1 space-y-1.5 px-1">
             <NavItem icon={LayoutDashboard} label="Dashboard" view="dashboard" />
             <NavItem icon={Briefcase} label="Projects" view="projects" />
-            {userRole !== 'Executive' && userRole !== 'Finance' && (
+            {!isRole(userRole, 'Executive') && !isRole(userRole, 'Finance') && (
               <>
                 <NavItem icon={AlertTriangle} label="Risks & Issues" view="risks" />
-                {['Superadmin', 'Manager', 'Team Lead'].includes(userRole) && (
+                {hasRole(userRole, ['Superadmin', 'Manager', 'Team Lead']) && (
                   <div className="relative">
                     <NavItem icon={Clock} label="Rebaseline Queue" view="rebaseline-requests" />
                     {pendingRebaselineCount > 0 && !isSidebarCollapsed && (
