@@ -122,8 +122,12 @@ export const BulkImportView: React.FC<BulkImportViewProps> = ({ users, invites, 
     } else {
       try {
         let d: Date;
-        // Check for dd/mm/yyyy format
-        if (sDateRaw.includes('/')) {
+        
+        // Handle native JS Date objects if Excel provided them
+        if (row.startDate instanceof Date) {
+          d = row.startDate;
+        } else if (sDateRaw.includes('/')) {
+          // Check for dd/mm/yyyy format
           const parts = sDateRaw.split('/');
           if (parts.length === 3) {
             // Assume dd/mm/yyyy
@@ -214,7 +218,7 @@ export const BulkImportView: React.FC<BulkImportViewProps> = ({ users, invites, 
         } else {
           // Excel parse: we try to find the sheet that actually contains our headers
           const data = new Uint8Array(e.target?.result as ArrayBuffer);
-          const workbook = XLSX.read(data, { type: 'array' });
+          const workbook = XLSX.read(data, { type: 'array', cellDates: true, dateNF: 'yyyy-mm-dd' });
           
           let targetSheet: XLSX.WorkSheet | null = null;
           let bestHeaders: string[] = [];
@@ -244,7 +248,8 @@ export const BulkImportView: React.FC<BulkImportViewProps> = ({ users, invites, 
             bestHeaders = (json[0] as any[]).map(h => String(h || '').trim());
           }
           
-          const json = XLSX.utils.sheet_to_json(targetSheet, { header: 1 }) as any[][];
+          // Final parse of the target sheet with dates enabled
+          const json = XLSX.utils.sheet_to_json(targetSheet, { header: 1, raw: false, dateNF: 'yyyy-mm-dd' }) as any[][];
           headers = bestHeaders;
           for(let i=1; i<json.length; i++) {
             let obj: any = {};
