@@ -49,11 +49,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     };
 
-    // Circuit breaker for production auth hangs (3s limit)
+    // Circuit breaker for production auth hangs (5s limit)
     const authTimeout = setTimeout(() => {
       console.warn('[Safety] Auth check timed out. Force-releasing loading state.');
       setLoading(false);
-    }, 3000);
+    }, 5000);
 
     fetchSession().finally(() => clearTimeout(authTimeout));
 
@@ -62,6 +62,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser(null);
         setProfile(null);
         setLoading(false);
+        // Clear data and redirect on sign out
+        import('../lib/safety').then(({ safety }) => safety.clearAllDataAndLogout());
         return;
       }
 
@@ -110,7 +112,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       await supabase.auth.signOut();
     } catch (e) {
       console.error('Logout error:', e);
-    } finally {
+      // Force clear even if signOut fails
       setUser(null);
       setProfile(null);
       import('../lib/safety').then(({ safety }) => safety.clearAllDataAndLogout());
