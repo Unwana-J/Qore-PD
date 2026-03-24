@@ -347,6 +347,7 @@ function AppContent() {
           <div className="bg-white w-full h-[calc(100vh-100px)] rounded-3xl shadow-2xl relative overflow-hidden flex flex-col">
             <BulkImportView 
               users={users}
+              invites={invites}
               projects={projects}
               config={config}
               userRole={userRole}

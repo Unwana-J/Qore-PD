@@ -10,6 +10,7 @@ import { ImportGuideModal } from './ImportGuideModal';
 
 interface BulkImportViewProps {
   users: User[];
+  invites?: any[];
   projects: Project[];
   config: AppConfig;
   userRole: Role;
@@ -37,7 +38,7 @@ const OPTIONAL_FIELDS = [
 
 const EXPECTED_COLUMNS = [...REQUIRED_FIELDS, ...OPTIONAL_FIELDS];
 
-export const BulkImportView: React.FC<BulkImportViewProps> = ({ users, projects, config, userRole, onImportBulk, onShowToast, onUpdateConfig, onClose }) => {
+export const BulkImportView: React.FC<BulkImportViewProps> = ({ users, invites, projects, config, userRole, onImportBulk, onShowToast, onUpdateConfig, onClose }) => {
   const theme = getThemeClasses(config.brand.themeColor);
   
   const [showGuide, setShowGuide] = useState(!config.hideImportGuide);
@@ -63,8 +64,13 @@ export const BulkImportView: React.FC<BulkImportViewProps> = ({ users, projects,
   
   // Ref to valid packages and PMs
   const validPackages = config.packages.map((p: any) => p.name);
-  // Allow Active and Pending (invited) PMs
-  const validPMs = users.filter((u: any) => u.role === 'PM').map((u: any) => u.name);
+  
+  // Combine system users with invited names (pending users)
+  const invitedNames = (invites || []).filter((i: any) => i.role === 'PM' && i.status === 'Pending').map((i: any) => i.name);
+  const activePMNames = users.filter((u: any) => u.role === 'PM').map((u: any) => u.name);
+  
+  // Unique list of all PMs (system + invited)
+  const validPMs = Array.from(new Set([...activePMNames, ...invitedNames]));
   
   // Helper to safely trim values that might not be strings
   const safeTrim = (val: any) => String(val ?? '').trim();
