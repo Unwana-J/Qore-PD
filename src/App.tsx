@@ -302,8 +302,14 @@ function AppContent() {
                         staleThresholdDays={config.staleThresholdDays}
                         userRole={userRole}
                         users={users}
+                        packages={config.packages}
+                        allPMNames={Array.from(new Set([
+                          ...users.filter(u => u.role === 'PM').map(u => u.name),
+                          ...projects.map(p => p.assignedPM)
+                        ])).sort()}
                         onReassignProject={setProjectToReassign}
                         spiThresholds={config.spiThresholds}
+                        loading={projectsLoading}
                       />
                     )}
                     {currentView === 'risks' && (

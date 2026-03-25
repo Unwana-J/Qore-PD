@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Project, ProjectState } from '../types';
 import { formatCurrency, cn } from '../lib/utils';
 import { motion } from 'motion/react';
@@ -6,8 +6,8 @@ import { PROJECT_STATES } from '../constants';
 import { PROJECT_STATE_COLORS, PRIORITY_COLORS, getThemeClasses } from '../lib/theme';
 import { differenceInDays, parseISO, subDays, format } from 'date-fns';
 import { getActiveDaysCount, calculateSPI, getAutoProjectState } from '../lib/utils';
-import { AlertCircle, AlertTriangle, DollarSign, Search, Filter, MoreHorizontal, Calendar, User, ChevronRight, TrendingUp, TrendingDown, Minus } from 'lucide-react';
-import { Role } from '../types';
+import { AlertCircle, AlertTriangle, DollarSign, Search, Filter, MoreHorizontal, Calendar, User, ChevronRight, TrendingUp, TrendingDown, Minus, ChevronDown, Check, X, RefreshCw } from 'lucide-react';
+import { Role, PackageConfig } from '../types';
 
 interface ProjectListProps {
   projects: Project[];
@@ -16,49 +16,92 @@ interface ProjectListProps {
   staleThresholdDays: number;
   userRole: Role;
   users: any[];
+  packages: PackageConfig[];
+  allPMNames: string[];
   onReassignProject: (project: Project) => void;
   spiThresholds: { onTrack: number, atRisk: number };
   initialSearch?: string;
+  loading?: boolean;
 }
 
-export const ProjectList: React.FC<ProjectListProps> = ({ projects, onSelectProject, userRole, users, onReassignProject, themeColor = 'teal', staleThresholdDays, spiThresholds, initialSearch = '' }) => {
+export const ProjectList: React.FC<ProjectListProps> = ({ 
+  projects, onSelectProject, userRole, users, packages = [], allPMNames = [], onReassignProject, 
+  themeColor = 'teal', staleThresholdDays, spiThresholds, initialSearch = '', loading = false 
+}) => {
   const [search, setSearch] = useState(initialSearch);
   const [stateFilter, setStateFilter] = useState<ProjectState | 'All'>('All');
+  const [periodFilter, setPeriodFilter] = useState<string>('All Time');
+  const [customDateRange, setCustomDateRange] = useState<{ from: string; to: string }>({ from: '', to: '' });
+  const [selectedPackages, setSelectedPackages] = useState<string[]>([]);
+  const [selectedPMs, setSelectedPMs] = useState<string[]>([]);
+  const [portfolioFilter, setPortfolioFilter] = useState<'All' | 'Enterprise' | 'Initiative'>('All');
+  
+  const [isPackageDropdownOpen, setIsPackageDropdownOpen] = useState(false);
+  const [isPMDropdownOpen, setIsPMDropdownOpen] = useState(false);
+  const [isCustomDateOpen, setIsCustomDateOpen] = useState(false);
+  
   const [currentPage, setCurrentPage] = useState(1);
   const PAGE_SIZE = 5;
 
   const theme = getThemeClasses(themeColor);
   const canReassign = ['Superadmin', 'Manager', 'Team Lead'].includes(userRole);
+  const showAdvancedFilters = ['Superadmin', 'Manager', 'Finance', 'Executive'].includes(userRole);
 
   const getPMStatus = (pmName: string) => {
     const pm = users.find(u => u.name === pmName);
     return pm?.status || 'Active';
   };
 
-  const filteredProjects = projects.filter(p => {
-    const matchesSearch = (p.clientName || '').toLowerCase().includes(search.toLowerCase()) || 
-                          (p.assignedPM || '').toLowerCase().includes(search.toLowerCase());
-    const matchesState = stateFilter === 'All' || p.state === stateFilter;
-    return matchesSearch && matchesState;
-  }).sort((a, b) => {
-    // Managers see inactive PM projects at the top
-    if (canReassign) {
-      const aInactive = getPMStatus(a.assignedPM) === 'Inactive' ? 1 : 0;
-      const bInactive = getPMStatus(b.assignedPM) === 'Inactive' ? 1 : 0;
-      if (aInactive !== bInactive) return bInactive - aInactive;
-    }
-    // Fallback sort: Most recently created first
-    const dateA = new Date(a.createdAt || 0).getTime();
-    const dateB = new Date(b.createdAt || 0).getTime();
-    return dateB - dateA;
-  });
+  const filteredProjects = useMemo(() => {
+    return projects.filter(p => {
+      // 1. Search
+      const matchesSearch = (p.clientName || '').toLowerCase().includes(search.toLowerCase()) || 
+                            (p.assignedPM || '').toLowerCase().includes(search.toLowerCase());
+      if (!matchesSearch) return false;
+
+      // 2. State
+      if (stateFilter !== 'All' && p.state !== stateFilter) return false;
+
+      // 3. Portfolio
+      if (portfolioFilter === 'Enterprise') {
+        if (p.isInternalInitiative || p.priority !== 'P1') return false;
+      } else if (portfolioFilter === 'Initiative') {
+        if (!p.isInternalInitiative) return false;
+      }
+
+      // 4. Packages
+      if (selectedPackages.length > 0 && !selectedPackages.includes(p.packageName)) return false;
+
+      // 5. PMs
+      if (selectedPMs.length > 0 && !selectedPMs.includes(p.assignedPM)) return false;
+
+      // 6. Period
+      if (periodFilter !== 'All Time') {
+        const pDate = new Date(p.startDate);
+        if (periodFilter === 'Custom') {
+          if (customDateRange.from && pDate < new Date(customDateRange.from)) return false;
+          if (customDateRange.to && pDate > new Date(customDateRange.to)) return false;
+        } else {
+          if (pDate.getFullYear().toString() !== periodFilter) return false;
+        }
+      }
+
+      return true;
+    }).sort((a, b) => {
+      if (canReassign) {
+        const aInactive = getPMStatus(a.assignedPM) === 'Inactive' ? 1 : 0;
+        const bInactive = getPMStatus(b.assignedPM) === 'Inactive' ? 1 : 0;
+        if (aInactive !== bInactive) return bInactive - aInactive;
+      }
+      return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
+    });
+  }, [projects, search, stateFilter, portfolioFilter, selectedPackages, selectedPMs, periodFilter, customDateRange, canReassign]);
 
   return (
     <div className="p-6 space-y-6">
-      <div className="flex flex-col md:flex-row gap-4 justify-between items-start md:items-center">
-        
-        <div className="flex flex-col sm:flex-row gap-4 w-full">
-          <div className="relative flex-1 group">
+      <div className="flex flex-col gap-4">
+        <div className="flex flex-col md:flex-row gap-4 justify-between items-start md:items-center">
+          <div className="relative flex-1 group w-full">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-slate-600 transition-colors" />
             <input 
               type="text" 
@@ -71,25 +114,203 @@ export const ProjectList: React.FC<ProjectListProps> = ({ projects, onSelectProj
               onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }}
             />
           </div>
-          
-          <div className="flex gap-3">
-            <select 
-              className={cn(
-                "px-5 py-3 bg-white border-2 border-slate-100 rounded-2xl text-sm font-bold focus:outline-none focus:ring-4 transition-all cursor-pointer hover:border-slate-200",
-                theme.ring, "focus:border-slate-200"
+        </div>
+
+        {loading && (
+          <div className="flex items-center gap-2 px-1 text-slate-400">
+            <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+            <span className="text-[10px] font-bold uppercase tracking-widest">Synchronizing projects...</span>
+          </div>
+        )}
+
+        {/* Advanced Filter Bar (For Privileged Roles) */}
+        {showAdvancedFilters && (
+          <div className="bg-white p-2 rounded-[28px] border border-slate-200 shadow-sm flex flex-wrap items-center gap-2">
+            {/* Period Filter */}
+            <div className="flex bg-slate-50 p-1 rounded-2xl border border-slate-100">
+              {['All Time', '2023', '2024', '2025', '2026', 'Custom'].map(period => (
+                <button
+                  key={period}
+                  onClick={() => {
+                    setPeriodFilter(period);
+                    if (period !== 'Custom') setIsCustomDateOpen(false);
+                    else setIsCustomDateOpen(true);
+                  }}
+                  className={cn(
+                    "px-4 py-1.5 rounded-xl text-[10px] font-black transition-all uppercase tracking-wider",
+                    periodFilter === period
+                      ? "bg-white text-slate-900 shadow-sm ring-1 ring-slate-200"
+                      : "text-slate-500 hover:text-slate-700 hover:bg-white/50"
+                  )}
+                >
+                  {period}
+                </button>
+              ))}
+            </div>
+
+            {isCustomDateOpen && periodFilter === 'Custom' && (
+              <div className="absolute top-44 left-6 z-50 bg-white p-4 rounded-3xl border border-slate-200 shadow-2xl flex flex-col gap-4 animate-in fade-in slide-in-from-top-2">
+                <div className="flex gap-3">
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[9px] font-black text-slate-400 uppercase">From</label>
+                    <input 
+                      type="date" 
+                      className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold outline-none ring-teal-500/20 focus:ring-2"
+                      value={customDateRange.from}
+                      onChange={e => setCustomDateRange(prev => ({ ...prev, from: e.target.value }))}
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[9px] font-black text-slate-400 uppercase">To</label>
+                    <input 
+                      type="date" 
+                      className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold outline-none ring-teal-500/20 focus:ring-2"
+                      value={customDateRange.to}
+                      onChange={e => setCustomDateRange(prev => ({ ...prev, to: e.target.value }))}
+                    />
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setIsCustomDateOpen(false)}
+                  className={cn("w-full py-2 rounded-xl text-white text-[10px] font-black uppercase tracking-widest transition-all", theme.bg, theme.hoverBg)}
+                >
+                  Apply Custom Range
+                </button>
+              </div>
+            )}
+
+            <div className="h-6 w-px bg-slate-200 mx-1" />
+
+            {/* Packages Multi-Select */}
+            <div className="relative">
+              <button
+                onClick={() => { setIsPackageDropdownOpen(!isPackageDropdownOpen); setIsPMDropdownOpen(false); }}
+                className={cn(
+                  "flex items-center gap-2 px-4 py-2 rounded-2xl border transition-all text-[11px] font-black uppercase tracking-wider",
+                  selectedPackages.length > 0 ? "bg-teal-50 border-teal-200 text-teal-700" : "bg-white border-slate-200 text-slate-600 hover:border-slate-300"
+                )}
+              >
+                <Filter className="w-3.5 h-3.5" />
+                {selectedPackages.length === 0 ? "Packages" : `${selectedPackages.length} Pkgs`}
+                <ChevronDown className={cn("w-3 h-3 transition-transform", isPackageDropdownOpen && "rotate-180")} />
+              </button>
+              {isPackageDropdownOpen && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setIsPackageDropdownOpen(false)} />
+                  <div className="absolute top-full left-0 mt-2 w-64 bg-white rounded-3xl border border-slate-200 shadow-2xl z-50 p-2 py-3">
+                    <div className="max-h-60 overflow-y-auto px-1 space-y-1 custom-scrollbar">
+                      {packages.map(pkg => (
+                        <button
+                          key={pkg.id}
+                          onClick={() => setSelectedPackages(prev => prev.includes(pkg.name) ? prev.filter(p => p !== pkg.name) : [...prev, pkg.name])}
+                          className={cn("w-full flex items-center justify-between px-4 py-2.5 rounded-xl transition-all group", selectedPackages.includes(pkg.name) ? "bg-teal-50 text-teal-700" : "hover:bg-slate-50 text-slate-600")}
+                        >
+                          <span className="text-xs font-bold truncate">{pkg.name}</span>
+                          <div className={cn("w-4 h-4 rounded-md border flex items-center justify-center transition-all", selectedPackages.includes(pkg.name) ? "bg-teal-600 border-teal-600" : "bg-white border-slate-300 group-hover:border-teal-400")}>
+                            {selectedPackages.includes(pkg.name) && <Check className="w-3 h-3 text-white" />}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </>
               )}
+            </div>
+
+            {/* PMs Multi-Select */}
+            <div className="relative">
+              <button
+                onClick={() => { setIsPMDropdownOpen(!isPMDropdownOpen); setIsPackageDropdownOpen(false); }}
+                className={cn(
+                  "flex items-center gap-2 px-4 py-2 rounded-2xl border transition-all text-[11px] font-black uppercase tracking-wider",
+                  selectedPMs.length > 0 ? "bg-indigo-50 border-indigo-200 text-indigo-700" : "bg-white border-slate-200 text-slate-600 hover:border-slate-300"
+                )}
+              >
+                <User className="w-3.5 h-3.5" />
+                {selectedPMs.length === 0 ? "All PMs" : `${selectedPMs.length} PMs`}
+                <ChevronDown className={cn("w-3 h-3 transition-transform", isPMDropdownOpen && "rotate-180")} />
+              </button>
+              {isPMDropdownOpen && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setIsPMDropdownOpen(false)} />
+                  <div className="absolute top-full left-0 mt-2 w-64 bg-white rounded-3xl border border-slate-200 shadow-2xl z-50 p-2 py-3">
+                    <div className="max-h-60 overflow-y-auto px-1 space-y-1 custom-scrollbar">
+                      {allPMNames.map(name => (
+                        <button
+                          key={name}
+                          onClick={() => setSelectedPMs(prev => prev.includes(name) ? prev.filter(p => p !== name) : [...prev, name])}
+                          className={cn("w-full flex items-center justify-between px-4 py-2.5 rounded-xl transition-all group", selectedPMs.includes(name) ? "bg-indigo-50 text-indigo-700" : "hover:bg-slate-50 text-slate-600")}
+                        >
+                          <span className="text-xs font-bold truncate">{name}</span>
+                          <div className={cn("w-4 h-4 rounded-md border flex items-center justify-center transition-all", selectedPMs.includes(name) ? "bg-indigo-600 border-indigo-600" : "bg-white border-slate-300 group-hover:border-indigo-400")}>
+                            {selectedPMs.includes(name) && <Check className="w-3 h-3 text-white" />}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+
+            <div className="h-6 w-px bg-slate-200 mx-1" />
+
+            {/* State Filter (Consolidated) */}
+            <select 
+              className="px-4 py-2 bg-slate-100 border-none rounded-2xl text-[10px] font-black uppercase tracking-wider outline-none focus:ring-2 ring-slate-200 transition-all cursor-pointer"
               value={stateFilter}
               onChange={(e) => { setStateFilter(e.target.value as any); setCurrentPage(1); }}
             >
               <option value="All">All States</option>
               {PROJECT_STATES.map(state => (
-                <option key={state} value={state}>
-                  {state}
-                </option>
+                <option key={state} value={state}>{state}</option>
               ))}
             </select>
+
+            {/* Portfolio Type Tabs */}
+            <div className="flex bg-slate-100 p-1 rounded-2xl border border-slate-200 ml-auto">
+              {[
+                { id: 'All', label: 'All' },
+                { id: 'Enterprise', label: 'Enterprise' },
+                { id: 'Initiative', label: 'Initiatives' }
+              ].map(f => (
+                <button
+                  key={f.id}
+                  onClick={() => setPortfolioFilter(f.id as any)}
+                  className={cn(
+                    "px-4 py-1.5 rounded-xl text-[10px] font-black transition-all uppercase tracking-wider",
+                    portfolioFilter === f.id ? "bg-white text-slate-900 shadow-sm ring-1 ring-slate-200" : "text-slate-500 hover:text-slate-700"
+                  )}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
+
+        {/* Filter Chips */}
+        {showAdvancedFilters && (periodFilter !== 'All Time' || selectedPackages.length > 0 || selectedPMs.length > 0 || portfolioFilter !== 'All' || stateFilter !== 'All') && (
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="flex items-center gap-1.5 px-2 text-slate-400">
+              <Filter className="w-3 h-3" />
+              <span className="text-[10px] font-black uppercase tracking-widest italic">Active:</span>
+            </div>
+            {periodFilter !== 'All Time' && <FilterChip label={periodFilter === 'Custom' ? `${customDateRange.from} to ${customDateRange.to}` : periodFilter} onRemove={() => setPeriodFilter('All Time')} />}
+            {portfolioFilter !== 'All' && <FilterChip label={portfolioFilter === 'Enterprise' ? 'Enterprise' : 'Initiatives'} onRemove={() => setPortfolioFilter('All')} />}
+            {stateFilter !== 'All' && <FilterChip label={`Status: ${stateFilter}`} onRemove={() => setStateFilter('All')} />}
+            {selectedPackages.map(p => <FilterChip key={p} label={p} onRemove={() => setSelectedPackages(prev => prev.filter(x => x !== p))} />)}
+            {selectedPMs.map(p => <FilterChip key={p} label={p} onRemove={() => setSelectedPMs(prev => prev.filter(x => x !== p))} />)}
+            <button 
+              onClick={() => {
+                setPeriodFilter('All Time'); setSelectedPackages([]); setSelectedPMs([]); setPortfolioFilter('All'); setStateFilter('All');
+              }}
+              className="px-3 py-1 text-[10px] font-black text-slate-400 hover:text-red-500 uppercase tracking-widest transition-colors flex items-center gap-1"
+            >
+              <X className="w-3 h-3" /> Clear all
+            </button>
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 gap-4">
@@ -352,3 +573,15 @@ export const PriorityBadge = ({ priority }: { priority: string }) => {
     </span>
   );
 };
+
+const FilterChip = ({ label, onRemove }: { label: string, onRemove: () => void, key?: React.Key }) => (
+  <div className="flex items-center gap-1.5 px-3 py-1 bg-white border border-slate-200 rounded-full shadow-sm animate-in zoom-in-95 duration-200">
+    <span className="text-[10px] font-bold text-slate-600 truncate max-w-[120px]">{label}</span>
+    <button 
+      onClick={onRemove}
+      className="p-0.5 hover:bg-slate-100 rounded-full transition-colors"
+    >
+      <X className="w-2.5 h-2.5 text-slate-400" />
+    </button>
+  </div>
+);
