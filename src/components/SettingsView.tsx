@@ -70,7 +70,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   invites,
   setInvites
 }) => {
-  const { refreshProfile } = useAuth();
+  const { user, profile, refreshProfile } = useAuth();
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>(MOCK_AUDIT_LOGS);
   const [weightHistory, setWeightHistory] = useState<WeightHistory[]>(MOCK_WEIGHT_HISTORY);
   const [packages, setPackages] = useState<PackageConfig[]>(config.packages);
@@ -184,7 +184,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         {activeTab === 'revenue' && <RevenueSettings config={config} setConfig={onUpdateConfig} userRole={userRole} theme={theme} />}
         {activeTab === 'brand' && <BrandSettings config={config} setConfig={onUpdateConfig} userRole={userRole} theme={theme} />}
         {activeTab === 'packages' && <PackageServiceConfig config={config} setConfig={onUpdateConfig} userRole={userRole} theme={theme} showToast={showToast} />}
-        {activeTab === 'account' && <AccountSettings config={config} userRole={userRole} theme={theme} />}
+        {activeTab === 'account' && <AccountSettings user={user} profile={profile} refreshProfile={refreshProfile} theme={theme} showToast={showToast} />}
         {activeTab === 'audit' && <AuditView logs={auditLogs} />}
       </div>
 
@@ -798,22 +798,97 @@ const BrandSettings = ({ config, setConfig, theme }: any) => (
   </div>
 );
 
-const AccountSettings = ({ config, userRole, theme }: any) => (
-  <div className="p-8 space-y-8 animate-in fade-in duration-300">
-    <h3 className="text-lg font-bold text-slate-900">Account Preferences</h3>
-    <div className="space-y-4">
-       <div className="flex items-center gap-4">
-         <div className={cn("w-20 h-20 rounded-full flex items-center justify-center text-3xl font-black text-white", theme.bg)}>
-           AD
+const AccountSettings = ({ user, profile, refreshProfile, theme, showToast }: any) => {
+  const [name, setName] = useState(profile?.name || '');
+  const [isUpdating, setIsUpdating] = useState(false);
+
+  const handleUpdate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name.trim()) return;
+    setIsUpdating(true);
+    try {
+      await api.users.update(user.id, { name: name.trim() });
+      await refreshProfile();
+      showToast('Profile updated successfully', 'success');
+    } catch (err: any) {
+      showToast(err.message || 'Failed to update profile', 'error');
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  return (
+    <div className="p-10 space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-2xl font-black text-slate-900 tracking-tight uppercase">Account Preferences</h3>
+          <p className="text-sm font-bold text-slate-400">Manage your personal identity and login details.</p>
+        </div>
+        <div className={cn("px-4 py-1 rounded-full text-[10px] font-black uppercase tracking-widest text-white shadow-sm", theme.bg)}>
+          {profile?.role}
+        </div>
+      </div>
+
+      <div className="bg-slate-50/50 rounded-[2.5rem] border border-slate-100 p-8 space-y-8">
+        <div className="flex items-center gap-8">
+          <div className={cn("w-24 h-24 rounded-3xl flex items-center justify-center text-3xl font-black text-white shadow-xl rotate-3 shrink-0", theme.bg)}>
+            {profile?.name?.substring(0, 2).toUpperCase() || 'U'}
+          </div>
+          <div className="space-y-1">
+            <p className="text-sm font-black text-slate-400 uppercase tracking-widest">Login Email</p>
+            <p className="text-lg font-bold text-slate-900">{user?.email}</p>
+          </div>
+        </div>
+
+        <form onSubmit={handleUpdate} className="space-y-6 max-w-md">
+          <div className="space-y-2">
+            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Display Name</label>
+            <div className="flex gap-4">
+              <input 
+                required
+                className="flex-1 px-5 py-4 bg-white border border-slate-200 rounded-2xl font-bold outline-none focus:ring-4 ring-teal-500/10 focus:border-teal-500 transition-all"
+                value={name}
+                onChange={e => setName(e.target.value)}
+              />
+              <button 
+                type="submit"
+                disabled={isUpdating || name === profile?.name}
+                className={cn(
+                  "px-8 rounded-2xl font-black text-white shadow-lg transition-all active:scale-95 disabled:opacity-50 disabled:grayscale",
+                  theme.bg, theme.hoverBg
+                )}
+              >
+                {isUpdating ? 'Saving...' : 'Save'}
+              </button>
+            </div>
+            <p className="text-[10px] font-bold text-slate-400 leading-relaxed max-w-xs mt-2 pl-1">
+              IMPORTANT: This name is used to link projects to your dashboard. Make sure it matches exactly how projects are assigned to you.
+            </p>
+          </div>
+        </form>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+         <div className="p-6 bg-amber-50 rounded-3xl border border-amber-100 space-y-2">
+            <div className="flex items-center gap-2 text-amber-600">
+               <Shield className="w-4 h-4" />
+               <span className="text-[10px] font-black uppercase tracking-widest">Security</span>
+            </div>
+            <p className="text-sm font-bold text-amber-900 leading-tight">Password Management</p>
+            <p className="text-xs text-amber-700 font-medium">Password resets are handled via your IT administrator or the Magic Link login flow.</p>
          </div>
-         <div>
-           <p className="text-xl font-black text-slate-900">Admin User</p>
-           <p className="text-sm font-bold text-slate-500">{userRole}</p>
+         <div className="p-6 bg-slate-100 rounded-3xl border border-slate-200 space-y-2 grayscale">
+            <div className="flex items-center gap-2 text-slate-400">
+               <Activity className="w-4 h-4" />
+               <span className="text-[10px] font-black uppercase tracking-widest">Activity History</span>
+            </div>
+            <p className="text-sm font-bold text-slate-400 leading-tight">Personal Audit Trail</p>
+            <p className="text-xs text-slate-400 font-medium">Coming soon: View your recent actions and project contributions.</p>
          </div>
-       </div>
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
 const AuditView = ({ logs }: any) => (
   <div className="p-8 space-y-6 animate-in fade-in duration-300">

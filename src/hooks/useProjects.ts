@@ -113,7 +113,9 @@ export function useProjects(userRole: Role, config: AppConfig, userName: string 
   const filteredProjects = useMemo(() => {
     if (isRole(userRole, 'PM')) {
       // PMs can only see projects assigned to them
-      return projects.filter(p => p.assignedPM === userName);
+      // Robust matching: trim and case-insensitive to handle "Eniye" vs "Eniye " vs "eniye"
+      const normalizedUserName = userName?.trim().toLowerCase();
+      return projects.filter(p => p.assignedPM?.trim().toLowerCase() === normalizedUserName);
     }
     return projects;
   }, [projects, userRole, userName]);

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Loader2, AlertCircle, RefreshCw } from 'lucide-react';
+import { Loader2, AlertCircle, RefreshCw, UserCircle, ChevronRight } from 'lucide-react';
 import { cn, isRole, hasRole } from './lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
 import { Sidebar } from './components/layout/Sidebar';
@@ -253,6 +253,26 @@ function AppContent() {
 
         <div className="flex-1 overflow-y-auto bg-slate-50/50">
           <div className="max-w-7xl mx-auto">
+            {profile?.role === 'PM' && profile?.name?.trim().toLowerCase() === 'user' && currentView === 'dashboard' && (
+              <div className="mt-6 mx-6 p-6 bg-teal-600 rounded-[2rem] text-white shadow-xl shadow-teal-200/50 flex flex-col md:flex-row items-center gap-6 animate-in slide-in-from-top-4 duration-500">
+                <div className="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center shrink-0">
+                  <UserCircle className="w-10 h-10 text-white" />
+                </div>
+                <div className="flex-1 text-center md:text-left space-y-1">
+                  <h3 className="text-lg font-black tracking-tight">Set Your Profile Name</h3>
+                  <p className="text-sm font-bold text-teal-50 leading-relaxed max-w-xl">
+                    Projects are linked to your dashboard using your name. Your name is currently set to "User" — please update it to your real name in Settings to see your assigned projects.
+                  </p>
+                </div>
+                <button 
+                  onClick={() => { setCurrentView('settings'); setActiveSettingsTab('account'); }}
+                  className="px-8 py-3 bg-white text-teal-600 rounded-xl font-black text-sm shadow-lg hover:bg-teal-50 transition-all flex items-center gap-2 shrink-0"
+                >
+                  Go to Settings
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+            )}
             <AnimatePresence mode="wait">
               <motion.div
                 key={selectedProject ? `project-${selectedProject.id}` : currentView}

@@ -48,9 +48,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     isFetchingProfile.current = true;
     setLoadingStage('profile');
 
-    // 30 second timeout — safety net for cold starts
+    // 7 second timeout for first attempt — fail fast to trigger wake-up retry
+    // 30 seconds for subsequent attempts
+    const timeoutDuration = retryCount === 0 ? 7000 : 30000;
     const timeoutPromise = new Promise((_, reject) =>
-      setTimeout(() => reject(new Error('Profile fetch timeout')), 30000)
+      setTimeout(() => reject(new Error('Profile fetch timeout')), timeoutDuration)
     );
 
     try {
@@ -76,7 +78,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setProfile(prev => prev || null); // Keep existing profile if found
       } else if (data) {
         console.log('[Auth] Profile fetched successfully.');
-        setProfile({ name: data.name, role: data.role as Role });
+        const profileData = { name: data.name, role: data.role as Role };
+        setProfile(profileData);
+        // SWR: Persist for instant load next time
+        localStorage.setItem(`profile_${userId}`, JSON.stringify(profileData));
         hasFetchedOnce.current = true;
         setLoadingStage('ready');
       } else {
@@ -116,8 +121,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (session?.user) {
           console.log('[Auth] Initial session found for user:', session.user.id);
           setUser(session.user);
+          
+          // SWR: Check cache first for instant UI
+          const cached = localStorage.getItem(`profile_${session.user.id}`);
+          if (cached) {
+            console.log('[Auth] Loading cached profile...');
+            try {
+              setProfile(JSON.parse(cached));
+              setLoadingStage('ready');
+            } catch (e) {
+              console.error('[Auth] Failed to parse cached profile', e);
+            }
+          }
+
           setProfileLoading(true);
-          await fetchProfile(session.user.id);
+          // Non-blocking: fetch latest in background
+          fetchProfile(session.user.id);
         } else {
           console.log('[Auth] No initial session found.');
           setUser(null);
@@ -131,9 +150,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setLoadingStage('ready');
       } finally {
         if (mounted) {
-          console.log('[Auth] Initialization complete. Setting loading=false.');
+          console.log('[Auth] Initialization complete.');
           setLoading(false);
-          setProfileLoading(false);
+          // Note: profileLoading might still be true if fetchProfile is backgrounded
         }
       }
     };
