@@ -150,6 +150,11 @@ export const api = {
         if (error) console.error("[API] Bulk Upsert (Update) error:", error);
       }
     },
+    deleteByIds: async (ids: string[]): Promise<void> => {
+      if (ids.length === 0) return;
+      const { error } = await supabase.from('projects').delete().in('id', ids);
+      if (error) throw error;
+    },
     // Admin tool to seed the database initially
     seed: async () => {
       // Seeding is permanently disabled to ensure 100% clean production environment.

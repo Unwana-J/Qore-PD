@@ -52,45 +52,38 @@ export function useProjects(userRole: Role, config: AppConfig, userName: string 
     return null;
   };
 
+  const fetchProjects = useCallback(async () => {
+    console.log("[Diagnostics] Starting projects sync...");
+    try {
+      const data = await api.projects.getAll();
+      console.log(`[Diagnostics] Fetched ${data.length} projects.`);
+      
+      const terminalStates: ProjectState[] = ['Signed Off', 'Billed', 'Closed', 'Suspended'];
+      const correctedData = data.map(p => {
+        if (!terminalStates.includes(p.state)) {
+           const autoState = getAutoProjectState(p, config.spiThresholds);
+           if (p.state !== autoState) {
+              return { ...p, state: autoState };
+           }
+        }
+        return p;
+      });
+
+      setProjects(correctedData);
+      console.log("[Diagnostics] Projects state updated.");
+    } catch (error) {
+      console.error('[Diagnostics] Failed to fetch projects:', error);
+    } finally {
+      setLoading(false);
+      console.log("[Diagnostics] Projects loading set to false.");
+    }
+  }, [config.spiThresholds.atRisk, config.spiThresholds.onTrack]);
+
   useEffect(() => {
     let isMounted = true;
-    
-    async function fetchProjects() {
-      console.log("[Diagnostics] Starting projects sync...");
-      try {
-        const data = await api.projects.getAll();
-        console.log(`[Diagnostics] Fetched ${data.length} projects.`);
-        
-        // Auto-correct stale states upon loading from backend
-        // (If SPI drops below threshold due to elapsed days, it becomes 'Delayed' today)
-        const terminalStates: ProjectState[] = ['Signed Off', 'Billed', 'Closed', 'Suspended'];
-        const correctedData = data.map(p => {
-          if (!terminalStates.includes(p.state)) {
-             const autoState = getAutoProjectState(p, config.spiThresholds);
-             if (p.state !== autoState) {
-                return { ...p, state: autoState };
-             }
-          }
-          return p;
-        });
 
-        if (isMounted) {
-          setProjects(correctedData);
-          console.log("[Diagnostics] Projects state updated.");
-        }
-      } catch (error) {
-        console.error('[Diagnostics] Failed to fetch projects:', error);
-      } finally {
-        if (isMounted) {
-          setLoading(false);
-          console.log("[Diagnostics] Projects loading set to false.");
-        }
-      }
-    }
-
-    // Safety timeout for project sync (15s)
     const syncTimeout = setTimeout(() => {
-      if (loading && isMounted) {
+      if (isMounted) {
         console.warn("[Diagnostics] Projects sync timed out. Releasing UI lock.");
         setLoading(false);
       }
@@ -102,7 +95,7 @@ export function useProjects(userRole: Role, config: AppConfig, userName: string 
       isMounted = false;
       clearTimeout(syncTimeout);
     };
-  }, [config.spiThresholds.atRisk, config.spiThresholds.onTrack]);
+  }, [fetchProjects]);
 
   const getPMWorkload = useCallback((pmName: string) => {
     const pmProjects = projects.filter(p => 
@@ -527,6 +520,7 @@ export function useProjects(userRole: Role, config: AppConfig, userName: string 
     validateStateTransition,
     notifications,
     dismissNotification,
-    loading
+    loading,
+    refreshProjects: fetchProjects
   };
 }

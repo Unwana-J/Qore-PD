@@ -180,7 +180,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           />
         }
         {activeTab === 'priority' && <PrioritySettings config={config} setConfig={onUpdateConfig} packages={packages} setPackages={setPackages} weightHistory={weightHistory} setWeightHistory={setWeightHistory} userRole={userRole} theme={theme} />}
-        {activeTab === 'project' && <ProjectConfig config={config} setConfig={onUpdateConfig} userRole={userRole} theme={theme} />}
+        {activeTab === 'project' && <ProjectConfig config={config} setConfig={onUpdateConfig} userRole={userRole} theme={theme} showToast={showToast} projects={projects} />}
         {activeTab === 'revenue' && <RevenueSettings config={config} setConfig={onUpdateConfig} userRole={userRole} theme={theme} />}
         {activeTab === 'brand' && <BrandSettings config={config} setConfig={onUpdateConfig} userRole={userRole} theme={theme} />}
         {activeTab === 'packages' && <PackageServiceConfig config={config} setConfig={onUpdateConfig} userRole={userRole} theme={theme} showToast={showToast} />}
@@ -420,7 +420,38 @@ const UserManagement = ({ users, setUsers, invites, setInvites, projects, onUpda
   );
 };
 
-const ProjectConfig = ({ config, setConfig, theme }: any) => {
+const MOCK_CLIENT_NAMES = [
+  'Global Trust Bank', 'Apex Microfinance', 'Zenith Connect', 'Stellar Fin',
+  'Eco Bank', 'Recova Plus', 'Prime Bank', 'Rapid Pay',
+  'Legacy Corp', 'Old School Fin', 'Future Bank', 'Amber Ventures'
+];
+
+const ProjectConfig = ({ config, setConfig, userRole, theme, showToast, projects }: any) => {
+  const [isPurging, setIsPurging] = useState(false);
+
+  // Find any mock projects that still exist in the DB
+  const mockProjectsInDb = (projects as Project[]).filter(p =>
+    MOCK_CLIENT_NAMES.some(name => name.toLowerCase() === p.clientName.toLowerCase())
+  );
+
+  const handlePurgeMockData = async () => {
+    if (mockProjectsInDb.length === 0) {
+      showToast('No mock test projects found in the database.', 'info');
+      return;
+    }
+    if (!window.confirm(`Delete ${mockProjectsInDb.length} mock test projects? This cannot be undone.`)) return;
+    setIsPurging(true);
+    try {
+      const ids = mockProjectsInDb.map(p => p.id);
+      await api.projects.deleteByIds(ids);
+      showToast(`Deleted ${ids.length} mock test projects. Please refresh the page.`, 'success');
+    } catch (err: any) {
+      showToast(err.message || 'Failed to purge mock data.', 'error');
+    } finally {
+      setIsPurging(false);
+    }
+  };
+
   return (
     <div className="p-8 space-y-8 animate-in fade-in duration-300">
       <div>
@@ -520,6 +551,32 @@ const ProjectConfig = ({ config, setConfig, theme }: any) => {
       </div>
     </div>
   );
+      {userRole === 'Superadmin' && (
+        <div className='bg-red-50 border border-red-200 p-6 rounded-2xl space-y-3'>
+          <h4 className='text-sm font-bold text-red-700 flex items-center gap-2'>
+            <Trash2 className='w-4 h-4' />
+            Danger Zone — Purge Mock Test Data
+          </h4>
+          <p className='text-xs text-red-500 font-medium'>
+            Permanently delete the {MOCK_CLIENT_NAMES.length} original demo projects from the database.
+            {mockProjectsInDb.length > 0
+              ? ` Found ${mockProjectsInDb.length} mock project(s) still in the database.`
+              : ' No mock projects found — already clean.'}
+          </p>
+          <button
+            onClick={handlePurgeMockData}
+            disabled={isPurging || mockProjectsInDb.length === 0}
+            className='flex items-center gap-2 px-4 py-2 bg-red-600 text-white text-sm font-bold rounded-xl hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all'
+          >
+            {isPurging ? (
+              <><div className='w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin' /> Purging...</>
+            ) : (
+              <><Trash2 className='w-4 h-4' /> Purge {mockProjectsInDb.length} Mock Projects</>
+            )}
+          </button>
+        </div>
+      )}
+
 };
 
 const RevenueSettings = ({ config, setConfig, theme }: any) => (

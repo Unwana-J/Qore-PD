@@ -68,9 +68,10 @@ function AppContent() {
     validateStateTransition,
     notifications,
     dismissNotification,
-    loading: projectsLoading
+    loading: projectsLoading,
+    refreshProjects
   } = useProjects(userRole, config, profile?.name || 'User');
-    // Removing aggressive sync timeout that cleared storage
+
 
   useEffect(() => {
     if (!user) return;
@@ -335,7 +336,10 @@ function AppContent() {
               userRole={userRole}
               onImportBulk={importBulkProjects}
               onShowToast={showToast}
-              onClose={() => setIsBulkImportOpen(false)}
+              onClose={async () => {
+                await refreshProjects();
+                setIsBulkImportOpen(false);
+              }}
               onUpdateConfig={(updates) => setConfig(prev => ({ ...prev, ...updates }))}
             />
           </div>
