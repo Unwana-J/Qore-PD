@@ -6,10 +6,11 @@ import {
 import { 
   TrendingUp, Activity, Award, AlertTriangle, Clock, 
   Layers, DollarSign, Target, Zap, ShieldAlert,
-  ChevronRight, Calendar, User as UserIcon, Briefcase, AlertCircle, RefreshCw
+  ChevronRight, Calendar, User as UserIcon, Briefcase, AlertCircle, RefreshCw,
+  Filter, Check, ChevronDown, X
 } from 'lucide-react';
-import { format, differenceInDays, parseISO } from 'date-fns';
-import { Project, Role, RevenueTrend, ProjectState, ProjectPriority, User } from '../types';
+import { format, differenceInDays, parseISO, isWithinInterval } from 'date-fns';
+import { Project, Role, RevenueTrend, ProjectState, ProjectPriority, User, PackageConfig } from '../types';
 import { MOCK_REVENUE_TREND } from '../mockData';
 import { formatCurrency, cn, calculateSPI } from '../lib/utils';
 import { PROJECT_STATE_COLORS, PRIORITY_COLORS, getThemeClasses } from '../lib/theme';
@@ -17,6 +18,7 @@ import { PROJECT_STATE_COLORS, PRIORITY_COLORS, getThemeClasses } from '../lib/t
 interface ExecutiveDashboardProps {
   projects: Project[];
   users: User[];
+  packages: PackageConfig[];
   themeColor?: string;
   onSelectProject: (p: Project) => void;
   staleThresholdDays: number;
@@ -27,6 +29,7 @@ interface ExecutiveDashboardProps {
 export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
   projects,
   users,
+  packages = [],
   themeColor = 'teal',
   onSelectProject,
   spiThresholds,
@@ -34,20 +37,46 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
 }) => {
   const [currencyFilter, setCurrencyFilter] = useState<'All' | 'NGN' | 'USD'>('All');
   const [globalFilter, setGlobalFilter] = useState<'All' | 'Enterprise' | 'Initiative'>('All');
+  const [periodFilter, setPeriodFilter] = useState<string>('All Time');
+  const [customDateRange, setCustomDateRange] = useState<{ from: string; to: string }>({ from: '', to: '' });
+  const [selectedPackages, setSelectedPackages] = useState<string[]>([]);
+  const [isPackageDropdownOpen, setIsPackageDropdownOpen] = useState(false);
+  const [isCustomDateOpen, setIsCustomDateOpen] = useState(false);
+  
   const theme = getThemeClasses(themeColor);
   const now = new Date();
 
   // --- Filtering Logic ---
   const filteredProjects = useMemo(() => {
-    switch (globalFilter) {
-      case 'Enterprise':
-        return projects.filter(p => !p.isInternalInitiative && p.priority === 'P1');
-      case 'Initiative':
-        return projects.filter(p => p.isInternalInitiative);
-      default:
-        return projects;
-    }
-  }, [projects, globalFilter]);
+    return projects.filter(p => {
+      // 1. Portfolio Type (Global Filter)
+      if (globalFilter === 'Enterprise') {
+        if (p.isInternalInitiative || p.priority !== 'P1') return false;
+      } else if (globalFilter === 'Initiative') {
+        if (!p.isInternalInitiative) return false;
+      }
+
+      // 2. Currency
+      if (currencyFilter !== 'All' && p.currency !== currencyFilter) return false;
+
+      // 3. Packages (Multi-select)
+      if (selectedPackages.length > 0 && !selectedPackages.includes(p.packageName)) return false;
+
+      // 4. Period
+      if (periodFilter !== 'All Time') {
+        const pDate = new Date(p.startDate);
+        if (periodFilter === 'Custom') {
+          if (customDateRange.from && pDate < new Date(customDateRange.from)) return false;
+          if (customDateRange.to && pDate > new Date(customDateRange.to)) return false;
+        } else {
+          // Year preset
+          if (pDate.getFullYear().toString() !== periodFilter) return false;
+        }
+      }
+
+      return true;
+    });
+  }, [projects, globalFilter, currencyFilter, periodFilter, customDateRange, selectedPackages]);
 
   // --- Computations ---
 
@@ -172,53 +201,237 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
     <div className="p-6 space-y-8 max-w-7xl mx-auto pb-20">
 
       {/* Page Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-6 mb-2">
-        <div>
-          <h1 className="text-3xl font-black text-slate-900 tracking-tight">Executive Dashboard</h1>
-          <p className="text-sm font-bold text-slate-500 uppercase tracking-widest mt-1">
-            {format(now, 'EEEE, d MMMM yyyy')}
-          </p>
+      <div className="flex flex-col gap-6 mb-2">
+        <div className="flex justify-between items-end">
+          <div>
+            <h1 className="text-3xl font-black text-slate-900 tracking-tight">Executive Dashboard</h1>
+            <p className="text-sm font-bold text-slate-500 uppercase tracking-widest mt-1">
+              {format(now, 'EEEE, d MMMM yyyy')}
+            </p>
+          </div>
+          {loading && (
+            <div className="flex items-center gap-2 px-1 text-slate-400">
+              <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+              <span className="text-[10px] font-bold uppercase tracking-widest">Synchronizing portfolio...</span>
+            </div>
+          )}
         </div>
 
-        {/* Portfolio Filter Toggle */}
-        <div className="flex bg-slate-100 p-1 rounded-2xl border border-slate-200">
-          {[
-            { id: 'All', label: 'All Portfolio' },
-            { id: 'Enterprise', label: 'Tier 1 - Enterprise' },
-            { id: 'Initiative', label: 'Internal Initiatives' }
-          ].map(f => (
+        {/* Persistent Filter Bar */}
+        <div className="bg-white p-2 rounded-[28px] border border-slate-200 shadow-sm flex flex-wrap items-center gap-2">
+          {/* Period Presets */}
+          <div className="flex bg-slate-50 p-1 rounded-2xl border border-slate-100">
+            {['All Time', '2023', '2024', '2025', '2026', 'Custom'].map(period => (
+              <button
+                key={period}
+                onClick={() => {
+                  setPeriodFilter(period);
+                  if (period !== 'Custom') setIsCustomDateOpen(false);
+                  else setIsCustomDateOpen(true);
+                }}
+                className={cn(
+                  "px-4 py-1.5 rounded-xl text-[10px] font-black transition-all uppercase tracking-wider",
+                  periodFilter === period
+                    ? "bg-white text-slate-900 shadow-sm ring-1 ring-slate-200"
+                    : "text-slate-500 hover:text-slate-700 hover:bg-white/50"
+                )}
+              >
+                {period}
+              </button>
+            ))}
+          </div>
+
+          {/* Custom Date Range Popover (Absolute) */}
+          {isCustomDateOpen && periodFilter === 'Custom' && (
+            <div className="absolute top-44 left-6 z-50 bg-white p-4 rounded-3xl border border-slate-200 shadow-2xl flex flex-col gap-4 animate-in fade-in slide-in-from-top-2">
+              <div className="flex gap-3">
+                <div className="flex flex-col gap-1">
+                  <label className="text-[9px] font-black text-slate-400 uppercase">From</label>
+                  <input 
+                    type="date" 
+                    className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold outline-none ring-teal-500/20 focus:ring-2"
+                    value={customDateRange.from}
+                    onChange={e => setCustomDateRange(prev => ({ ...prev, from: e.target.value }))}
+                  />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-[9px] font-black text-slate-400 uppercase">To</label>
+                  <input 
+                    type="date" 
+                    className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold outline-none ring-teal-500/20 focus:ring-2"
+                    value={customDateRange.to}
+                    onChange={e => setCustomDateRange(prev => ({ ...prev, to: e.target.value }))}
+                  />
+                </div>
+              </div>
+              <button 
+                onClick={() => setIsCustomDateOpen(false)}
+                className={cn("w-full py-2 rounded-xl text-white text-[10px] font-black uppercase tracking-widest transition-all", theme.bg, theme.hoverBg)}
+              >
+                Apply Custom Range
+              </button>
+            </div>
+          )}
+
+          <div className="h-6 w-px bg-slate-200 mx-1" />
+
+          {/* Packages Multi-Select Dropdown */}
+          <div className="relative">
             <button
-              key={f.id}
-              onClick={() => setGlobalFilter(f.id as any)}
+              onClick={() => setIsPackageDropdownOpen(!isPackageDropdownOpen)}
               className={cn(
-                "px-5 py-2.5 rounded-xl text-xs font-black transition-all",
-                globalFilter === f.id
-                  ? "bg-white text-slate-900 shadow-sm ring-1 ring-slate-200"
-                  : "text-slate-500 hover:text-slate-700"
+                "flex items-center gap-2 px-4 py-2 rounded-2xl border transition-all text-[11px] font-black uppercase tracking-wider",
+                selectedPackages.length > 0 
+                  ? "bg-teal-50 border-teal-200 text-teal-700" 
+                  : "bg-white border-slate-200 text-slate-600 hover:border-slate-300"
               )}
             >
-              {f.label}
+              <Briefcase className="w-3.5 h-3.5" />
+              {selectedPackages.length === 0 ? "All Packages" : `${selectedPackages.length} Packages`}
+              <ChevronDown className={cn("w-3 h-3 transition-transform", isPackageDropdownOpen && "rotate-180")} />
             </button>
-          ))}
+
+            {isPackageDropdownOpen && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setIsPackageDropdownOpen(false)} />
+                <div className="absolute top-full left-0 mt-2 w-64 bg-white rounded-3xl border border-slate-200 shadow-2xl z-50 p-2 py-3">
+                  <div className="max-h-60 overflow-y-auto px-1 space-y-1 custom-scrollbar">
+                    {packages.map(pkg => {
+                      const isSelected = selectedPackages.includes(pkg.name);
+                      return (
+                        <button
+                          key={pkg.id}
+                          onClick={() => {
+                            setSelectedPackages(prev => 
+                              isSelected ? prev.filter(p => p !== pkg.name) : [...prev, pkg.name]
+                            );
+                          }}
+                          className={cn(
+                            "w-full flex items-center justify-between px-4 py-2.5 rounded-xl transition-all group",
+                            isSelected ? "bg-teal-50 text-teal-700" : "hover:bg-slate-50 text-slate-600"
+                          )}
+                        >
+                          <span className="text-xs font-bold truncate">{pkg.name}</span>
+                          <div className={cn(
+                            "w-4 h-4 rounded-md border flex items-center justify-center transition-all",
+                            isSelected ? "bg-teal-600 border-teal-600" : "bg-white border-slate-300 group-hover:border-teal-400"
+                          )}>
+                            {isSelected && <Check className="w-3 h-3 text-white" />}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {selectedPackages.length > 0 && (
+                    <div className="mt-2 pt-2 border-t border-slate-100 px-1">
+                      <button 
+                        onClick={() => setSelectedPackages([])}
+                        className="w-full py-2 rounded-xl text-[10px] font-black text-red-500 uppercase tracking-widest hover:bg-red-50"
+                      >
+                        Reset Packages
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+
+          <div className="h-6 w-px bg-slate-200 mx-1" />
+
+          {/* Portfolio Type Tabs */}
+          <div className="flex bg-slate-100 p-1 rounded-2xl border border-slate-200">
+            {[
+              { id: 'All', label: 'All' },
+              { id: 'Enterprise', label: 'Enterprise' },
+              { id: 'Initiative', label: 'Initiatives' }
+            ].map(f => (
+              <button
+                key={f.id}
+                onClick={() => setGlobalFilter(f.id as any)}
+                className={cn(
+                  "px-4 py-1.5 rounded-xl text-[10px] font-black transition-all uppercase tracking-wider",
+                  globalFilter === f.id
+                    ? "bg-white text-slate-900 shadow-sm ring-1 ring-slate-200"
+                    : "text-slate-500 hover:text-slate-700"
+                )}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Currency Filter */}
+          <div className="flex bg-slate-100 p-1 rounded-2xl border border-slate-200 ml-auto">
+            {(['All', 'NGN', 'USD'] as const).map(c => (
+              <button
+                key={c}
+                onClick={() => setCurrencyFilter(c)}
+                className={cn(
+                  "px-3 py-1.5 rounded-xl text-[10px] font-black transition-all uppercase tracking-wider",
+                  currencyFilter === c
+                    ? "bg-white text-slate-900 shadow-sm"
+                    : "text-slate-500 hover:text-slate-700"
+                )}
+              >
+                {c === 'All' ? 'ALL' : c === 'NGN' ? '₦ NGN' : '$ USD'}
+              </button>
+            ))}
+          </div>
         </div>
 
-        {/* Currency Filter Toggle */}
-        <div className="flex bg-slate-100 p-1 rounded-2xl border border-slate-200">
-          {(['All', 'NGN', 'USD'] as const).map(c => (
-            <button
-              key={c}
-              onClick={() => setCurrencyFilter(c)}
-              className={cn(
-                "px-4 py-2 rounded-xl text-xs font-black transition-all",
-                currencyFilter === c
-                  ? "bg-white text-slate-900 shadow-sm"
-                  : "text-slate-500 hover:text-slate-700"
-              )}
+        {/* Active Filter Chips */}
+        {(periodFilter !== 'All Time' || selectedPackages.length > 0 || globalFilter !== 'All' || currencyFilter !== 'All') && (
+          <div className="flex flex-wrap items-center gap-2 animate-in fade-in slide-in-from-left-2 transition-all">
+            <div className="flex items-center gap-1.5 px-2 text-slate-400">
+              <Filter className="w-3 h-3" />
+              <span className="text-[10px] font-black uppercase tracking-widest italic">Filters Active:</span>
+            </div>
+
+            {periodFilter !== 'All Time' && (
+              <FilterChip 
+                label={periodFilter === 'Custom' ? `${customDateRange.from || '?'} to ${customDateRange.to || '?'}` : periodFilter} 
+                onRemove={() => setPeriodFilter('All Time')} 
+              />
+            )}
+            
+            {globalFilter !== 'All' && (
+              <FilterChip 
+                label={globalFilter === 'Enterprise' ? 'Enterprise' : 'Initiatives'} 
+                onRemove={() => setGlobalFilter('All')} 
+              />
+            )}
+
+            {currencyFilter !== 'All' && (
+              <FilterChip 
+                label={currencyFilter} 
+                onRemove={() => setCurrencyFilter('All')} 
+              />
+            )}
+
+            {selectedPackages.map(pkg => (
+              <FilterChip 
+                key={pkg} 
+                label={pkg} 
+                onRemove={() => setSelectedPackages(prev => prev.filter(p => p !== pkg))} 
+              />
+            ))}
+
+            <button 
+              onClick={() => {
+                setPeriodFilter('All Time');
+                setSelectedPackages([]);
+                setGlobalFilter('All');
+                setCurrencyFilter('All');
+                setCustomDateRange({ from: '', to: '' });
+              }}
+              className="px-3 py-1 text-[10px] font-black text-slate-400 hover:text-red-500 uppercase tracking-widest transition-colors flex items-center gap-1.5"
             >
-              {c === 'All' ? 'ALL' : c === 'NGN' ? '₦ NGN' : '$ USD'}
+              <X className="w-3 h-3" />
+              Clear all
             </button>
-          ))}
-        </div>
+          </div>
+        )}
       </div>
 
       {loading && (
@@ -716,4 +929,16 @@ const RevenueBox = ({ label, ngn, usd, subtitle, variant = 'neutral', themeColor
     </div>
   );
 };
+
+const FilterChip = ({ label, onRemove }: { label: string, onRemove: () => void, key?: React.Key }) => (
+  <div className="flex items-center gap-1.5 px-3 py-1 bg-white border border-slate-200 rounded-full shadow-sm animate-in zoom-in-95 duration-200">
+    <span className="text-[10px] font-bold text-slate-600 truncate max-w-[120px]">{label}</span>
+    <button 
+      onClick={onRemove}
+      className="p-0.5 hover:bg-slate-100 rounded-full transition-colors"
+    >
+      <X className="w-2.5 h-2.5 text-slate-400" />
+    </button>
+  </div>
+);
 

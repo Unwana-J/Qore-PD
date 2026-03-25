@@ -265,6 +265,7 @@ function AppContent() {
                         <ExecutiveDashboard 
                           projects={filteredProjects}
                           users={users}
+                          packages={config.packages}
                           themeColor={config.brand.themeColor}
                           onSelectProject={setSelectedProject}
                           staleThresholdDays={config.staleThresholdDays}
