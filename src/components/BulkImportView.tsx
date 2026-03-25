@@ -33,6 +33,7 @@ const OPTIONAL_FIELDS = [
   { key: 'implementationPerson', label: 'Project Implementation Person' },
   { key: 'subscriptionLevel', label: 'Subscription Level' },
   { key: 'intakeType', label: 'Intake Type' },
+  { key: 'currentPhase', label: 'Starting Phase' },
   { key: 'expectedCompletionDate', label: 'Expected Completion Date' },
   { key: 'actualCompletionDate', label: 'Actual Completion Date' },
   { key: 'closureStatus', label: 'Project Closure Status' },
@@ -494,7 +495,7 @@ export const BulkImportView: React.FC<BulkImportViewProps> = ({ users, invites, 
       const actualCompDate = row.actualCompletionDate || (isClosed ? expectedCompletionDate : undefined);
 
       const phases = isOld ? getPhaseListFromState(
-        'Execution', // Default old projects to Execution phase unless we add specialized logic
+        row.currentPhase || 'Execution', 
         isClosed,
         row.startDate,
         actualCompDate

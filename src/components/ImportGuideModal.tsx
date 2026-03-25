@@ -31,8 +31,8 @@ export const ImportGuideModal: React.FC<ImportGuideModalProps> = ({
       // --- Sheet 1: Import Template ---
       const headers = [
         "Institution Name", "Package / Service Type", "Project Manager", 
-        "Intake Type", "Start Date", "Expected Completion Date", "Cost / Value", 
-        "Currency", "Subscription Level", "USSD", "Transfers", 
+        "Intake Type", "Starting Phase", "Start Date", "Expected Completion Date", 
+        "Cost / Value", "Currency", "Subscription Level", "USSD", "Transfers", 
         "Mobile / Internet Banking", "Branchless", "Cards", 
         "Bills Payment", "API Provisioning", "Project Closure Status", 
         "Key Updates / Notes"
@@ -40,7 +40,7 @@ export const ImportGuideModal: React.FC<ImportGuideModalProps> = ({
 
       const sampleDataRow = [
         "Apex Microfinance Bank", "Digital Banking", "Sarah Jenkins",
-        "Old", "01/01/2025", "30/06/2025", "5000000",
+        "Old", "Execution", "01/01/2025", "30/06/2025", "5000000",
         "NGN", "BIB L1", "Live", "Live",
         "Not Started", "Out of Scope", "Not Started",
         "Not Started", "Not Started", "Active",
@@ -49,7 +49,7 @@ export const ImportGuideModal: React.FC<ImportGuideModalProps> = ({
 
       const guidanceRow = [
         "Required. Must be unique.", "Must match a configured service type exactly", "Must match an existing user in the system",
-        "New or Old. Use 'Old' for legacy projects.", "Required. Format: DD/MM/YYYY", "Required for 'Old' projects. Optional for 'New'.",
+        "New or Old. Use 'Old' for legacy projects.", "Initiation, Planning, Execution, or Closure", "Required. Format: DD/MM/YYYY", "Required for 'Old' projects. Optional for 'New'.",
         "Required. Numbers only — no symbols or commas",
         "NGN, USD, GBP, EUR, KES, GHS, or ZAR", "Optional", "Live, Not Started, Out of Scope, or Not Ready", "Live, Not Started, Out of Scope, or Not Ready",
         "Live, Not Started, Out of Scope, or Not Ready", "Live, Not Started, Out of Scope, or Not Ready", "Live, Not Started, Out of Scope, or Not Ready",
