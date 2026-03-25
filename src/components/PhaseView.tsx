@@ -23,7 +23,9 @@ import {
   TrendingDown,
   TrendingUp,
   Minus,
-  Activity
+  Activity,
+  Pencil,
+  Save
 } from 'lucide-react';
 import { PROJECT_STATES } from '../constants';
 import { getThemeClasses } from '../lib/theme';
@@ -78,6 +80,42 @@ export const PhaseView: React.FC<PhaseViewProps> = ({
   const [phaseCommentInputs, setPhaseCommentInputs] = useState<Record<string, string>>({});
   const [showAddMilestone, setShowAddMilestone] = useState(false);
   const [newMilestoneName, setNewMilestoneName] = useState('');
+
+  // Inline edit state for Project Details card
+  const [isEditingDetails, setIsEditingDetails] = useState(false);
+  const [editDraft, setEditDraft] = useState<{
+    packageName: string;
+    priority: string;
+    value: number;
+    currency: string;
+  }>({
+    packageName: project.packageName || '',
+    priority: project.priority || 'P3',
+    value: project.value || 0,
+    currency: project.currency || 'NGN',
+  });
+
+  const handleOpenEdit = () => {
+    setEditDraft({
+      packageName: project.packageName || '',
+      priority: project.priority || 'P3',
+      value: project.value || 0,
+      currency: project.currency || 'NGN',
+    });
+    setIsEditingDetails(true);
+  };
+
+  const handleSaveDetails = () => {
+    onUpdateProject({
+      ...project,
+      packageName: editDraft.packageName,
+      priority: editDraft.priority as any,
+      value: editDraft.value,
+      currency: editDraft.currency,
+    });
+    setIsEditingDetails(false);
+    onShowToast?.('Project details updated', 'success');
+  };
 
   const theme = getThemeClasses(themeColor);
   const scores = calculatePhaseScores(project);
@@ -322,9 +360,7 @@ export const PhaseView: React.FC<PhaseViewProps> = ({
   };
 
   const canChangeState = hasRole(userRole, ['Superadmin', 'Manager', 'Team Lead', 'Finance']) || (isRole(userRole, 'PM') && isOwner);
-  const canEditValue = hasRole(userRole, ['Superadmin', 'Manager', 'Finance']) && 
-                       (project.state === 'On-Track' || project.state === 'Delayed' || project.state === 'Suspended');
-  const canEditCurrency = hasRole(userRole, ['Superadmin', 'Manager']);
+  const canEditDetails = hasRole(userRole, ['Superadmin', 'Manager', 'Team Lead']) || (isRole(userRole, 'PM') && isOwner);
   const canReassign = hasRole(userRole, ['Superadmin', 'Manager', 'Team Lead']);
   const canRequestRebaseline = isRole(userRole, 'PM') && isOwner;
 
@@ -1094,7 +1130,41 @@ export const PhaseView: React.FC<PhaseViewProps> = ({
 
         <div className="space-y-8">
           <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
-            <h3 className="text-lg font-bold text-slate-900 mb-6">Project Details</h3>
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-lg font-bold text-slate-900">Project Details</h3>
+              {canEditDetails && !isEditingDetails && (
+                <button
+                  onClick={handleOpenEdit}
+                  className={cn(
+                    "flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition-all",
+                    "bg-slate-50 border-slate-200 text-slate-500 hover:text-slate-900 hover:border-slate-400 hover:bg-white"
+                  )}
+                  title="Edit project details"
+                >
+                  <Pencil className="w-3.5 h-3.5" />
+                  Edit
+                </button>
+              )}
+              {isEditingDetails && (
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={handleSaveDetails}
+                    className={cn("flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-white transition-all", theme.bg)}
+                  >
+                    <Save className="w-3.5 h-3.5" />
+                    Save
+                  </button>
+                  <button
+                    onClick={() => setIsEditingDetails(false)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border border-slate-200 text-slate-500 hover:bg-slate-100 transition-all"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                    Cancel
+                  </button>
+                </div>
+              )}
+            </div>
+
             <div className="grid grid-cols-2 gap-4">
               <div className="col-span-2">
                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Assigned PM</p>
@@ -1104,17 +1174,59 @@ export const PhaseView: React.FC<PhaseViewProps> = ({
                 </div>
               </div>
 
+              <div className="col-span-2">
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Package</p>
+                {isEditingDetails ? (
+                  <input
+                    type="text"
+                    className={cn(
+                      "w-full text-sm font-semibold text-slate-900 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 outline-none focus:ring-2 transition-all",
+                      theme.ring
+                    )}
+                    value={editDraft.packageName}
+                    onChange={e => setEditDraft(d => ({ ...d, packageName: e.target.value }))}
+                    placeholder="Package name..."
+                  />
+                ) : (
+                  <p className="text-sm font-semibold text-slate-900 py-1">{project.packageName || '—'}</p>
+                )}
+              </div>
+
+              <div className="col-span-2">
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Tier / Priority</p>
+                {isEditingDetails ? (
+                  <select
+                    className={cn(
+                      "w-full text-sm font-semibold text-slate-900 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 outline-none focus:ring-2 transition-all",
+                      theme.ring
+                    )}
+                    value={editDraft.priority}
+                    onChange={e => setEditDraft(d => ({ ...d, priority: e.target.value }))}
+                  >
+                    <option value="P1">P1 — Tier 1 Enterprise</option>
+                    <option value="P2">P2 — Tier 2 Pro</option>
+                    <option value="P3">P3 — Tier 3 Basic</option>
+                  </select>
+                ) : (
+                  <p className="text-sm font-semibold text-slate-900 py-1">
+                    {project.priority === 'P1' ? 'P1 — Tier 1 Enterprise' :
+                     project.priority === 'P2' ? 'P2 — Tier 2 Pro' :
+                     project.priority === 'P3' ? 'P3 — Tier 3 Basic' : project.priority || '—'}
+                  </p>
+                )}
+              </div>
+
               <div>
                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Value</p>
-                {canEditValue ? (
-                  <input 
+                {isEditingDetails ? (
+                  <input
                     type="number"
                     className={cn(
-                      "w-full text-sm font-semibold text-slate-900 bg-slate-50 border border-slate-100 rounded px-3 py-2 outline-none focus:ring-1",
-                      theme.ringStatic
+                      "w-full text-sm font-semibold text-slate-900 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 outline-none focus:ring-2 transition-all",
+                      theme.ring
                     )}
-                    value={project.value}
-                    onChange={(e) => onUpdateProject({ ...project, value: parseFloat(e.target.value) })}
+                    value={editDraft.value}
+                    onChange={e => setEditDraft(d => ({ ...d, value: parseFloat(e.target.value) || 0 }))}
                   />
                 ) : (
                   <p className="text-sm font-semibold text-slate-900 py-1">{project.value > 0 ? project.value.toLocaleString() : '0'}</p>
@@ -1123,14 +1235,14 @@ export const PhaseView: React.FC<PhaseViewProps> = ({
 
               <div>
                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Currency</p>
-                {canEditCurrency ? (
+                {isEditingDetails ? (
                   <select
                     className={cn(
-                      "w-full text-sm font-semibold text-slate-900 bg-slate-50 border border-slate-100 rounded px-3 py-2 outline-none focus:ring-1",
-                      theme.ringStatic
+                      "w-full text-sm font-semibold text-slate-900 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 outline-none focus:ring-2 transition-all",
+                      theme.ring
                     )}
-                    value={project.currency}
-                    onChange={(e) => onUpdateProject({ ...project, currency: e.target.value })}
+                    value={editDraft.currency}
+                    onChange={e => setEditDraft(d => ({ ...d, currency: e.target.value }))}
                   >
                     {currencies.map(c => (
                       <option key={c.code} value={c.code}>{c.code}</option>
@@ -1163,13 +1275,13 @@ export const PhaseView: React.FC<PhaseViewProps> = ({
                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Current Completion</p>
                 <div className="flex items-center justify-between">
                   <p className={cn(
-                    "text-sm font-bold", 
+                    "text-sm font-bold",
                     project.currentCompletionDate !== project.expectedCompletionDate ? theme.text : "text-slate-900"
                   )}>
                     {project.currentCompletionDate || project.expectedCompletionDate || project.startDate}
                   </p>
                   {canRequestRebaseline && (
-                    <button 
+                    <button
                       onClick={() => setIsRebaselineModalOpen(true)}
                       className={cn(
                         "flex items-center gap-1 px-2 py-0.5 bg-slate-50 text-[10px] font-bold rounded hover:bg-slate-100 transition-colors border border-slate-200",
