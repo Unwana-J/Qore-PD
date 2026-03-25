@@ -29,7 +29,7 @@ type View = 'dashboard' | 'projects' | 'risks' | 'settings' | 'rebaseline-reques
 import { safety } from './lib/safety';
 
 function AppContent() {
-  const { user, profile, loading: authLoading, profileLoading, signOut } = useAuth();
+  const { user, profile, loading: authLoading, profileLoading, isReconnecting, signOut } = useAuth();
   const [currentView, setCurrentView] = useState<View>('dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
@@ -140,14 +140,16 @@ function AppContent() {
     return <AuthView />;
   }
 
-  // Handle case where user is logged in but profile fetch permanently failed
-  if (!profile) {
+  // If reconnecting after idle, let the app stay up — just show a thin reconnection banner
+  // Only show the hard error screen if profile is truly gone AND we are NOT attempting to recover
+  if (!profile && !isReconnecting && !profileLoading) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 gap-6">
         <AlertCircle className="w-12 h-12 text-red-500" />
         <div className="text-center space-y-2">
-          <h2 className="text-xl font-bold text-slate-900">Application Sync Error</h2>
-          <p className="text-sm text-slate-500">We found your session but couldn't retrieve your profile data.</p>
+          <h2 className="text-xl font-bold text-slate-900">Session Sync Failed</h2>
+          <p className="text-sm text-slate-500">We found your session but couldn't retrieve your profile.</p>
+          <p className="text-xs text-slate-400">This usually resolves on retry.</p>
         </div>
         <div className="flex flex-col gap-3 w-64">
           <button 
@@ -168,7 +170,21 @@ function AppContent() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 flex font-sans text-slate-900">
+    <div className="min-h-screen bg-slate-50 flex font-sans text-slate-900 relative">
+      {/* Graceful reconnection banner — slides in during idle-resume token refresh */}
+      <AnimatePresence>
+        {isReconnecting && (
+          <motion.div
+            initial={{ opacity: 0, y: -4 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -4 }}
+            className="fixed top-0 left-0 right-0 z-[1000] flex items-center justify-center gap-2 bg-teal-600 text-white text-[11px] font-black uppercase tracking-widest py-2 shadow-md"
+          >
+            <RefreshCw className="w-3 h-3 animate-spin" />
+            Reconnecting session…
+          </motion.div>
+        )}
+      </AnimatePresence>
       <Sidebar 
         currentView={currentView}
         setCurrentView={setCurrentView}
