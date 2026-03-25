@@ -250,6 +250,7 @@ export interface ImportRow {
   closureStatus?: string;
   notes?: string;
   intakeType?: 'New' | 'Old';
+  currentPhase?: string;
   expectedCompletionDate?: string;
   actualCompletionDate?: string;
 }

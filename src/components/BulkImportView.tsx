@@ -689,13 +689,13 @@ export const BulkImportView: React.FC<BulkImportViewProps> = ({ users, invites, 
                       const actualIdx = (currentPage - 1) * rowsPerPage + i;
                       return (
                       <div key={row.index} className={cn(
-                        "bg-white border text-sm rounded-xl p-4 shadow-sm flex items-start gap-4 transition-colors relative overflow-hidden group",
+                        "bg-white border text-sm rounded-xl p-4 shadow-sm flex flex-col gap-4 transition-colors relative overflow-hidden group",
                         row.status === 'clean' ? "border-emerald-200 border-l-4 border-l-emerald-500" :
                         row.status === 'error' ? "border-red-200 border-l-4 border-l-red-500" :
                         "border-amber-200 border-l-4 border-l-amber-500"
                       )}>
                         
-                        <div className="flex-1 grid grid-cols-5 gap-4">
+                        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
                           {/* Client */}
                           <div>
                             <span className="block text-[10px] uppercase font-bold text-slate-400 mb-1">Institution</span>
@@ -796,6 +796,71 @@ export const BulkImportView: React.FC<BulkImportViewProps> = ({ users, invites, 
                                 !row.startDate ? 'bg-red-50 text-red-600' : 'text-slate-700')}
                             />
                           </div>
+                        </div>
+
+                        {/* Legacy Details Row (Conditional) */}
+                        <div className="flex items-center gap-6 pt-3 mt-3 border-t border-slate-100">
+                          <div>
+                            <span className="block text-[8px] uppercase font-black text-slate-400 tracking-tighter mb-1">Intake Type</span>
+                            <select 
+                               value={row.intakeType || 'New'} 
+                               onChange={(e) => updateRowField(actualIdx, 'intakeType', e.target.value)}
+                               className={cn(
+                                 "text-[10px] font-black uppercase tracking-wider px-2 py-1 rounded-lg outline-none transition-all",
+                                 row.intakeType === 'Old' ? "bg-amber-100 text-amber-700" : "bg-teal-100 text-teal-700"
+                               )}
+                            >
+                               <option value="New">New Intake</option>
+                               <option value="Old">Older Project</option>
+                            </select>
+                          </div>
+
+                          {row.intakeType === 'Old' && (
+                            <>
+                              <div className="h-6 w-px bg-slate-100"></div>
+                              <div>
+                                <span className="block text-[8px] uppercase font-black text-slate-400 tracking-tighter mb-1">Starting Phase</span>
+                                <select 
+                                  value={row.currentPhase || 'Execution'} 
+                                  onChange={(e) => updateRowField(actualIdx, 'currentPhase', e.target.value)}
+                                  className="text-[10px] font-bold text-slate-700 bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 outline-none"
+                                >
+                                  <option value="Initiation">Initiation</option>
+                                  <option value="Planning">Planning</option>
+                                  <option value="Execution">Execution</option>
+                                  <option value="Closure">Closure</option>
+                                </select>
+                              </div>
+
+                              <div className="h-6 w-px bg-slate-100"></div>
+                              <div>
+                                <span className="block text-[8px] uppercase font-black text-slate-400 tracking-tighter mb-1">Expected Completion</span>
+                                <input 
+                                  type="date"
+                                  value={row.expectedCompletionDate || ''} 
+                                  onChange={(e) => updateRowField(actualIdx, 'expectedCompletionDate', e.target.value)}
+                                  className={cn(
+                                    "text-[10px] font-bold bg-slate-50 border border-slate-200 rounded-lg px-2 py-0.5 outline-none transition-all",
+                                    !row.expectedCompletionDate ? "bg-red-50 border-red-200 text-red-600" : "text-slate-700"
+                                  )}
+                                />
+                              </div>
+                            </>
+                          )}
+
+                          {row.errors && row.errors.length > 0 && (
+                            <div className="ml-auto flex items-center gap-2 text-[10px] font-bold text-red-600 bg-red-50 rounded-lg px-3 py-1 animate-pulse">
+                              <AlertTriangle className="w-3 h-3" />
+                              {row.errors.length} {row.errors.length === 1 ? 'Error' : 'Errors'} Found
+                            </div>
+                          )}
+                          
+                          {row.status === 'clean' && (
+                            <div className="ml-auto flex items-center gap-2 text-[10px] font-bold text-emerald-600 bg-emerald-50 rounded-lg px-3 py-1">
+                              <CheckCircle2 className="w-3 h-3" />
+                              Ready for Import
+                            </div>
+                          )}
                         </div>
 
                         {/* Actions / Duplicate Handling */}
