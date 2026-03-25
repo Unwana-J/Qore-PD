@@ -351,6 +351,7 @@ function AppContent() {
         currencies={config.currencies}
         themeColor={config.brand.themeColor}
         users={users}
+        importedPMs={Array.from(new Set(projects.map(p => p.assignedPM).filter(Boolean)))}
         serviceBaselines={config.serviceBaselines}
         packages={config.packages}
         productLines={config.productLines}

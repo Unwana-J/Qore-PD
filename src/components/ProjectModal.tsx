@@ -16,6 +16,7 @@ interface ProjectModalProps {
   currencies: any[];
   themeColor?: string;
   users: any[];
+  importedPMs?: string[];
   serviceBaselines: ServiceBaseline[];
   packages: PackageConfig[];
   productLines: ProductLineConfig[];
@@ -23,7 +24,7 @@ interface ProjectModalProps {
 
 export const ProjectModal: React.FC<ProjectModalProps> = ({ 
   isOpen, onClose, onSubmit, userRole, getPMWorkload, workloadThresholds, 
-  themeColor = 'teal', currencies = [], users = [],
+  themeColor = 'teal', currencies = [], users = [], importedPMs = [],
   serviceBaselines = [], packages = [], productLines = []
 }) => {
   const currentUserName = userRole === 'PM' ? 'Sarah Jenkins' : 'Admin User'; // In full app this would come from auth
@@ -49,8 +50,18 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
   const [selectedServices, setSelectedServices] = useState<string[]>([]);
   const theme = getThemeClasses(themeColor);
 
-  const activePMs = users.filter(u => u.role === 'PM' && u.status === 'Active');
-  const filteredPMs = activePMs.filter(pm => 
+  const profilePMs = users.filter(u => u.role === 'PM' && u.status === 'Active');
+  
+  // Combine profile users with names found in projects (imported PMs)
+  // Ensure we don't duplicate those who already have a profile
+  const allPMInfo = [
+    ...profilePMs.map(u => ({ id: u.id, name: u.name, hasAccount: true, status: u.status })),
+    ...importedPMs
+      .filter(name => !profilePMs.some(p => p.name.toLowerCase() === name.toLowerCase()))
+      .map(name => ({ id: `imported-${name}`, name, hasAccount: false, status: 'Inactive' }))
+  ];
+
+  const filteredPMs = allPMInfo.filter(pm => 
     pm.name.toLowerCase().includes(pmSearch.toLowerCase())
   );
 
@@ -324,7 +335,14 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
                                 }}
                               >
                                 <div className="flex justify-between items-center">
-                                  <span className="font-bold text-slate-900">{pm.name}</span>
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-bold text-slate-900">{pm.name}</span>
+                                    {!pm.hasAccount && (
+                                      <span className="text-[9px] font-black bg-slate-100 text-slate-400 px-1.5 py-0.5 rounded border border-slate-200">
+                                        Imported
+                                      </span>
+                                    )}
+                                  </div>
                                   {isAtLimit && (
                                     <span className="text-[10px] font-black bg-amber-100 text-amber-700 px-2 py-0.5 rounded uppercase tracking-wider" title={`At ${formData.priority} limit — override required`}>
                                       At Limit
