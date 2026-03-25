@@ -298,6 +298,7 @@ function AppContent() {
                     spiThresholds={config.spiThresholds}
                     validateStateTransition={validateStateTransition}
                     onShowToast={showToast}
+                    userName={profile?.name}
                   />
                 ) : (
                   <>

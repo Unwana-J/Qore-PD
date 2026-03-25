@@ -34,6 +34,7 @@ const OPTIONAL_FIELDS = [
   { key: 'subscriptionLevel', label: 'Subscription Level' },
   { key: 'intakeType', label: 'Intake Type' },
   { key: 'currentPhase', label: 'Starting Phase' },
+  { key: 'productLine', label: 'Product Line' },
   { key: 'expectedCompletionDate', label: 'Expected Completion Date' },
   { key: 'actualCompletionDate', label: 'Actual Completion Date' },
   { key: 'closureStatus', label: 'Project Closure Status' },
@@ -466,7 +467,14 @@ export const BulkImportView: React.FC<BulkImportViewProps> = ({ users, invites, 
       // Calculate Auto Services and Baseline Days
       let baselineDays = 0;
       let mappedServices: string[] = row.services || [];
-      let productLines: ProductLine[] = ['Bankone']; // Default
+      let productLines: ProductLine[] = [];
+      const plInput = safeTrim(row.productLine);
+      if (plInput) {
+        // Support comma separated product lines
+        productLines = plInput.split(/[,|]/).map(s => s.trim() as ProductLine).filter(s => ['Bankone', 'Digital Banking', 'Agency Banking', 'Other'].includes(s));
+      }
+      if (productLines.length === 0) productLines = ['Bankone']; // Default
+      
       let expectedCompletionDate = '';
 
       if (isOld) {
@@ -494,12 +502,15 @@ export const BulkImportView: React.FC<BulkImportViewProps> = ({ users, invites, 
       const isClosed = closureStatus.toLowerCase() === 'closed' || closureStatus.toLowerCase() === 'billed';
       const actualCompDate = row.actualCompletionDate || (isClosed ? expectedCompletionDate : undefined);
 
-      const phases = isOld ? getPhaseListFromState(
-        row.currentPhase || 'Execution', 
+      // Universal Phase Generation: Support "Starting Phase" for all projects
+      // Default: New projects start at Initiation, Old projects start at Execution
+      const defaultStartPhase = isOld ? 'Execution' : 'Initiation';
+      const phases = getPhaseListFromState(
+        row.currentPhase || defaultStartPhase, 
         isClosed,
         row.startDate,
         actualCompDate
-      ) : [];
+      );
 
       const mappedData: Partial<Project> = {
         clientName: row.clientName,

@@ -48,13 +48,14 @@ interface PhaseViewProps {
   spiThresholds: { onTrack: number, atRisk: number };
   validateStateTransition?: (project: Project, newState: string) => string | null;
   onShowToast?: (msg: string, type?: 'success' | 'error' | 'info') => void;
+  userName?: string;
 }
 
 export const PhaseView: React.FC<PhaseViewProps> = ({ 
   project: rawProject, onBack, onUpdateProject, onSubmitRebaseline, 
   onApproveRebaseline, onDeclineRebaseline, 
   userRole, currencies = [], packages = [], themeColor = 'teal', onReassign, defaultPhases = [],
-  spiThresholds, validateStateTransition, onShowToast
+  spiThresholds, validateStateTransition, onShowToast, userName
 }) => {
   // Defensive fallbacks for imported legacy projects that might lack these arrays
   const project = {
@@ -121,7 +122,7 @@ export const PhaseView: React.FC<PhaseViewProps> = ({
   const theme = getThemeClasses(themeColor);
   const scores = calculatePhaseScores(project);
 
-  const isOwner = project.assignedPM === 'Sarah Jenkins';
+  const isOwner = project.assignedPM?.trim().toLowerCase() === userName?.trim().toLowerCase();
   const canEdit = hasRole(userRole, ['Superadmin', 'Manager', 'Team Lead']) || (isRole(userRole, 'PM') && isOwner);
   const canEditPhase = canEdit; // Relaxed for testing ease, initially restricted to Superadmin/PM
 
