@@ -11,7 +11,9 @@ if (!supabaseUrl || !supabaseAnonKey) {
 
 export const supabase = createClient(supabaseUrl || '', supabaseAnonKey || '', {
   auth: {
-    persistSession: true,
+    persistSession: true,      // Keep session in localStorage across tabs/refreshes
+    autoRefreshToken: true,    // Silently renew access token before expiry (every ~1hr)
+    detectSessionInUrl: true,  // Handle magic links and OAuth redirects
     storage: {
       getItem: (key) => safety.safeGetStorage(key),
       setItem: (key, value) => safety.safeSetStorage(key, value),
