@@ -87,7 +87,7 @@ export function useProjects(userRole: Role, config: AppConfig, userName: string 
         console.warn("[Diagnostics] Projects sync timed out. Releasing UI lock.");
         setLoading(false);
       }
-    }, 15000);
+    }, 25000);
 
     fetchProjects().finally(() => clearTimeout(syncTimeout));
     

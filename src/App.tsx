@@ -29,7 +29,7 @@ type View = 'dashboard' | 'projects' | 'risks' | 'settings' | 'rebaseline-reques
 import { safety } from './lib/safety';
 
 function AppContent() {
-  const { user, profile, loading: authLoading, profileLoading, isReconnecting, signOut } = useAuth();
+  const { user, profile, loading: authLoading, profileLoading, isReconnecting, loadingStage, signOut } = useAuth();
   const [currentView, setCurrentView] = useState<View>('dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
@@ -124,14 +124,43 @@ function AppContent() {
     }
   };
 
-  // Show loading while auth OR profile is being fetched for the first time
+  // Progressive loading screen with staged contextual messages
   if (authLoading || (user && profileLoading && !profile)) {
+    const stageMessages: Record<string, string> = {
+      auth: 'Verifying your session...',
+      profile: 'Loading your profile...',
+      ready: 'Almost ready...'
+    };
+    const message = isReconnecting
+      ? 'Reconnecting to your workspace...'
+      : (stageMessages[loadingStage] || 'Synchronizing...');
+    const stages = ['auth', 'profile', 'ready'] as const;
+
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 gap-6">
-        <div className="w-12 h-12 border-4 border-slate-100 border-t-teal-600 rounded-full animate-spin"></div>
-        <p className="text-xs font-bold text-slate-400 uppercase tracking-widest animate-pulse">
-          {profileLoading ? 'Loading Profile...' : 'Synchronizing...'}
-        </p>
+        <div className="relative">
+          <div className="w-16 h-16 bg-teal-600 rounded-2xl flex items-center justify-center shadow-xl shadow-teal-200 animate-pulse">
+            <Loader2 className="w-8 h-8 text-white animate-spin" />
+          </div>
+        </div>
+        <div className="text-center space-y-1">
+          <p className="text-sm font-bold text-slate-700">{message}</p>
+          {isReconnecting && (
+            <p className="text-xs text-slate-400">This may take a moment on slow connections</p>
+          )}
+        </div>
+        <div className="flex gap-1.5">
+          {stages.map((stage, i) => (
+            <div
+              key={stage}
+              className={cn(
+                "w-2 h-2 rounded-full transition-all duration-500",
+                loadingStage === stage ? "bg-teal-500 scale-110" :
+                i < stages.indexOf(loadingStage) ? "bg-teal-300" : "bg-slate-200"
+              )}
+            />
+          ))}
+        </div>
       </div>
     );
   }
@@ -140,28 +169,28 @@ function AppContent() {
     return <AuthView />;
   }
 
-  // If reconnecting after idle, let the app stay up — just show a thin reconnection banner
-  // Only show the hard error screen if profile is truly gone AND we are NOT attempting to recover
-  if (!profile && !isReconnecting && !profileLoading) {
+  // Hard error — only shown when all retries are exhausted and nothing is loading
+  if (!profile && !isReconnecting && !profileLoading && !authLoading) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 gap-6">
-        <AlertCircle className="w-12 h-12 text-red-500" />
-        <div className="text-center space-y-2">
+      <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 gap-6 p-6">
+        <div className="w-14 h-14 rounded-2xl bg-red-50 border border-red-100 flex items-center justify-center">
+          <AlertCircle className="w-7 h-7 text-red-500" />
+        </div>
+        <div className="text-center space-y-2 max-w-sm">
           <h2 className="text-xl font-bold text-slate-900">Session Sync Failed</h2>
           <p className="text-sm text-slate-500">We found your session but couldn't retrieve your profile data.</p>
-          <p className="text-xs text-slate-400 max-w-xs mx-auto">
-            This can happen if your profile wasn't created correctly during sign-up. 
-            Try retrying, or contact support if this persists.
+          <p className="text-xs text-slate-400">
+            This can happen on slow connections or if your profile wasn't set up correctly.
           </p>
         </div>
         <div className="flex flex-col gap-3 w-64">
-          <button 
-            onClick={() => window.location.reload()} 
+          <button
+            onClick={() => window.location.reload()}
             className="w-full py-3 bg-slate-900 text-white rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-slate-800 transition-all"
           >
             <RefreshCw className="w-4 h-4" /> Retry Connection
           </button>
-          <button 
+          <button
             onClick={signOut}
             className="w-full py-3 text-slate-400 font-bold uppercase text-[10px] tracking-[0.2em] hover:text-red-500 transition-colors"
           >
