@@ -145,9 +145,9 @@ export function useProjects(userRole: Role, config: AppConfig, userName: string 
         return acc + (baseline ? baseline.baselineDays : 0);
       }, 0);
 
-      const expectedCompletionDate = isInternalInitiative 
-        ? (newProjectData.expectedCompletionDate || new Date().toISOString().split('T')[0])
-        : calculateWorkingDays(newProjectData.startDate || new Date(), baselineDays);
+      const expectedCompletionDate = newProjectData.expectedCompletionDate || (isInternalInitiative 
+        ? new Date().toISOString().split('T')[0]
+        : calculateWorkingDays(newProjectData.startDate || new Date(), baselineDays));
 
       const phases: Phase[] = newProjectData.phases?.length ? newProjectData.phases : [
         { id: 'Initiation', name: 'Initiation', status: 'Pending' },
@@ -179,6 +179,7 @@ export function useProjects(userRole: Role, config: AppConfig, userName: string 
         phases,
         phaseWeights: { ...config.projectLifecycleWeights },
         serviceStates,
+        state: newProjectData.state || 'On-Track',
         rebaselineRequests: [],
         suspensionCycles: []
       });

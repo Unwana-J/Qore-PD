@@ -113,6 +113,8 @@ export interface Project {
   isInternalInitiative?: boolean;
   milestones?: ExecutionMilestone[];
   phaseComments?: Partial<Record<PhaseName, MilestoneComment>>;
+  intakeType?: 'New' | 'Old';
+  actualCompletionDate?: string;
 }
 
 export interface PackageConfig {
@@ -247,4 +249,7 @@ export interface ImportRow {
   services?: string[];
   closureStatus?: string;
   notes?: string;
+  intakeType?: 'New' | 'Old';
+  expectedCompletionDate?: string;
+  actualCompletionDate?: string;
 }

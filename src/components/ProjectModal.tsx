@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, Calendar, Clock, AlertTriangle } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Project, Phase, Role, ServiceBaseline, PackageConfig, ProductLineConfig } from '../types';
-import { cn, calculateWorkingDays } from '../lib/utils';
+import { cn, calculateWorkingDays, getPhaseListFromState, getWorkingDaysInRange } from '../lib/utils';
 import { getThemeClasses } from '../lib/theme';
 import { ConfirmationModal } from './common/ConfirmationModal';
 
@@ -37,6 +37,9 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
     value: '',
     currency: currencies.find(c => c.isActive)?.code || 'USD',
     priority: 'P2' as any,
+    intakeType: 'New' as 'New' | 'Old',
+    currentPhase: 'Initiation' as any,
+    expectedCompletionDate: '',
   });
 
   const [pmSearch, setPmSearch] = useState('');
@@ -46,6 +49,8 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
   const [confirmationData, setConfirmationData] = useState<{ pmName: string, load: number, limit: number } | null>(null);
   const [internalMilestones, setInternalMilestones] = useState<string[]>(['']);
   const [manualCompletionDate, setManualCompletionDate] = useState('');
+  const [isCompletedAlready, setIsCompletedAlready] = useState(false);
+  const [actualCompletionDate, setActualCompletionDate] = useState('');
 
   const [selectedServices, setSelectedServices] = useState<string[]>([]);
   const theme = getThemeClasses(themeColor);
@@ -131,12 +136,37 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
     }
 
     try {
+      const isOld = formData.intakeType === 'Old';
+      
+      // Calculate duration manually for old projects
+      let baselineDays = totalDuration;
+      let expectedCompletionDate = isInternalInitiative ? manualCompletionDate : (expectedEndDate || formData.startDate);
+      let currentState = 'On-Track' as any;
+
+      if (isOld) {
+        if (!formData.expectedCompletionDate) {
+          setError('Expected Completion Date is required for older projects');
+          return;
+        }
+        baselineDays = getWorkingDaysInRange(formData.startDate, formData.expectedCompletionDate, true);
+        expectedCompletionDate = formData.expectedCompletionDate;
+        
+        if (isCompletedAlready) {
+          if (!actualCompletionDate) {
+            setError('Actual Completion Date is required for completed projects');
+            return;
+          }
+          currentState = 'Closed';
+        }
+      }
+
       const result = await onSubmit({
         ...formData,
         value: formData.value ? Number(formData.value) : 0,
         services: isInternalInitiative ? [] : selectedServices,
-        expectedCompletionDate: isInternalInitiative ? manualCompletionDate : (expectedEndDate || formData.startDate),
-        currentCompletionDate: isInternalInitiative ? manualCompletionDate : (expectedEndDate || formData.startDate),
+        expectedDuration: baselineDays,
+        expectedCompletionDate,
+        currentCompletionDate: expectedCompletionDate,
         isInternalInitiative,
         milestones: isInternalInitiative ? internalMilestones.map(m => ({
           id: Math.random().toString(36).substr(2, 9),
@@ -144,10 +174,16 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
           status: 'Not Started' as const
         })) : undefined,
         currency: formData.currency,
-        state: 'On-Track',
+        state: currentState,
         comments: [],
-        phases: [],
-        risks: []
+        phases: isOld ? getPhaseListFromState(
+          formData.currentPhase, 
+          isCompletedAlready, 
+          formData.startDate, 
+          actualCompletionDate
+        ) : [],
+        risks: [],
+        actualCompletionDate: isCompletedAlready ? actualCompletionDate : undefined
       }, force);
 
       if (result?.warning) {
@@ -252,6 +288,30 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
           </div>
 
           <form onSubmit={handleSubmit} className="p-6 space-y-6 max-h-[85vh] overflow-y-auto">
+            {/* Intake Type Toggle */}
+            <div className="flex p-1 bg-slate-100 rounded-2xl w-fit mb-2">
+              <button
+                type="button"
+                onClick={() => setFormData({...formData, intakeType: 'New'})}
+                className={cn(
+                  "px-4 py-2 text-xs font-black uppercase tracking-wider rounded-xl transition-all",
+                  formData.intakeType === 'New' ? "bg-white text-slate-900 shadow-sm" : "text-slate-400 hover:text-slate-600"
+                )}
+              >
+                New Intake
+              </button>
+              <button
+                type="button"
+                onClick={() => setFormData({...formData, intakeType: 'Old'})}
+                className={cn(
+                  "px-4 py-2 text-xs font-black uppercase tracking-wider rounded-xl transition-all",
+                  formData.intakeType === 'Old' ? "bg-white text-slate-900 shadow-sm" : "text-slate-400 hover:text-slate-600"
+                )}
+              >
+                Older Project
+              </button>
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-1.5">
                 <label className="text-xs font-bold text-slate-500 uppercase">{isInternalInitiative ? "Initiative Name" : "Client Name"}</label>
@@ -424,9 +484,12 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
                 </select>
               </div>
             </div>
-            {isInternalInitiative && (
+            {/* Manual Completion Date (For Internal Initiatives or Old Projects) */}
+            {(isInternalInitiative || formData.intakeType === 'Old') && (
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-500 uppercase">Completion Date</label>
+                <label className="text-xs font-bold text-slate-500 uppercase">
+                  {isInternalInitiative ? "Completion Date" : "Expected Completion Date"}
+                </label>
                 <input 
                   required
                   type="date"
@@ -434,9 +497,58 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
                     "w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 outline-none transition-all",
                     theme.ring, theme.focusBorder
                   )}
-                  value={manualCompletionDate}
-                  onChange={e => setManualCompletionDate(e.target.value)}
+                  value={isInternalInitiative ? manualCompletionDate : formData.expectedCompletionDate}
+                  onChange={e => isInternalInitiative ? setManualCompletionDate(e.target.value) : setFormData({...formData, expectedCompletionDate: e.target.value})}
                 />
+              </div>
+            )}
+
+            {formData.intakeType === 'Old' && (
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-500 uppercase">Starting Phase</label>
+                <div className="flex flex-col gap-3">
+                  <select 
+                    required
+                    className={cn(
+                      "w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 outline-none transition-all",
+                      theme.ring, theme.focusBorder
+                    )}
+                    value={formData.currentPhase}
+                    onChange={e => setFormData({...formData, currentPhase: e.target.value as any})}
+                  >
+                    <option value="Initiation">Initiation</option>
+                    <option value="Planning">Planning</option>
+                    <option value="Execution">Execution</option>
+                    <option value="Closure">Closure</option>
+                  </select>
+
+                  {formData.currentPhase === 'Closure' && (
+                    <div className="p-3 bg-amber-50 border border-amber-100 rounded-xl space-y-3">
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input 
+                          type="checkbox"
+                          checked={isCompletedAlready}
+                          onChange={e => setIsCompletedAlready(e.target.checked)}
+                          className="w-4 h-4 rounded text-amber-600 border-slate-300 focus:ring-amber-500"
+                        />
+                        <span className="text-xs font-bold text-amber-800">Is this project already completed?</span>
+                      </label>
+                      
+                      {isCompletedAlready && (
+                        <div className="space-y-1 animate-in slide-in-from-top-2 duration-200">
+                          <label className="text-[10px] font-black text-amber-600 uppercase">Actual Completion Date</label>
+                          <input 
+                            type="date"
+                            required={isCompletedAlready}
+                            className="w-full px-3 py-2 bg-white border border-amber-200 rounded-lg text-sm focus:ring-2 focus:ring-amber-400 outline-none"
+                            value={actualCompletionDate}
+                            onChange={e => setActualCompletionDate(e.target.value)}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
             )}
             </div>

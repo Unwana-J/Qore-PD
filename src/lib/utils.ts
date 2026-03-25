@@ -1,7 +1,7 @@
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { addDays, isWeekend, parseISO, format, isSameDay } from 'date-fns';
-import { Project } from '../types';
+import { Project, Phase, PhaseName, PhaseStatus } from '../types';
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -306,4 +306,42 @@ export function calculatePhaseScores(project: Project) {
     closureScore,
     totalPercentage: Math.min(100, Math.round(totalPercentage))
   };
+}
+
+/**
+ * Generates a standard 4-phase list with statuses adjusted for legacy projects.
+ * For example, if a project starts in 'Execution', Initiation and Planning are auto-completed.
+ */
+export function getPhaseListFromState(
+  startPhase: PhaseName | string, 
+  isCompleted: boolean, 
+  startDate: string,
+  actualCompletionDate?: string
+): Phase[] {
+  const phaseNames: PhaseName[] = ['Initiation', 'Planning', 'Execution', 'Closure'];
+  const targetPhase = startPhase as PhaseName;
+  const startIndex = phaseNames.indexOf(targetPhase);
+  
+  return phaseNames.map((name, index) => {
+    let status: PhaseStatus = 'Locked';
+    let completionDate: string | undefined = undefined;
+
+    if (isCompleted) {
+      status = 'Completed';
+      // If the whole project is completed, use the actual completion date for the final phase
+      // and the start date for others as a fallback
+      completionDate = (index === 3) ? (actualCompletionDate || startDate) : startDate;
+    } else if (index < startIndex) {
+      status = 'Completed';
+      completionDate = startDate; // Assume historical phases are done
+    } else if (index === startIndex) {
+      status = 'In Progress';
+    } else if (index === startIndex + 1) {
+      status = 'Pending';
+    } else {
+      status = 'Locked';
+    }
+
+    return { id: name, name, status, completionDate };
+  });
 }

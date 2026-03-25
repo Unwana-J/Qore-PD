@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Upload, FileType, AlertTriangle, CheckCircle2, X, ChevronRight, Edit2, Archive, Check } from 'lucide-react';
 import Papa from 'papaparse';
 import * as XLSX from 'xlsx';
-import { cn, formatCurrency, calculateWorkingDays, getActiveDaysCount } from '../lib/utils';
+import { cn, formatCurrency, calculateWorkingDays, getActiveDaysCount, getPhaseListFromState, getWorkingDaysInRange } from '../lib/utils';
 import { getThemeClasses } from '../lib/theme';
 import { Project, Role, AppConfig, ImportRow, ImportRowStatus, User, ServiceBaseline, ProductLine } from '../types';
 import { ImportGuideModal } from './ImportGuideModal';
@@ -32,6 +32,9 @@ const REQUIRED_FIELDS = [
 const OPTIONAL_FIELDS = [
   { key: 'implementationPerson', label: 'Project Implementation Person' },
   { key: 'subscriptionLevel', label: 'Subscription Level' },
+  { key: 'intakeType', label: 'Intake Type' },
+  { key: 'expectedCompletionDate', label: 'Expected Completion Date' },
+  { key: 'actualCompletionDate', label: 'Actual Completion Date' },
   { key: 'closureStatus', label: 'Project Closure Status' },
   { key: 'notes', label: 'Key Updates / Notes' }
 ];
@@ -174,9 +177,45 @@ export const BulkImportView: React.FC<BulkImportViewProps> = ({ users, invites, 
       status = 'duplicate';
     }
 
+    // Normalize Expected Completion Date if present
+    let normalizedExpectedDate = row.expectedCompletionDate;
+    if (safeTrim(row.expectedCompletionDate)) {
+      try {
+        let d: Date;
+        const raw = safeTrim(row.expectedCompletionDate);
+        if ((row.expectedCompletionDate as any) instanceof Date) {
+          d = row.expectedCompletionDate as any;
+        } else if (raw.includes('/')) {
+          const parts = raw.split('/');
+          if (parts.length === 3) d = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
+          else d = new Date(raw);
+        } else d = new Date(raw);
+        if (!isNaN(d.getTime())) normalizedExpectedDate = d.toISOString().split('T')[0];
+      } catch {}
+    }
+
+    // Normalize Actual Completion Date if present
+    let normalizedActualDate = row.actualCompletionDate;
+    if (safeTrim(row.actualCompletionDate)) {
+      try {
+        let d: Date;
+        const raw = safeTrim(row.actualCompletionDate);
+        if ((row.actualCompletionDate as any) instanceof Date) {
+          d = row.actualCompletionDate as any;
+        } else if (raw.includes('/')) {
+          const parts = raw.split('/');
+          if (parts.length === 3) d = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
+          else d = new Date(raw);
+        } else d = new Date(raw);
+        if (!isNaN(d.getTime())) normalizedActualDate = d.toISOString().split('T')[0];
+      } catch {}
+    }
+
     return {
       ...row,
       startDate: normalizedStartDate || row.startDate,
+      expectedCompletionDate: normalizedExpectedDate || row.expectedCompletionDate,
+      actualCompletionDate: normalizedActualDate || row.actualCompletionDate,
       status,
       errors
     };
@@ -421,12 +460,19 @@ export const BulkImportView: React.FC<BulkImportViewProps> = ({ users, invites, 
       // Format numeric value
       const numVal = typeof row.value === 'string' ? parseFloat(row.value.replace(/[^\d.-]/g, '')) : row.value;
       
+      const isOld = (row.intakeType || 'New').toLowerCase() === 'old';
+      
       // Calculate Auto Services and Baseline Days
       let baselineDays = 0;
       let mappedServices: string[] = row.services || [];
       let productLines: ProductLine[] = ['Bankone']; // Default
+      let expectedCompletionDate = '';
 
-      if (row.packageName) {
+      if (isOld) {
+        // For old projects, use provided completion date to derive duration
+        expectedCompletionDate = row.expectedCompletionDate || row.startDate;
+        baselineDays = getWorkingDaysInRange(row.startDate, expectedCompletionDate, true);
+      } else if (row.packageName) {
         const pkg = config.packages.find((p: any) => p.name === row.packageName);
         if (pkg) {
           baselineDays = mappedServices.reduce((acc, serviceName) => {
@@ -434,15 +480,25 @@ export const BulkImportView: React.FC<BulkImportViewProps> = ({ users, invites, 
             return acc + (baseline ? baseline.baselineDays : 0);
           }, 0);
         }
+        expectedCompletionDate = calculateWorkingDays(row.startDate, baselineDays);
       }
       
-      const expectedCompletionDate = calculateWorkingDays(row.startDate, baselineDays);
-
       // Extract explicit service states set in the excel columns
       const finalServiceStates: Record<string, any> = { ...row.serviceStates };
       mappedServices.forEach(s => {
         if (!finalServiceStates[s]) finalServiceStates[s] = 'Not Started';
       });
+
+      const closureStatus = row.closureStatus || 'Active';
+      const isClosed = closureStatus.toLowerCase() === 'closed' || closureStatus.toLowerCase() === 'billed';
+      const actualCompDate = row.actualCompletionDate || (isClosed ? expectedCompletionDate : undefined);
+
+      const phases = isOld ? getPhaseListFromState(
+        'Execution', // Default old projects to Execution phase unless we add specialized logic
+        isClosed,
+        row.startDate,
+        actualCompDate
+      ) : [];
 
       const mappedData: Partial<Project> = {
         clientName: row.clientName,
@@ -454,11 +510,14 @@ export const BulkImportView: React.FC<BulkImportViewProps> = ({ users, invites, 
         currentCompletionDate: expectedCompletionDate,
         value: Number(numVal) || 0,
         currency: row.currency,
-        state: (row.closureStatus as any) || 'On-Track',
+        state: isClosed ? 'Closed' : (row.closureStatus as any || 'On-Track'),
         priority: 'P2', 
         productLines,
         services: mappedServices,
         serviceStates: finalServiceStates,
+        phases,
+        intakeType: isOld ? 'Old' : 'New',
+        actualCompletionDate: actualCompDate
       };
 
       if (row.status === 'duplicate' && row.duplicateAction === 'overwrite') {

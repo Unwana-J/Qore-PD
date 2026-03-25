@@ -31,7 +31,7 @@ export const ImportGuideModal: React.FC<ImportGuideModalProps> = ({
       // --- Sheet 1: Import Template ---
       const headers = [
         "Institution Name", "Package / Service Type", "Project Manager", 
-        "Project Implementation Person", "Start Date", "Cost / Value", 
+        "Intake Type", "Start Date", "Expected Completion Date", "Cost / Value", 
         "Currency", "Subscription Level", "USSD", "Transfers", 
         "Mobile / Internet Banking", "Branchless", "Cards", 
         "Bills Payment", "API Provisioning", "Project Closure Status", 
@@ -40,16 +40,17 @@ export const ImportGuideModal: React.FC<ImportGuideModalProps> = ({
 
       const sampleDataRow = [
         "Apex Microfinance Bank", "Digital Banking", "Sarah Jenkins",
-        "Michael Chen", "01/03/2026", "5000000",
-        "NGN", "BIB L1", "Live", "In Progress",
+        "Old", "01/01/2025", "30/06/2025", "5000000",
+        "NGN", "BIB L1", "Live", "Live",
         "Not Started", "Out of Scope", "Not Started",
         "Not Started", "Not Started", "Active",
-        "Project kicked off. Client onboarding in progress."
+        "Legacy project. All previous phases auto-completed."
       ];
 
       const guidanceRow = [
         "Required. Must be unique.", "Must match a configured service type exactly", "Must match an existing user in the system",
-        "Optional", "Required. Format: DD/MM/YYYY", "Required. Numbers only — no symbols or commas (e.g. 5000000 not NGN 5,000,000)",
+        "New or Old. Use 'Old' for legacy projects.", "Required. Format: DD/MM/YYYY", "Required for 'Old' projects. Optional for 'New'.",
+        "Required. Numbers only — no symbols or commas",
         "NGN, USD, GBP, EUR, KES, GHS, or ZAR", "Optional", "Live, Not Started, Out of Scope, or Not Ready", "Live, Not Started, Out of Scope, or Not Ready",
         "Live, Not Started, Out of Scope, or Not Ready", "Live, Not Started, Out of Scope, or Not Ready", "Live, Not Started, Out of Scope, or Not Ready",
         "Live, Not Started, Out of Scope, or Not Ready", "Live, Not Started, Out of Scope, or Not Ready", "Active, Closed, Suspended, Signed Off, Billed",
@@ -81,6 +82,9 @@ export const ImportGuideModal: React.FC<ImportGuideModalProps> = ({
         [""],
         ["Duplicate Projects"],
         ["If an institution name already exists in the system, it will be flagged as a duplicate in the review step. You can choose to overwrite the existing record or skip that row."],
+        [""],
+        ["Legacy / Older Projects"],
+        ["For projects that were already in progress before using this platform, set Intake Type to 'Old'. You MUST provide both a Start Date and an Expected Completion Date. The system will calculate the duration and auto-complete previous phases based on your current status."],
         [""],
         ["Need Help?"],
         ["Contact your Super Admin or refer to the platform documentation."]
