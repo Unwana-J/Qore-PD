@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Project, Phase, Comment, Risk, Role, RebaselineRequest, ServiceState } from '../types';
+import { Project, Phase, Comment, Risk, Role, RebaselineRequest, ServiceState, PackageConfig } from '../types';
 import { StateBadge } from './ProjectList';
 import { formatCurrency, cn, calculatePhaseScores, getActiveDaysCount, getValidTransitions, isRole, hasRole, getAutoProjectState } from '../lib/utils';
 import { 
@@ -41,6 +41,7 @@ interface PhaseViewProps {
   onDeclineRebaseline: (projectId: string, requestId: string, reviewerComment: string) => Promise<any>;
   userRole: Role;
   currencies: any[];
+  packages?: PackageConfig[];
   themeColor?: string;
   onReassign?: () => void;
   defaultPhases?: string[];
@@ -52,7 +53,7 @@ interface PhaseViewProps {
 export const PhaseView: React.FC<PhaseViewProps> = ({ 
   project: rawProject, onBack, onUpdateProject, onSubmitRebaseline, 
   onApproveRebaseline, onDeclineRebaseline, 
-  userRole, currencies = [], themeColor = 'teal', onReassign, defaultPhases = [],
+  userRole, currencies = [], packages = [], themeColor = 'teal', onReassign, defaultPhases = [],
   spiThresholds, validateStateTransition, onShowToast
 }) => {
   // Defensive fallbacks for imported legacy projects that might lack these arrays
@@ -1177,16 +1178,19 @@ export const PhaseView: React.FC<PhaseViewProps> = ({
               <div className="col-span-2">
                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Package</p>
                 {isEditingDetails ? (
-                  <input
-                    type="text"
+                  <select
                     className={cn(
                       "w-full text-sm font-semibold text-slate-900 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 outline-none focus:ring-2 transition-all",
                       theme.ring
                     )}
                     value={editDraft.packageName}
                     onChange={e => setEditDraft(d => ({ ...d, packageName: e.target.value }))}
-                    placeholder="Package name..."
-                  />
+                  >
+                    <option value="">— Select package —</option>
+                    {packages.map(pkg => (
+                      <option key={pkg.name} value={pkg.name}>{pkg.name}</option>
+                    ))}
+                  </select>
                 ) : (
                   <p className="text-sm font-semibold text-slate-900 py-1">{project.packageName || '—'}</p>
                 )}

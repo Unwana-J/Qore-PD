@@ -236,6 +236,7 @@ function AppContent() {
                     onUpdateProject={updateProject}
                     userRole={userRole}
                     currencies={config.currencies}
+                    packages={config.packages}
                     themeColor={config.brand.themeColor}
                     onReassign={() => setProjectToReassign(selectedProject)}
                     defaultPhases={config.defaultPhases}
