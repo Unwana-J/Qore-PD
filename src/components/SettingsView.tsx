@@ -545,19 +545,17 @@ const ProjectConfig = ({ config, setConfig, userRole, theme, showToast, projects
                    />
                  </div>
                </div>
-             ))}
-          </div>
+              ))}
         </div>
       </div>
-    </div>
-  );
+
       {userRole === 'Superadmin' && (
-        <div className='bg-red-50 border border-red-200 p-6 rounded-2xl space-y-3'>
-          <h4 className='text-sm font-bold text-red-700 flex items-center gap-2'>
-            <Trash2 className='w-4 h-4' />
+        <div className="bg-red-50 border border-red-200 p-6 rounded-2xl space-y-3">
+          <h4 className="text-sm font-bold text-red-700 flex items-center gap-2">
+            <Trash2 className="w-4 h-4" />
             Danger Zone — Purge Mock Test Data
           </h4>
-          <p className='text-xs text-red-500 font-medium'>
+          <p className="text-xs text-red-500 font-medium">
             Permanently delete the {MOCK_CLIENT_NAMES.length} original demo projects from the database.
             {mockProjectsInDb.length > 0
               ? ` Found ${mockProjectsInDb.length} mock project(s) still in the database.`
@@ -566,17 +564,19 @@ const ProjectConfig = ({ config, setConfig, userRole, theme, showToast, projects
           <button
             onClick={handlePurgeMockData}
             disabled={isPurging || mockProjectsInDb.length === 0}
-            className='flex items-center gap-2 px-4 py-2 bg-red-600 text-white text-sm font-bold rounded-xl hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all'
+            className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white text-sm font-bold rounded-xl hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
           >
             {isPurging ? (
-              <><div className='w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin' /> Purging...</>
+              <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Purging...</>
             ) : (
-              <><Trash2 className='w-4 h-4' /> Purge {mockProjectsInDb.length} Mock Projects</>
+              <><Trash2 className="w-4 h-4" /> Purge {mockProjectsInDb.length} Mock Projects</>
             )}
           </button>
         </div>
       )}
-
+    </div>
+    </div>
+  );
 };
 
 const RevenueSettings = ({ config, setConfig, theme }: any) => (

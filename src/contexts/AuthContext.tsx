@@ -82,9 +82,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => subscription.unsubscribe();
   }, []);
 
-  const fetchProfile = async (userId: string, retryCount = 0) => {
-    // Add a race condition to prevent profile fetch from hanging the app
-    const timeoutPromise = new Promise((_, reject) => 
+  const fetchProfile = async (userId: string, retryCount = 0): Promise<void> => {
+    const timeoutPromise = new Promise((_, reject) =>
       setTimeout(() => reject(new Error('Profile fetch timeout')), 8000)
     );
 
@@ -103,8 +102,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           console.warn(`[Auth] Profile fetch failed (attempt ${retryCount + 1}). Retrying...`, error);
           return fetchProfile(userId, retryCount + 1);
         }
-        console.error('Error fetching profile after retries:', error);
-        setProfile({ name: user?.email?.split('@')[0] || 'User', role: 'PM' });
+        // After exhausting retries, leave profile null — caller will show login
+        console.error('[Auth] Profile fetch failed after all retries. Clearing profile.', error);
+        setProfile(null);
       } else if (data) {
         setProfile(data);
       }
@@ -113,14 +113,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.warn(`[Auth] Profile error/timeout (attempt ${retryCount + 1}). Retrying...`);
         return fetchProfile(userId, retryCount + 1);
       }
-      console.error('Unexpected profile error or timeout after retries:', err);
-      // Fallback on timeout/error
-      const emailPrefix = user?.email?.split('@')[0] || 'User';
-      setProfile({ name: emailPrefix.charAt(0).toUpperCase() + emailPrefix.slice(1), role: 'PM' });
+      // Timeout or error after all retries — do NOT create a dummy profile
+      console.error('[Auth] Profile permanently unavailable. Clearing profile state.', err);
+      setProfile(null);
     } finally {
-      if (retryCount === 0 || !user) {
-        setProfileLoading(false);
-      }
+      setProfileLoading(false);
     }
   };
 
