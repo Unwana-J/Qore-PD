@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Loader2, AlertCircle } from 'lucide-react';
+import { Loader2, AlertCircle, RefreshCw } from 'lucide-react';
 import { cn, isRole, hasRole } from './lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
 import { Sidebar } from './components/layout/Sidebar';
@@ -43,7 +43,7 @@ function AppContent() {
   const [projectToReassign, setProjectToReassign] = useState<Project | null>(null);
   const [toast, setToast] = useState<{ message: string, type: 'success' | 'error' | 'info' } | null>(null);
 
-  const userRole = profile?.role || 'PM';
+  const userRole = profile?.role;
 
   const showToast = (message: string, type: 'success' | 'error' | 'info' = 'success') => {
     setToast({ message, type });
@@ -70,7 +70,7 @@ function AppContent() {
     dismissNotification,
     loading: projectsLoading,
     refreshProjects
-  } = useProjects(userRole, config, profile?.name || 'User');
+  } = useProjects(userRole || 'PM', config, profile?.name || 'User');
 
 
   useEffect(() => {
@@ -138,6 +138,33 @@ function AppContent() {
 
   if (!user) {
     return <AuthView />;
+  }
+
+  // Handle case where user is logged in but profile fetch permanently failed
+  if (!profile) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 gap-6">
+        <AlertCircle className="w-12 h-12 text-red-500" />
+        <div className="text-center space-y-2">
+          <h2 className="text-xl font-bold text-slate-900">Application Sync Error</h2>
+          <p className="text-sm text-slate-500">We found your session but couldn't retrieve your profile data.</p>
+        </div>
+        <div className="flex flex-col gap-3 w-64">
+          <button 
+            onClick={() => window.location.reload()} 
+            className="w-full py-3 bg-slate-900 text-white rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-slate-800 transition-all"
+          >
+            <RefreshCw className="w-4 h-4" /> Retry Connection
+          </button>
+          <button 
+            onClick={signOut}
+            className="w-full py-3 text-slate-400 font-bold uppercase text-[10px] tracking-[0.2em] hover:text-red-500 transition-colors"
+          >
+            Sign Out
+          </button>
+        </div>
+      </div>
+    );
   }
 
   return (
