@@ -53,6 +53,12 @@ export function useProjects(userRole: Role, config: AppConfig, userName: string 
   };
 
   const fetchProjects = useCallback(async () => {
+    // Strict guard: Don't sync until we have a real user identity
+    if (!userName || userName === 'User' || userRole === 'PM' && userName === 'User') {
+      console.log("[Diagnostics] Skipping projects sync: Identity not yet verified.");
+      return;
+    }
+
     console.log("[Diagnostics] Starting projects sync...");
     try {
       const data = await api.projects.getAll();

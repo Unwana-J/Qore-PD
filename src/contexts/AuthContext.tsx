@@ -73,7 +73,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           return fetchProfile(userId, retryCount + 1);
         }
         console.error('[Auth] Profile fetch permanently failed after retries.', error);
-        setProfile(null);
+        setProfile(prev => prev || null); // Keep existing profile if found
       } else if (data) {
         console.log('[Auth] Profile fetched successfully.');
         setProfile({ name: data.name, role: data.role as Role });
@@ -93,7 +93,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return fetchProfile(userId, retryCount + 1);
       }
       console.error('[Auth] Profile fetch timed out after all retries.', err);
-      setProfile(null);
+      // Soft Fail: Keep existing profile on background timeout
+      setProfile(prev => prev || null); 
     } finally {
       isFetchingProfile.current = false;
       setProfileLoading(false);
