@@ -148,8 +148,11 @@ function AppContent() {
         <AlertCircle className="w-12 h-12 text-red-500" />
         <div className="text-center space-y-2">
           <h2 className="text-xl font-bold text-slate-900">Session Sync Failed</h2>
-          <p className="text-sm text-slate-500">We found your session but couldn't retrieve your profile.</p>
-          <p className="text-xs text-slate-400">This usually resolves on retry.</p>
+          <p className="text-sm text-slate-500">We found your session but couldn't retrieve your profile data.</p>
+          <p className="text-xs text-slate-400 max-w-xs mx-auto">
+            This can happen if your profile wasn't created correctly during sign-up. 
+            Try retrying, or contact support if this persists.
+          </p>
         </div>
         <div className="flex flex-col gap-3 w-64">
           <button 

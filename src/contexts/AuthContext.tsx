@@ -46,22 +46,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (error) {
         if (retryCount < 2) {
-          console.warn(`[Auth] Profile fetch failed (attempt ${retryCount + 1}). Retrying...`, error);
+          console.warn(`[Auth] Profile fetch error (attempt ${retryCount + 1}):`, error.message);
           await new Promise(r => setTimeout(r, 1500 * (retryCount + 1)));
           return fetchProfile(userId, retryCount + 1);
         }
-        console.error('[Auth] Profile fetch failed after all retries.', error);
+        console.error('[Auth] Profile fetch permanently failed after retries.', error);
         setProfile(null);
       } else if (data) {
+        console.log('[Auth] Profile fetched successfully.');
         setProfile({ name: data.name, role: data.role as Role });
+      } else {
+        // No row found for this ID
+        console.error('[Auth] User exists but NO PROFILE ROW was found in public.profiles. Trigger may have failed.');
+        setProfile(null);
       }
     } catch (err) {
       if (retryCount < 2) {
-        console.warn(`[Auth] Profile timeout/error (attempt ${retryCount + 1}). Retrying...`);
+        console.warn(`[Auth] Profile timeout (attempt ${retryCount + 1}). Retrying...`);
         await new Promise(r => setTimeout(r, 1500 * (retryCount + 1)));
         return fetchProfile(userId, retryCount + 1);
       }
-      console.error('[Auth] Profile permanently unavailable after retries.', err);
+      console.error('[Auth] Profile fetch timed out after all retries.', err);
       setProfile(null);
     } finally {
       setProfileLoading(false);
@@ -70,16 +75,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   useEffect(() => {
-    const fetchSession = async () => {
+    let mounted = true;
+
+    const initializeAuth = async () => {
+      console.log('[Auth] Starting initialization...');
       try {
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        if (!mounted) return;
         if (sessionError) throw sessionError;
 
         if (session?.user) {
+          console.log('[Auth] Initial session found for user:', session.user.id);
           setUser(session.user);
           setProfileLoading(true);
           await fetchProfile(session.user.id);
         } else {
+          console.log('[Auth] No initial session found.');
           setUser(null);
           setProfile(null);
         }
@@ -88,15 +99,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser(null);
         setProfile(null);
       } finally {
-        setLoading(false);
-        setProfileLoading(false);
+        if (mounted) {
+          console.log('[Auth] Initialization complete. Setting loading=false.');
+          setLoading(false);
+          setProfileLoading(false);
+        }
       }
     };
 
-    fetchSession();
+    initializeAuth();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('[Auth] Auth state changed:', event);
+      if (!mounted) return;
+      console.log('[Auth] Auth state changed:', event, session?.user?.id || 'no user');
 
       if (event === 'SIGNED_OUT') {
         setUser(null);
@@ -114,24 +129,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setIsReconnecting(true);
         setUser(session.user);
         await fetchProfile(session.user.id);
-        // fetchProfile clears isReconnecting in its finally block
         return;
       }
 
       if ((event === 'SIGNED_IN' || event === 'USER_UPDATED') && session?.user) {
+        console.log('[Auth] User signed in/updated. Syncing profile...');
         setUser(session.user);
         setProfileLoading(true);
         await fetchProfile(session.user.id);
         setProfileLoading(false);
+        setLoading(false); // Ensure loading is false after sign-in sync
       } else if (!session) {
         setUser(null);
         setProfile(null);
+        setLoading(false);
       }
-
-      setLoading(false);
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, [fetchProfile]);
 
   const refreshProfile = async () => {
