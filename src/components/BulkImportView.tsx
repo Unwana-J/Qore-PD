@@ -542,7 +542,13 @@ export const BulkImportView: React.FC<BulkImportViewProps> = ({ users, invites, 
         milestones,
         phases,
         intakeType: isOld ? 'Old' : 'New',
-        actualCompletionDate: actualCompDate
+        actualCompletionDate: actualCompDate,
+        phaseWeights: {
+          initiation: 10,
+          planning: 10,
+          execution: 60,
+          closure: 20
+        }
       };
 
       if (row.status === 'duplicate' && row.duplicateAction === 'overwrite') {

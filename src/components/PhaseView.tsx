@@ -663,7 +663,11 @@ export const PhaseView: React.FC<PhaseViewProps> = ({
                     const isLocked = phase.status === 'Locked';
                     const isCompleted = phase.status === 'Completed';
                     const isInProgress = phase.status === 'In Progress' || phase.status === 'Pending';
-                    const weight = project.phaseWeights?.[phase.id.toLowerCase() as keyof typeof project.phaseWeights] || 0;
+                    const weight = project.phaseWeights?.[phase.id.toLowerCase() as keyof typeof project.phaseWeights] ?? (
+                      phase.id === 'Initiation' ? 10 :
+                      phase.id === 'Planning' ? 10 :
+                      phase.id === 'Execution' ? 60 : 20
+                    );
                     
                     return (
                       <div key={phase.id} className="relative pl-12 group">

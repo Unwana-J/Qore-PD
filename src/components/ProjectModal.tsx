@@ -183,7 +183,13 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
           actualCompletionDate
         ) : [],
         risks: [],
-        actualCompletionDate: isCompletedAlready ? actualCompletionDate : undefined
+        actualCompletionDate: isCompletedAlready ? actualCompletionDate : undefined,
+        phaseWeights: {
+          initiation: 10,
+          planning: 10,
+          execution: 60,
+          closure: 20
+        }
       }, force);
 
       if (result?.warning) {

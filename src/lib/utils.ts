@@ -243,7 +243,12 @@ export function calculateSPI(project: Project, thresholds = { onTrack: 1.0, atRi
 }
 
 export function calculatePhaseScores(project: Project) {
-  const weights = project.phaseWeights || { initiation: 10, planning: 10, execution: 60, closure: 20 };
+  const weights = {
+    initiation: project.phaseWeights?.initiation ?? 10,
+    planning: project.phaseWeights?.planning ?? 10,
+    execution: project.phaseWeights?.execution ?? 60,
+    closure: project.phaseWeights?.closure ?? 20,
+  };
   const phases = project.phases || [];
   const services = project.services || [];
   
