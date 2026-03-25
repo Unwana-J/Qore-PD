@@ -23,20 +23,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isReconnecting, setIsReconnecting] = useState(false);
 
   /**
-   * Force-refresh the JWT before fetching the profile.
-   * This handles expired tokens after idle periods without showing an error.
+   * Ensure the JWT is fresh before fetching the profile.
+   * Uses getSession() (which auto-refreshes internally) with a 3s timeout
+   * so a stale/hung refresh never blocks the profile load indefinitely.
    */
   const fetchProfile = useCallback(async (userId: string, retryCount = 0): Promise<void> => {
-    // Step 1: Ensure the JWT is fresh before querying profiles table
-    // This silently re-authenticates after idle timeouts
+    // Step 1: Best-effort session refresh — never block more than 3s
     try {
-      const { error: refreshError } = await supabase.auth.refreshSession();
-      if (refreshError) {
-        console.warn('[Auth] Session refresh failed:', refreshError.message);
-        // Not fatal — continue with existing token
-      }
+      await Promise.race([
+        supabase.auth.getSession(),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Session refresh timed out')), 3000))
+      ]);
     } catch (e) {
-      console.warn('[Auth] Session refresh threw:', e);
+      console.warn('[Auth] Session pre-check skipped (timeout or error):', e);
+      // Non-fatal — continue with existing token
     }
 
     const timeoutPromise = new Promise((_, reject) =>
