@@ -23,21 +23,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isReconnecting, setIsReconnecting] = useState(false);
 
   /**
-   * Ensure the JWT is fresh before fetching the profile.
-   * Uses getSession() (which auto-refreshes internally) with a 3s timeout
-   * so a stale/hung refresh never blocks the profile load indefinitely.
+   * Fetch the user profile from the DB.
+   * Token refresh is handled automatically by the Supabase client via
+   * onAuthStateChange(TOKEN_REFRESHED) — we do NOT call getSession() here
+   * to avoid IndexedDB lock contention when multiple tabs are open.
    */
   const fetchProfile = useCallback(async (userId: string, retryCount = 0): Promise<void> => {
-    // Step 1: Best-effort session refresh — never block more than 3s
-    try {
-      await Promise.race([
-        supabase.auth.getSession(),
-        new Promise((_, reject) => setTimeout(() => reject(new Error('Session refresh timed out')), 3000))
-      ]);
-    } catch (e) {
-      console.warn('[Auth] Session pre-check skipped (timeout or error):', e);
-      // Non-fatal — continue with existing token
-    }
 
     const timeoutPromise = new Promise((_, reject) =>
       setTimeout(() => reject(new Error('Profile fetch timeout')), 15000)
