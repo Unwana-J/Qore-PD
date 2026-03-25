@@ -5,7 +5,7 @@ import Papa from 'papaparse';
 import * as XLSX from 'xlsx';
 import { cn, formatCurrency, calculateWorkingDays, getActiveDaysCount, getPhaseListFromState, getWorkingDaysInRange } from '../lib/utils';
 import { getThemeClasses } from '../lib/theme';
-import { Project, Role, AppConfig, ImportRow, ImportRowStatus, User, ServiceBaseline, ProductLine } from '../types';
+import { Project, Role, AppConfig, ImportRow, ImportRowStatus, User, ServiceBaseline, ProductLine, ServiceState } from '../types';
 import { ImportGuideModal } from './ImportGuideModal';
 
 interface BulkImportViewProps {
@@ -504,13 +504,25 @@ export const BulkImportView: React.FC<BulkImportViewProps> = ({ users, invites, 
 
       // Universal Phase Generation: Support "Starting Phase" for all projects
       // Default: New projects start at Initiation, Old projects start at Execution
-      const defaultStartPhase = isOld ? 'Execution' : 'Initiation';
+      // Special: Digital Banking defaults to Planning if not specified
+      let defaultStartPhase = isOld ? 'Execution' : 'Initiation';
+      if (row.packageName?.includes('Digital Banking') && !row.currentPhase) {
+        defaultStartPhase = 'Planning';
+      }
+
       const phases = getPhaseListFromState(
         row.currentPhase || defaultStartPhase, 
         isClosed,
         row.startDate,
         actualCompDate
       );
+
+      // Package-aware Milestones: Convert services to milestones for all packages
+      const milestones = mappedServices.map(s => ({
+        id: s.toLowerCase().replace(/\s+/g, '-'),
+        name: s,
+        status: (finalServiceStates[s] as ServiceState) || 'Not Started'
+      }));
 
       const mappedData: Partial<Project> = {
         clientName: row.clientName,
@@ -527,6 +539,7 @@ export const BulkImportView: React.FC<BulkImportViewProps> = ({ users, invites, 
         productLines,
         services: mappedServices,
         serviceStates: finalServiceStates,
+        milestones,
         phases,
         intakeType: isOld ? 'Old' : 'New',
         actualCompletionDate: actualCompDate

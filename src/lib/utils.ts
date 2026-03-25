@@ -266,7 +266,7 @@ export function calculatePhaseScores(project: Project) {
   const executionPhase = phases.find(p => p.id === 'Execution');
   if (executionPhase?.status === 'Completed') {
     executionScore = weights.execution;
-  } else if (project.isInternalInitiative && project.milestones && project.milestones.length > 0) {
+  } else if (project.milestones && project.milestones.length > 0) {
     const weightPerMilestone = weights.execution / project.milestones.length;
     let currentExecutionSum = 0;
     project.milestones.forEach(m => {

@@ -251,6 +251,7 @@ export interface ImportRow {
   notes?: string;
   intakeType?: 'New' | 'Old';
   currentPhase?: string;
+  productLine?: string;
   expectedCompletionDate?: string;
   actualCompletionDate?: string;
 }

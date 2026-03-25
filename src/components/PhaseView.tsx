@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Project, Phase, Comment, Risk, Role, RebaselineRequest, ServiceState, PackageConfig } from '../types';
 import { StateBadge } from './ProjectList';
-import { formatCurrency, cn, calculatePhaseScores, getActiveDaysCount, getValidTransitions, isRole, hasRole, getAutoProjectState } from '../lib/utils';
+import { formatCurrency, cn, calculatePhaseScores, getActiveDaysCount, getValidTransitions, isRole, hasRole, getAutoProjectState, getPhaseListFromState, calculateSPI } from '../lib/utils';
 import { 
   Calendar, 
   User, 
@@ -30,7 +30,6 @@ import {
 import { PROJECT_STATES } from '../constants';
 import { getThemeClasses } from '../lib/theme';
 import { subDays, format } from 'date-fns';
-import { calculateSPI } from '../lib/utils';
 
 interface PhaseViewProps {
   project: Project;
@@ -58,9 +57,34 @@ export const PhaseView: React.FC<PhaseViewProps> = ({
   spiThresholds, validateStateTransition, onShowToast, userName
 }) => {
   // Defensive fallbacks for imported legacy projects that might lack these arrays
+  // Resilience Layer: Auto-initialize phases if they are missing
+  const phases = (rawProject.phases && rawProject.phases.length > 0) 
+    ? rawProject.phases 
+    : getPhaseListFromState(
+        rawProject.intakeType === 'Old' ? 'Execution' : 'Initiation',
+        rawProject.state === 'Closed' || rawProject.state === 'Billed',
+        rawProject.startDate,
+        rawProject.actualCompletionDate
+      );
+
+  // Universal Milestones: Use package-default services if milestones are empty
+  const getInitialMilestones = () => {
+    if (rawProject.milestones && rawProject.milestones.length > 0) return rawProject.milestones;
+    
+    const pkg = packages.find(p => p.name === rawProject.packageName);
+    const serviceList = pkg ? pkg.services : (rawProject.services || []);
+    
+    return serviceList.map(s => ({
+      id: s.toLowerCase().replace(/\s+/g, '-'),
+      name: s,
+      status: (rawProject.serviceStates?.[s] as ServiceState) || 'Not Started'
+    }));
+  };
+
   const project = {
     ...rawProject,
-    phases: rawProject.phases || [],
+    phases,
+    milestones: getInitialMilestones(),
     services: rawProject.services || [],
     risks: rawProject.risks || [],
     comments: rawProject.comments || [],
@@ -158,13 +182,8 @@ export const PhaseView: React.FC<PhaseViewProps> = ({
       if (p) p.status = 'In Progress';
     } else if (phaseId === 'Execution') {
       const p = updatedPhases.find(x => x.id === 'Closure');
-      if (p) p.status = project.isInternalInitiative ? 'In Progress' : 'Pending';
+      if (p) p.status = 'In Progress';
     } else if (phaseId === 'Closure') {
-       if (project.isInternalInitiative) {
-          // Mandatory comment required, handled by handleSavePhaseComment
-          onShowToast?.('A closure comment is required to complete this initiative', 'info');
-          return;
-       }
        onUpdateProject({ ...project, phases: updatedPhases, state: 'Signed Off' });
        return;
     }
@@ -260,13 +279,13 @@ export const PhaseView: React.FC<PhaseViewProps> = ({
 
     const nextComments = { ...project.phaseComments, [phaseId]: comment };
     
-    if (phaseId === 'Closure' && project.isInternalInitiative) {
-      // Direct completion for Internal Initiatives
+    if (phaseId === 'Closure') {
+      // Completion for all projects upon closure comment
       const updatedPhases = project.phases.map(p => 
         p.id === 'Closure' ? { ...p, status: 'Completed', completionDate: new Date().toISOString().split('T')[0] } : p
       );
       onUpdateProject({ ...project, phaseComments: nextComments, phases: updatedPhases as Phase[], state: 'Closed' });
-      onShowToast?.('Initiative closed', 'success');
+      onShowToast?.('Project closed', 'success');
     } else {
       onUpdateProject({ ...project, phaseComments: nextComments });
     }
@@ -379,9 +398,9 @@ export const PhaseView: React.FC<PhaseViewProps> = ({
           <div>
             <div className="flex items-center gap-2">
               <h2 className="text-2xl font-bold text-slate-900">{project.clientName}</h2>
-              {project.isInternalInitiative && (
-                <span className="px-2 py-0.5 bg-purple-100 text-purple-700 text-[10px] font-black uppercase tracking-widest rounded-lg border border-purple-200">
-                  Initiative
+              {project.intakeType === 'New' && (
+                <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-[10px] font-black uppercase tracking-widest rounded-lg border border-blue-200">
+                  New Project
                 </span>
               )}
             </div>
@@ -689,7 +708,7 @@ export const PhaseView: React.FC<PhaseViewProps> = ({
                                     theme.bg, "text-white hover:shadow-lg"
                                   )}
                                 >
-                                  {phase.id === 'Closure' && project.isInternalInitiative ? "Confirm Closure" : "Mark Complete"}
+                                  Mark Complete
                                 </button>
                               )}
                           </div>
@@ -765,9 +784,9 @@ export const PhaseView: React.FC<PhaseViewProps> = ({
 
                               {phase.id === 'Execution' && (
                                 <div className="space-y-4 pr-2 custom-scrollbar">
-                                  {project.isInternalInitiative ? (
-                                    <>
-                                      <div className="flex justify-between items-center mb-2">
+                                  {/* Unified: Milestones are now standard for ALL projects */}
+                                  <>
+                                    <div className="flex justify-between items-center mb-2">
                                         <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
                                           Execution Score: {Math.round(scores.executionScore)}% / {project.phaseWeights.execution}%
                                         </span>
@@ -858,64 +877,15 @@ export const PhaseView: React.FC<PhaseViewProps> = ({
                                         )}
                                       </div>
                                     </>
-                                  ) : (
-                                    <>
-                                      {project.services.length === 0 ? (
-                                        <p className="text-sm text-slate-500 italic">No services selected.</p>
-                                      ) : (
-                                        project.services.map(service => {
-                                          const state = project.serviceStates?.[service] || 'Not Started';
-                                          return (
-                                            <div key={service} className="flex flex-col md:flex-row md:items-center justify-between gap-3 p-3 bg-slate-50 rounded-xl border border-slate-100">
-                                              <span className="text-sm font-bold text-slate-700">{service}</span>
-                                              {canEditPhase ? (
-                                                <div className="flex bg-slate-200 p-1 rounded-lg">
-                                                  {(['Not Started', 'In Progress', 'Closed'] as ServiceState[]).map(s => (
-                                                    <button
-                                                      key={s}
-                                                      onClick={() => handleServiceChange(service, s)}
-                                                      className={cn(
-                                                        "px-3 py-1.5 text-[10px] font-black uppercase tracking-widest rounded-md transition-all",
-                                                        state === s 
-                                                          ? s === 'Closed' ? "bg-emerald-500 text-white shadow-sm"
-                                                          : s === 'In Progress' ? "bg-amber-500 text-white shadow-sm"
-                                                          : "bg-slate-400 text-white shadow-sm"
-                                                          : "text-slate-500 hover:text-slate-700"
-                                                      )}
-                                                    >
-                                                      {s}
-                                                    </button>
-                                                  ))}
-                                                </div>
-                                              ) : (
-                                                <span className={cn(
-                                                  "px-3 py-1.5 text-[10px] font-black uppercase tracking-widest rounded-lg",
-                                                  state === 'Closed' ? "bg-emerald-100 text-emerald-700" :
-                                                  state === 'In Progress' ? "bg-amber-100 text-amber-700" : "bg-slate-200 text-slate-600"
-                                                )}>
-                                                  {state}
-                                                </span>
-                                              )}
-                                            </div>
-                                          );
-                                        })
-                                      )}
-                                      {project.services.length > 0 && !isCompleted && (
-                                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-2 text-right">
-                                          Auto-completes when all services are Closed
-                                        </p>
-                                      )}
-                                    </>
-                                  )}
-                                </div>
-                              )}
+                                  </div>
+                                )}
 
-                              {phase.id === 'Planning' && (
-                                <div className="space-y-4">
-                                  <p className="text-sm text-slate-500">Plan resources, create schedules, and prepare for execution.</p>
-                                  {(canEdit || !project.isInternalInitiative) && (
-                                    <div className={cn("mt-4 pt-4 border-t border-slate-100")}>
-                                       {project.phaseComments?.Planning ? (
+                            {phase.id === 'Planning' && (
+                              <div className="space-y-4">
+                                <p className="text-sm text-slate-500">Plan resources, create schedules, and prepare for execution.</p>
+                                {canEditPhase && (
+                                  <div className={cn("mt-4 pt-4 border-t border-slate-100")}>
+                                     {project.phaseComments?.Planning ? (
                                          <div className="flex gap-3 bg-slate-50 p-3 rounded-xl border border-slate-100">
                                             <div className="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center text-[10px] font-bold text-slate-500 flex-shrink-0">
                                               {project.phaseComments.Planning.author.split(' ').map(n => n[0]).join('')}
@@ -952,7 +922,7 @@ export const PhaseView: React.FC<PhaseViewProps> = ({
                               {phase.id === 'Closure' && (
                                 <div className="space-y-4">
                                   <p className="text-sm text-slate-500">Finalize documentation, hand over deliverables, and close the project.</p>
-                                  {(canEdit || !project.isInternalInitiative) && (
+                                  {(canEdit) && (
                                     <div className="mt-4 pt-4 border-t border-slate-100">
                                        {project.phaseComments?.Closure ? (
                                          <div className="flex gap-3 bg-slate-50 p-3 rounded-xl border border-slate-100">
@@ -970,11 +940,8 @@ export const PhaseView: React.FC<PhaseViewProps> = ({
                                        ) : canEdit && !isCompleted && (
                                           <div className="flex flex-col gap-2">
                                             <textarea 
-                                              placeholder={project.isInternalInitiative ? "Closure notes — describe how this initiative was concluded (Required, min 10 chars)..." : "Closure notes (optional)..."}
-                                              className={cn(
-                                                "w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs outline-none focus:ring-1 focus:ring-slate-300 min-h-[60px]",
-                                                project.isInternalInitiative && "border-amber-200 bg-amber-50/30"
-                                              )}
+                                              placeholder="Closure notes (optional)..."
+                                              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs outline-none focus:ring-1 focus:ring-slate-300 min-h-[60px]"
                                               value={phaseCommentInputs.Closure || ''}
                                               onChange={e => setPhaseCommentInputs({...phaseCommentInputs, Closure: e.target.value})}
                                             />
