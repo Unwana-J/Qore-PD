@@ -86,10 +86,18 @@ function AppContent() {
           services: resolveServiceIds(pkg.services || [], cloudConfig.serviceBaselines)
         }));
         
-        setConfig({
+        const nextConfig = {
           ...cloudConfig,
           packages: sanitizedPackages
-        });
+        };
+        
+        setConfig(nextConfig);
+
+        // Deep Migration: Persist IDs back to DB if they were resolved from names
+        if (JSON.stringify(cloudConfig.packages) !== JSON.stringify(sanitizedPackages)) {
+          console.log("[Migration] Permanent ID-based synchronization triggered...");
+          api.config.update(nextConfig).catch(err => console.error("[Migration] Save failed:", err));
+        }
 
         // Background load users/invites
         api.users.getAll().then(setUsers).catch(e => console.error(e));

@@ -383,6 +383,12 @@ export function resolveServiceIds(currentServices: string[], serviceBaselines: S
     const normalizedName = s.toLowerCase().trim();
     const nameMatch = serviceBaselines.find(sb => sb.name.toLowerCase().trim() === normalizedName);
     if (nameMatch) return nameMatch.id;
+
+    // Project-specific Bridge: CBA was renamed to Bankone
+    if (normalizedName === 'cba') {
+      const bankone = serviceBaselines.find(sb => sb.name.toLowerCase().trim() === 'bankone');
+      if (bankone) return bankone.id;
+    }
     
     // Fallback to original string (might be an untracked service)
     return s;

@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Project, AppConfig, Role } from '../types';
-import { calculateSPI, getActiveDaysCount, cn } from '../lib/utils';
+import { calculateSPI, getActiveDaysCount, cn, resolveServiceIds } from '../lib/utils';
 import { ChevronDown, ChevronRight, AlertTriangle, TrendingDown, Clock, Search, Filter, Layers } from 'lucide-react';
 import { differenceInDays, parseISO, isAfter, isBefore, subDays, startOfMonth, startOfQuarter, startOfYear } from 'date-fns';
 import { getThemeClasses } from '../lib/theme';
@@ -160,14 +160,25 @@ export const PMScorecard: React.FC<PMScorecardProps> = ({ projects, config, user
   const mostStalePM = [...pmStats].sort((a,b) => b.staleCount - a.staleCount)[0];
   const lowestSpiPM = [...pmStats].filter(p => p.avgSpi !== null).sort((a,b) => (a.avgSpi!) - (b.avgSpi!))[0];
 
-  // Package Performance
+  // Service Performance Tracker: Grouped by IDs to handle name renames
   const packageStats = useMemo(() => {
-    const services = config.serviceBaselines || [];
-    return services.map(srv => {
+    const baselines = config.serviceBaselines || [];
+    return baselines.map(srv => {
+      const srvId = srv.id;
       const srvName = srv.name;
-      const baseline = srv.baselineDays;
-      const projectsWithService = projects.filter(p => p.services.includes(srvName));
-      const closedServiceProjects = projectsWithService.filter(p => p.serviceStates?.[srvName] === 'Closed');
+      const srvBaseline = srv.baselineDays;
+      
+      // Resolve projects that use this service (by ID or legacy Name match)
+      const projectsWithService = projects.filter(p => {
+        const pServiceIds = resolveServiceIds(p.services || [], baselines);
+        return pServiceIds.includes(srvId);
+      });
+
+      const closedServiceProjects = projectsWithService.filter(p => {
+        // Resolve status using ID key primary, fallback to Name key for older data
+        const status = p.serviceStates?.[srvId] || p.serviceStates?.[srvName];
+        return status === 'Closed';
+      });
       
       const compRate = projectsWithService.length > 0 ? closedServiceProjects.length / projectsWithService.length : null;
       
@@ -181,11 +192,17 @@ export const PMScorecard: React.FC<PMScorecardProps> = ({ projects, config, user
       // Overrun = active days > baseline
       let overrunCount = 0;
       projectsWithService.forEach(p => {
-        if (getActiveDaysCount(p).days > baseline) overrunCount++;
+        if (getActiveDaysCount(p).days > srvBaseline) overrunCount++;
       });
       const overrunRate = projectsWithService.length > 0 ? overrunCount / projectsWithService.length : null;
       
-      return { name: srvName, projectsWithService: projectsWithService.length, compRate, avgSpi, overrunRate };
+      return { 
+        name: srvName, 
+        projectsWithService: projectsWithService.length, 
+        compRate, 
+        avgSpi, 
+        overrunRate 
+      };
     }).sort((a,b) => (b.overrunRate || 0) - (a.overrunRate || 0));
   }, [projects, config]);
 
