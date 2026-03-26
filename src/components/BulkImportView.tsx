@@ -774,22 +774,25 @@ export const BulkImportView: React.FC<BulkImportViewProps> = ({ users, invites, 
                                    const allAvail = pkg.services;
                                    const activeServices = row.services || [];
                                    
-                                   return allAvail.map((s: string) => {
-                                     const isActive = activeServices.includes(s);
+                                   return allAvail.map((sid: string) => {
+                                     const isActive = activeServices.includes(sid);
+                                     const sb = config.serviceBaselines.find(b => b.id === sid);
+                                     const sName = sb ? sb.name : sid;
+                                     
                                      return (
                                        <button 
-                                         key={s}
+                                         key={sid}
                                          onClick={() => {
-                                           const newSet = isActive ? activeServices.filter(x => x !== s) : [...activeServices, s];
+                                           const newSet = isActive ? activeServices.filter(x => x !== sid) : [...activeServices, sid];
                                            updateRowField(actualIdx, 'services', newSet);
                                          }}
                                          className={cn(
                                            "text-[9px] font-bold px-1.5 py-0.5 rounded transition-all",
                                            isActive ? "bg-slate-100 text-slate-600 hover:bg-red-50 hover:text-red-500 hover:line-through" : "bg-white border border-slate-200 text-slate-400 opacity-50 hover:opacity-100"
                                          )}
-                                         title={isActive ? "Click to remove service" : "Click to add service"}
+                                         title={isActive ? `Click to remove ${sName}` : `Click to add ${sName}`}
                                        >
-                                         {s}
+                                         {sName}
                                        </button>
                                      )
                                    });
