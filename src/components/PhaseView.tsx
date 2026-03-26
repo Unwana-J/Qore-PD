@@ -57,7 +57,22 @@ export const PhaseView: React.FC<PhaseViewProps> = ({
   spiThresholds, validateStateTransition, onShowToast, userName
 }) => {
   // 1. Migration/Consistency Layer: Ensure we are using service IDs internally
-  const currentServiceIds = resolveServiceIds(rawProject.services || [], serviceBaselines);
+  // Fallback: If project has no services, inherit from its package configuration
+  const getEffectiveServiceIds = (): string[] => {
+    let rawServiceList: string[] = [];
+    if (rawProject.services && rawProject.services.length > 0) {
+      rawServiceList = rawProject.services;
+    } else {
+      const pkg = packages.find(p => p.name === rawProject.packageName);
+      if (pkg && pkg.services && pkg.services.length > 0) {
+        rawServiceList = pkg.services;
+      }
+    }
+    // CRITICAL: Always resolve names to IDs, even for inherited package services
+    return resolveServiceIds(rawServiceList, serviceBaselines);
+  };
+
+  const currentServiceIds = getEffectiveServiceIds();
 
   // 2. Defensive fallbacks for imported legacy projects that might lack these arrays
   // Resilience Layer: Auto-initialize phases if they are missing
