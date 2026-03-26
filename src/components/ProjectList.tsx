@@ -1,13 +1,12 @@
 import React, { useState, useMemo } from 'react';
 import { Project, ProjectState } from '../types';
-import { formatCurrency, cn } from '../lib/utils';
+import { formatCurrency, cn, getActiveDaysCount, calculateSPI, getAutoProjectState, getEffectiveServiceIds, getServiceNames } from '../lib/utils';
 import { motion } from 'motion/react';
 import { PROJECT_STATES } from '../constants';
 import { PROJECT_STATE_COLORS, PRIORITY_COLORS, getThemeClasses } from '../lib/theme';
 import { differenceInDays, parseISO, subDays, format } from 'date-fns';
-import { getActiveDaysCount, calculateSPI, getAutoProjectState } from '../lib/utils';
 import { AlertCircle, AlertTriangle, DollarSign, Search, Filter, MoreHorizontal, Calendar, User, ChevronRight, TrendingUp, TrendingDown, Minus, ChevronDown, Check, X, RefreshCw } from 'lucide-react';
-import { Role, PackageConfig } from '../types';
+import { Role, PackageConfig, ServiceBaseline } from '../types';
 
 interface ProjectListProps {
   projects: Project[];
@@ -17,6 +16,7 @@ interface ProjectListProps {
   userRole: Role;
   users: any[];
   packages: PackageConfig[];
+  serviceBaselines: ServiceBaseline[];
   allPMNames: string[];
   onReassignProject: (project: Project) => void;
   spiThresholds: { onTrack: number, atRisk: number };
@@ -25,7 +25,7 @@ interface ProjectListProps {
 }
 
 export const ProjectList: React.FC<ProjectListProps> = ({ 
-  projects, onSelectProject, userRole, users, packages = [], allPMNames = [], onReassignProject, 
+  projects, onSelectProject, userRole, users, packages = [], serviceBaselines = [], allPMNames = [], onReassignProject, 
   themeColor = 'teal', staleThresholdDays, spiThresholds, initialSearch = '', loading = false 
 }) => {
   const [search, setSearch] = useState(initialSearch);
@@ -458,11 +458,20 @@ export const ProjectList: React.FC<ProjectListProps> = ({
             </div>
 
             <div className="mt-4 flex flex-wrap gap-2">
-              {(project.productLines || []).map(pl => (
-                <span key={pl} className="px-2 py-1 bg-slate-100 text-slate-600 text-[10px] font-bold uppercase tracking-wider rounded-md">
-                  {pl}
+              {getServiceNames(getEffectiveServiceIds(project, packages, serviceBaselines), serviceBaselines).map(srvName => (
+                <span key={srvName} className="px-2 py-1 bg-slate-50 text-slate-500 text-[9px] font-black uppercase tracking-widest rounded border border-slate-200 shadow-sm">
+                  {srvName}
                 </span>
               ))}
+              {(project.productLines || []).map(pl => {
+                const serviceNames = getServiceNames(getEffectiveServiceIds(project, packages, serviceBaselines), serviceBaselines);
+                if (serviceNames.includes(pl)) return null;
+                return (
+                  <span key={pl} className="px-2 py-1 bg-slate-100 text-slate-600 text-[10px] font-bold uppercase tracking-wider rounded-md">
+                    {pl}
+                  </span>
+                );
+              })}
             </div>
           </motion.div>
               ))}

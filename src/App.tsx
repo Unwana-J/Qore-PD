@@ -369,6 +369,7 @@ function AppContent() {
                         userRole={userRole}
                         users={users}
                         packages={config.packages}
+                        serviceBaselines={config.serviceBaselines || []}
                         allPMNames={Array.from(new Set([
                           ...users.filter(u => u.role === 'PM').map(u => u.name),
                           ...projects.map(p => p.assignedPM)

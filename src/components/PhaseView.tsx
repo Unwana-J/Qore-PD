@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Project, Phase, Comment, Risk, Role, RebaselineRequest, ServiceState, PackageConfig, ServiceBaseline } from '../types';
 import { StateBadge } from './ProjectList';
-import { formatCurrency, cn, calculatePhaseScores, getActiveDaysCount, getValidTransitions, isRole, hasRole, getAutoProjectState, getPhaseListFromState, calculateSPI, calculateWorkingDays, resolveServiceIds, getServiceNames } from '../lib/utils';
+import { formatCurrency, cn, calculatePhaseScores, getActiveDaysCount, getValidTransitions, isRole, hasRole, getAutoProjectState, getPhaseListFromState, calculateSPI, calculateWorkingDays, resolveServiceIds, getServiceNames, getEffectiveServiceIds } from '../lib/utils';
 import { 
   Calendar, 
   User, 
@@ -56,24 +56,7 @@ export const PhaseView: React.FC<PhaseViewProps> = ({
   userRole, currencies = [], serviceBaselines = [], packages = [], themeColor = 'teal', onReassign, defaultPhases = [],
   spiThresholds, validateStateTransition, onShowToast, userName
 }) => {
-  // 1. Migration/Consistency Layer: Ensure we are using service IDs internally
-  const getEffectiveServiceIds = (): string[] => {
-    // ONLY fall back to package defaults if the services array is null/undefined
-    // If it's an empty array [], it means the PM has explicitly de-scoped everything.
-    if (rawProject.services !== undefined && rawProject.services !== null) {
-      return resolveServiceIds(rawProject.services, serviceBaselines);
-    }
-    
-    // Fallback: Inherit from package
-    const pkg = packages.find(p => p.name === rawProject.packageName);
-    if (pkg && pkg.services && pkg.services.length > 0) {
-      return resolveServiceIds(pkg.services, serviceBaselines);
-    }
-    
-    return [];
-  };
-
-  const currentServiceIds = getEffectiveServiceIds();
+  const currentServiceIds = getEffectiveServiceIds(rawProject, packages, serviceBaselines);
 
   // 2. Defensive fallbacks for imported legacy projects that might lack these arrays
   // Resilience Layer: Auto-initialize phases if they are missing

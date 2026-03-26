@@ -1,7 +1,7 @@
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { addDays, isWeekend, parseISO, format, isSameDay } from 'date-fns';
-import { Project, Phase, PhaseName, PhaseStatus, ServiceBaseline } from '../types';
+import { Project, Phase, PhaseName, PhaseStatus, ServiceBaseline, PackageConfig, ProjectActivity, ProjectState, ServiceState } from '../types';
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -366,6 +366,32 @@ export function getPhaseListFromState(
 
     return { id: name, name, status, completionDate };
   });
+}
+
+
+/**
+ * Shared utility to resolve the active service IDs for a project.
+ * Handles both explicit service lists (including intentionally empty ones [])
+ * and inheritance from package defaults (if project.services is null).
+ */
+export function getEffectiveServiceIds(
+  project: Partial<Project>, 
+  packages: PackageConfig[], 
+  serviceBaselines: ServiceBaseline[]
+): string[] {
+  // ONLY fall back to package defaults if the services array is null/undefined
+  // If it's an empty array [], it means the PM has explicitly de-scoped everything.
+  if (project.services !== undefined && project.services !== null) {
+    return resolveServiceIds(project.services, serviceBaselines);
+  }
+  
+  // Fallback: Inherit from package
+  const pkg = (packages || []).find(p => p.name === project.packageName);
+  if (pkg && pkg.services && pkg.services.length > 0) {
+    return resolveServiceIds(pkg.services, serviceBaselines);
+  }
+  
+  return [];
 }
 
 /**

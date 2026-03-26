@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Project, AppConfig, Role } from '../types';
-import { calculateSPI, getActiveDaysCount, cn, resolveServiceIds } from '../lib/utils';
+import { calculateSPI, getActiveDaysCount, cn, resolveServiceIds, getEffectiveServiceIds } from '../lib/utils';
 import { ChevronDown, ChevronRight, AlertTriangle, TrendingDown, Clock, Search, Filter, Layers } from 'lucide-react';
 import { differenceInDays, parseISO, isAfter, isBefore, subDays, startOfMonth, startOfQuarter, startOfYear } from 'date-fns';
 import { getThemeClasses } from '../lib/theme';
@@ -168,9 +168,9 @@ export const PMScorecard: React.FC<PMScorecardProps> = ({ projects, config, user
       const srvName = srv.name;
       const srvBaseline = srv.baselineDays;
       
-      // Resolve projects that use this service (by ID or legacy Name match)
+      // Resolve projects that use this service (Correctly handles inheritance and de-scoping)
       const projectsWithService = projects.filter(p => {
-        const pServiceIds = resolveServiceIds(p.services || [], baselines);
+        const pServiceIds = getEffectiveServiceIds(p, config.packages || [], baselines);
         return pServiceIds.includes(srvId);
       });
 
