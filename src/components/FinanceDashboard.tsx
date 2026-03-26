@@ -40,6 +40,8 @@ export const FinanceDashboard: React.FC<FinanceDashboardProps> = ({ projects, on
   const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
   const [billingConfirmation, setBillingConfirmation] = useState<Project | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 10;
 
   const now = new Date();
 
@@ -49,6 +51,11 @@ export const FinanceDashboard: React.FC<FinanceDashboardProps> = ({ projects, on
     if (currencyFilter === 'All') return base;
     return base.filter(p => p.currency === currencyFilter);
   }, [projects, currencyFilter]);
+
+  // Reset pagination when filters or sorting change
+  React.useEffect(() => {
+    setCurrentPage(1);
+  }, [currencyFilter, sortField, sortOrder, projects.length]);
 
   // Revenue Stats
   const getGroupedRevenue = (filterFn: (p: Project) => boolean) => {
@@ -64,8 +71,8 @@ export const FinanceDashboard: React.FC<FinanceDashboardProps> = ({ projects, on
   const achievedGroups = getGroupedRevenue(p => p.state === 'Billed' || p.state === 'Closed');
   
   const readyForBillingQueue = useMemo(() => {
-    return projects
-      .filter(p => p.state === 'Signed Off' && !p.isInternalInitiative)
+    return filteredProjects
+      .filter(p => p.state === 'Signed Off')
       .sort((a, b) => {
         let comparison = 0;
         if (sortField === 'clientName') comparison = a.clientName.localeCompare(b.clientName);
@@ -77,7 +84,13 @@ export const FinanceDashboard: React.FC<FinanceDashboardProps> = ({ projects, on
         
         return sortOrder === 'asc' ? comparison : -comparison;
       });
-  }, [projects, sortField, sortOrder]);
+  }, [filteredProjects, sortField, sortOrder]);
+
+  const totalPages = Math.ceil(readyForBillingQueue.length / ITEMS_PER_PAGE);
+  const paginatedQueue = useMemo(() => {
+    const start = (currentPage - 1) * ITEMS_PER_PAGE;
+    return readyForBillingQueue.slice(start, start + ITEMS_PER_PAGE);
+  }, [readyForBillingQueue, currentPage]);
 
   const signedOffCount = projects.filter(p => p.state === 'Signed Off' && !p.isInternalInitiative).length;
 
@@ -233,7 +246,7 @@ export const FinanceDashboard: React.FC<FinanceDashboardProps> = ({ projects, on
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {readyForBillingQueue.map((project) => {
+                {paginatedQueue.map((project) => {
                   const waitTime = differenceInDays(now, parseISO(project.signedOffAt || project.updatedAt));
                   const isLongWait = waitTime >= 7;
 
@@ -314,6 +327,63 @@ export const FinanceDashboard: React.FC<FinanceDashboardProps> = ({ projects, on
             </div>
           )}
         </div>
+
+        {/* Pagination Bar */}
+        {readyForBillingQueue.length > ITEMS_PER_PAGE && (
+          <div className="px-8 py-4 border-t border-slate-100 flex items-center justify-between bg-slate-50/30">
+            <div className="text-xs font-bold text-slate-400">
+              Showing <span className="text-slate-900">{(currentPage - 1) * ITEMS_PER_PAGE + 1}</span> to <span className="text-slate-900">{Math.min(currentPage * ITEMS_PER_PAGE, readyForBillingQueue.length)}</span> of <span className="text-slate-900">{readyForBillingQueue.length}</span> requests
+            </div>
+            <div className="flex items-center gap-1">
+              <button 
+                disabled={currentPage === 1}
+                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                className={cn(
+                  "px-3 py-1.5 text-xs font-black uppercase tracking-wider rounded-lg transition-all",
+                  currentPage === 1 ? "text-slate-200 cursor-not-allowed" : "text-slate-600 hover:bg-slate-200 active:scale-95"
+                )}
+              >
+                Previous
+              </button>
+              
+              <div className="flex px-1 items-center gap-1">
+                {Array.from({ length: totalPages }).map((_, i) => {
+                  const p = i + 1;
+                  // Show current, first, last, and neighbours
+                  if (p === 1 || p === totalPages || Math.abs(p - currentPage) <= 1) {
+                    return (
+                      <button
+                        key={p}
+                        onClick={() => setCurrentPage(p)}
+                        className={cn(
+                          "w-8 h-8 rounded-lg text-xs font-black transition-all",
+                          currentPage === p ? `${theme.bg} text-white shadow-sm` : "text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+                        )}
+                      >
+                        {p}
+                      </button>
+                    );
+                  }
+                  if (p === currentPage - 2 || p === currentPage + 2) {
+                    return <span key={p} className="text-slate-300 px-1">...</span>;
+                  }
+                  return null;
+                })}
+              </div>
+
+              <button 
+                disabled={currentPage === totalPages}
+                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                className={cn(
+                  "px-3 py-1.5 text-xs font-black uppercase tracking-wider rounded-lg transition-all",
+                  currentPage === totalPages ? "text-slate-200 cursor-not-allowed" : "text-slate-600 hover:bg-slate-200 active:scale-95"
+                )}
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        )}
       </section>
 
       {/* Row 3 - Placeholder for Distribution / Performance */}
