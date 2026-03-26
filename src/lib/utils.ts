@@ -200,6 +200,7 @@ export function calculateSPI(project: Project, thresholds = { onTrack: 1.0, atRi
     return { value: 'N/A', badge: 'N/A', tooltip: 'Start date and completion date are required to calculate SPI', color: 'bg-slate-100 text-slate-500', isAnomaly: false, ev: 0, pv: 0, rawSpi: null };
   }
 
+  const isClosed = project.state === 'Closed' || project.state === 'Billed';
   const activeStats = getActiveDaysCount(project, refDateStr);
   const elapsedDays = activeStats.days;
   
@@ -220,13 +221,18 @@ export function calculateSPI(project: Project, thresholds = { onTrack: 1.0, atRi
   // If Today < Start, PV = 0
   // If Today > Planned End, PV = 1.0
   // Otherwise PV = Elapsed / TotalPlanned
-  const pv = Math.max(0.01, Math.min(1.0, elapsedDays / totalPlannedDays));
+  const pv = Math.max(0.01, Math.min(1.0, elapsedDays / Math.max(1, totalPlannedDays)));
   
-  const rawSpi = ev / pv;
+  let rawSpi = ev / pv;
+  
+  // SPI Anomaly Prevention:
+  // 1. If project is closed with 0 active days, it was an "instant" completion
+  if (isClosed && elapsedDays === 0) rawSpi = 1.0;
+  // 2. Cap extreme SPI values at 5.0 to prevent average distortions
+  if (rawSpi > 5.0) rawSpi = 5.0;
+
   const roundedSpi = isFinite(rawSpi) ? rawSpi.toFixed(2) : '1.00';
   let isAnomaly = false;
-
-  const isClosed = project.state === 'Closed' || project.state === 'Billed';
 
   if (isClosed) {
     return { value: roundedSpi, badge: 'Final SPI', tooltip: 'Final SPI at project closure', color: 'bg-slate-800 text-white', isAnomaly: false, ev, pv, rawSpi: isFinite(rawSpi) ? rawSpi : 1.0 };
@@ -367,17 +373,18 @@ export function getPhaseListFromState(
  * Essential for transition from name-based to ID-based mapping.
  */
 export function resolveServiceIds(currentServices: string[], serviceBaselines: ServiceBaseline[]): string[] {
-  if (!currentServices || !serviceBaselines) return currentServices || [];
+  if (!currentServices || !serviceBaselines || serviceBaselines.length === 0) return currentServices || [];
   return currentServices.map(s => {
     // If it's already a valid ID, keep it
     const idMatch = serviceBaselines.find(sb => sb.id === s);
     if (idMatch) return s;
     
-    // If it matches a name, return that ID
-    const nameMatch = serviceBaselines.find(sb => sb.name === s);
+    // Fuzzy match by name (case-insensitive)
+    const normalizedName = s.toLowerCase().trim();
+    const nameMatch = serviceBaselines.find(sb => sb.name.toLowerCase().trim() === normalizedName);
     if (nameMatch) return nameMatch.id;
     
-    // Fallback to original string if untracked
+    // Fallback to original string (might be an untracked service)
     return s;
   });
 }

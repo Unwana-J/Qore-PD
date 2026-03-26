@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Loader2, AlertCircle, RefreshCw, UserCircle, ChevronRight } from 'lucide-react';
-import { cn, isRole, hasRole } from './lib/utils';
+import { cn, isRole, hasRole, resolveServiceIds } from './lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
 import { Sidebar } from './components/layout/Sidebar';
 import { Header } from './components/layout/Header';
@@ -78,28 +78,28 @@ function AppContent() {
     
     // Load config and user/invite data
     const init = async () => {
-      if (!user) return;
-      
-      const localOnboardingSkip = localStorage.getItem('onboarding_skipped');
-      
-      console.log("[Diagnostics] Initializing app data...");
       try {
-        // Completely non-blocking background initialization
-        api.config.get().then(c => {
-          setConfig(c);
-          if (hasRole(userRole, ['Superadmin', 'Manager']) && !c.isSetupComplete && !localOnboardingSkip) {
-            setShowOnboarding(true);
-          }
-        }).catch(err => console.error("Config fetch failed", err));
+        const cloudConfig = await api.config.get();
+        // Universal Migration Layer: Sanitize packages to always use service IDs
+        const sanitizedPackages = (cloudConfig.packages || []).map(pkg => ({
+          ...pkg,
+          services: resolveServiceIds(pkg.services || [], cloudConfig.serviceBaselines)
+        }));
+        
+        setConfig({
+          ...cloudConfig,
+          packages: sanitizedPackages
+        });
 
-        api.users.getAll().then(setUsers).catch(err => console.error("User fetch failed", err));
-        api.invites.getAll().then(setInvites).catch(err => console.error("Invite fetch failed", err));
-      } catch (err: any) {
-        console.error('[Diagnostics] Initialization error:', err);
+        // Background load users/invites
+        api.users.getAll().then(setUsers).catch(e => console.error(e));
+        api.invites.getAll().then(setInvites).catch(e => console.error(e));
+      } catch (err) {
+        console.error("Failed to load cloud config:", err);
       }
     };
     init();
-  }, [user?.id, userRole]); // Trigger correctly on user identity or role shift
+  }, [user?.id, userRole]); // Depend on user and userRole to re-fetch if they change
 
   const handleUpdateConfig = async (updates: Partial<AppConfig>) => {
     const newConfig = { ...config, ...updates };
