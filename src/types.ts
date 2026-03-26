@@ -85,7 +85,7 @@ export interface Project {
   id: string;
   clientName: string;
   packageName: string;
-  services: string[];
+  services: string[]; // service IDs
   productLines: ProductLine[];
   assignedPM: string;
   startDate: string;
@@ -97,7 +97,7 @@ export interface Project {
   state: ProjectState;
   phases: Phase[];
   phaseWeights: ProjectLifecycleWeights;
-  serviceStates: Record<string, ServiceState>;
+  serviceStates: Record<string, ServiceState>; // keys are service IDs
   pidSignedOffDate?: string;
   comments: Comment[];
   risks: Risk[];
@@ -120,13 +120,13 @@ export interface Project {
 export interface PackageConfig {
   id: string;
   name: string;
-  services: string[];
+  services: string[]; // service IDs
   weight: number;
 }
 
 export interface ProductLineConfig {
   name: ProductLine;
-  services: string[];
+  services: string[]; // service IDs
 }
 
 export interface ServiceBaseline {

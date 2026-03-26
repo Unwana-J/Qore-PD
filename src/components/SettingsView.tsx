@@ -1108,13 +1108,13 @@ const PackageServiceConfig = ({ config, setConfig, theme, showToast }: any) => {
     showToast("Package deleted.");
   };
 
-  const toggleServiceInPackage = (form: any, serviceName: string) => {
+  const toggleServiceInPackage = (form: any, serviceId: string) => {
     const services = [...form.services];
-    const idx = services.indexOf(serviceName);
+    const idx = services.indexOf(serviceId);
     if (idx > -1) {
       services.splice(idx, 1);
     } else {
-      services.push(serviceName);
+      services.push(serviceId);
     }
     if (editingId) setEditForm({ ...form, services });
     else setNewForm({ ...form, services });
@@ -1172,10 +1172,10 @@ const PackageServiceConfig = ({ config, setConfig, theme, showToast }: any) => {
                     {config.serviceBaselines.map((s: any) => (
                       <button 
                         key={s.id}
-                        onClick={() => toggleServiceInPackage(newForm, s.name)}
+                        onClick={() => toggleServiceInPackage(newForm, s.id)}
                         className={cn(
                           "px-3 py-1.5 rounded-lg text-xs font-bold transition-all border",
-                          newForm?.services.includes(s.name) ? cn(theme.bg, "text-white border-transparent") : "bg-white text-slate-500 border-slate-200"
+                          newForm?.services.includes(s.id) ? cn(theme.bg, "text-white border-transparent") : "bg-white text-slate-500 border-slate-200"
                         )}
                       >
                         {s.name}
@@ -1203,10 +1203,10 @@ const PackageServiceConfig = ({ config, setConfig, theme, showToast }: any) => {
                       {config.serviceBaselines.map((s: any) => (
                         <button 
                           key={s.id}
-                          onClick={() => toggleServiceInPackage(editForm, s.name)}
+                          onClick={() => toggleServiceInPackage(editForm, s.id)}
                           className={cn(
                             "px-3 py-1.5 rounded-lg text-xs font-bold transition-all border",
-                            editForm.services.includes(s.name) ? cn(theme.bg, "text-white border-transparent") : "bg-white text-slate-500 border-slate-200"
+                            editForm.services.includes(s.id) ? cn(theme.bg, "text-white border-transparent") : "bg-white text-slate-500 border-slate-200"
                           )}
                         >
                           {s.name}
@@ -1223,9 +1223,14 @@ const PackageServiceConfig = ({ config, setConfig, theme, showToast }: any) => {
                     <div className="space-y-2">
                        <h5 className="text-lg font-black text-slate-900">{pkg.name}</h5>
                        <div className="flex flex-wrap gap-1.5">
-                         {pkg.services.map((s: string) => (
-                           <span key={s} className="px-2 py-0.5 bg-slate-100 text-slate-500 rounded text-[10px] font-bold">{s}</span>
-                         ))}
+                         {pkg.services.map((sid: string) => {
+                           const service = config.serviceBaselines.find((s: any) => s.id === sid);
+                           return (
+                             <span key={sid} className="px-2 py-0.5 bg-slate-100 text-slate-500 rounded text-[10px] font-bold">
+                               {service ? service.name : sid}
+                             </span>
+                           );
+                         })}
                        </div>
                     </div>
                     <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">

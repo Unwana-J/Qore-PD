@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Upload, FileType, AlertTriangle, CheckCircle2, X, ChevronRight, Edit2, Archive, Check } from 'lucide-react';
 import Papa from 'papaparse';
 import * as XLSX from 'xlsx';
-import { cn, formatCurrency, calculateWorkingDays, getActiveDaysCount, getPhaseListFromState, getWorkingDaysInRange } from '../lib/utils';
+import { cn, formatCurrency, calculateWorkingDays, getActiveDaysCount, getPhaseListFromState, getWorkingDaysInRange, resolveServiceIds } from '../lib/utils';
 import { getThemeClasses } from '../lib/theme';
 import { Project, Role, AppConfig, ImportRow, ImportRowStatus, User, ServiceBaseline, ProductLine, ServiceState } from '../types';
 import { ImportGuideModal } from './ImportGuideModal';
@@ -466,7 +466,9 @@ export const BulkImportView: React.FC<BulkImportViewProps> = ({ users, invites, 
       
       // Calculate Auto Services and Baseline Days
       let baselineDays = 0;
-      let mappedServices: string[] = row.services || [];
+      // CRITICAL: Resolve imported service names to internal IDs
+      const mappedServiceIds = resolveServiceIds(row.services || [], config.serviceBaselines);
+      
       let productLines: ProductLine[] = [];
       const plInput = safeTrim(row.productLine);
       if (plInput) {
@@ -484,8 +486,8 @@ export const BulkImportView: React.FC<BulkImportViewProps> = ({ users, invites, 
       } else if (row.packageName) {
         const pkg = config.packages.find((p: any) => p.name === row.packageName);
         if (pkg) {
-          baselineDays = mappedServices.reduce((acc, serviceName) => {
-            const baseline = config.serviceBaselines.find((sb: any) => sb.name === serviceName);
+          baselineDays = mappedServiceIds.reduce((acc, sid) => {
+            const baseline = config.serviceBaselines.find((sb: any) => sb.id === sid);
             return acc + (baseline ? baseline.baselineDays : 0);
           }, 0);
         }
@@ -493,9 +495,20 @@ export const BulkImportView: React.FC<BulkImportViewProps> = ({ users, invites, 
       }
       
       // Extract explicit service states set in the excel columns
-      const finalServiceStates: Record<string, any> = { ...row.serviceStates };
-      mappedServices.forEach(s => {
-        if (!finalServiceStates[s]) finalServiceStates[s] = 'Not Started';
+      // We must map these to ID-based keys as well
+      const finalServiceStates: Record<string, any> = {};
+      
+      // If row.serviceStates was populated by names, resolve them to IDs
+      if (row.serviceStates) {
+        Object.entries(row.serviceStates).forEach(([name, status]) => {
+          const matchingService = config.serviceBaselines.find(sb => sb.name.toLowerCase() === name.toLowerCase());
+          const key = matchingService ? matchingService.id : name;
+          finalServiceStates[key] = status;
+        });
+      }
+
+      mappedServiceIds.forEach(sid => {
+        if (!finalServiceStates[sid]) finalServiceStates[sid] = 'Not Started';
       });
 
       const closureStatus = row.closureStatus || 'Active';
@@ -517,12 +530,15 @@ export const BulkImportView: React.FC<BulkImportViewProps> = ({ users, invites, 
         actualCompDate
       );
 
-      // Package-aware Milestones: Convert services to milestones for all packages
-      const milestones = mappedServices.map(s => ({
-        id: s.toLowerCase().replace(/\s+/g, '-'),
-        name: s,
-        status: (finalServiceStates[s] as ServiceState) || 'Not Started'
-      }));
+      // Package-aware Milestones: Convert service IDs to milestones
+      const milestones = mappedServiceIds.map(sid => {
+        const sb = config.serviceBaselines.find(b => b.id === sid);
+        return {
+          id: sid,
+          name: sb ? sb.name : sid,
+          status: (finalServiceStates[sid] as ServiceState) || 'Not Started'
+        };
+      });
 
       const mappedData: Partial<Project> = {
         clientName: row.clientName,
@@ -537,7 +553,7 @@ export const BulkImportView: React.FC<BulkImportViewProps> = ({ users, invites, 
         state: isClosed ? 'Closed' : (row.closureStatus as any || 'On-Track'),
         priority: 'P2', 
         productLines,
-        services: mappedServices,
+        services: mappedServiceIds,
         serviceStates: finalServiceStates,
         milestones,
         phases,

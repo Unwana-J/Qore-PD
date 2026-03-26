@@ -74,17 +74,18 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
     if (formData.packageName) {
       const pkg = packages.find(p => p.name === formData.packageName);
       if (pkg) {
+        // Now storing service IDs!
         setSelectedServices(pkg.services);
       }
     } else {
       setSelectedServices([]);
     }
-  }, [formData.packageName]);
+  }, [formData.packageName, packages]);
 
   const isInternalInitiative = formData.packageName === 'Internal Initiative';
 
-  const totalDuration = selectedServices.reduce((acc, s) => {
-    const baseline = serviceBaselines.find(sb => sb.name === s);
+  const totalDuration = selectedServices.reduce((acc, sid) => {
+    const baseline = serviceBaselines.find(sb => sb.id === sid);
     return acc + (baseline ? baseline.baselineDays : 0);
   }, 0);
 
@@ -667,6 +668,29 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
                       <div className="w-1.5 h-1.5 rounded-full bg-slate-400" />
                       Other Services
                     </h4>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Included Services</p>
+                    <div className="flex flex-wrap gap-2">
+                      {serviceBaselines.map((service) => (
+                        <button
+                          key={service.id}
+                          type="button"
+                          onClick={() => {
+                            const newServices = selectedServices.includes(service.id)
+                              ? selectedServices.filter(s => s !== service.id)
+                              : [...selectedServices, service.id];
+                            setSelectedServices(newServices);
+                          }}
+                          className={cn(
+                            "px-3 py-1.5 rounded-xl text-xs font-bold transition-all border",
+                            selectedServices.includes(service.id)
+                              ? cn(theme.bg, "text-white border-transparent shadow-md scale-105")
+                              : "bg-white text-slate-500 border-slate-200 hover:border-slate-300 hover:bg-slate-50"
+                          )}
+                        >
+                           {service.name}
+                        </button>
+                      ))}
+                    </div>
                     <div className="flex flex-wrap gap-2">
                       {untrackedServices.map(service => (
                         <div 

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Project, Phase, Comment, Risk, Role, RebaselineRequest, ServiceState, PackageConfig, ServiceBaseline } from '../types';
 import { StateBadge } from './ProjectList';
-import { formatCurrency, cn, calculatePhaseScores, getActiveDaysCount, getValidTransitions, isRole, hasRole, getAutoProjectState, getPhaseListFromState, calculateSPI, calculateWorkingDays } from '../lib/utils';
+import { formatCurrency, cn, calculatePhaseScores, getActiveDaysCount, getValidTransitions, isRole, hasRole, getAutoProjectState, getPhaseListFromState, calculateSPI, calculateWorkingDays, resolveServiceIds, getServiceNames } from '../lib/utils';
 import { 
   Calendar, 
   User, 
@@ -56,7 +56,10 @@ export const PhaseView: React.FC<PhaseViewProps> = ({
   userRole, currencies = [], serviceBaselines = [], packages = [], themeColor = 'teal', onReassign, defaultPhases = [],
   spiThresholds, validateStateTransition, onShowToast, userName
 }) => {
-  // Defensive fallbacks for imported legacy projects that might lack these arrays
+  // 1. Migration/Consistency Layer: Ensure we are using service IDs internally
+  const currentServiceIds = resolveServiceIds(rawProject.services || [], serviceBaselines);
+
+  // 2. Defensive fallbacks for imported legacy projects that might lack these arrays
   // Resilience Layer: Auto-initialize phases if they are missing
   const phases = (rawProject.phases && rawProject.phases.length > 0) 
     ? rawProject.phases 
@@ -71,20 +74,25 @@ export const PhaseView: React.FC<PhaseViewProps> = ({
   const getInitialMilestones = () => {
     if (rawProject.milestones && rawProject.milestones.length > 0) return rawProject.milestones;
     
+    // Check package or project services
     const pkg = packages.find(p => p.name === rawProject.packageName);
-    const serviceList = pkg ? pkg.services : (rawProject.services || []);
+    const serviceIds = pkg ? pkg.services : currentServiceIds;
     
-    return serviceList.map(s => ({
-      id: s.toLowerCase().replace(/\s+/g, '-'),
-      name: s,
-      status: (rawProject.serviceStates?.[s] as ServiceState) || 'Not Started'
-    }));
+    return serviceIds.map(sid => {
+      const sb = serviceBaselines.find(b => b.id === sid);
+      const name = sb ? sb.name : sid;
+      return {
+        id: sid,
+        name: name,
+        status: (rawProject.serviceStates?.[sid] || rawProject.serviceStates?.[name] || 'Not Started') as ServiceState
+      };
+    });
   };
 
-  // Dynamic Duration Calculation: Derive from current configuration instead of relying on static project.expectedDuration
-  const dynamicDuration = (rawProject.services || []).reduce((acc, s) => {
-    const baseline = serviceBaselines.find(sb => sb.name === s);
-    return acc + (baseline ? baseline.baselineDays : 0);
+  // 3. Dynamic Duration Calculation: STRICTLY derive from current configuration via IDs
+  const dynamicDuration = currentServiceIds.reduce((acc, sid) => {
+    const sb = serviceBaselines.find(b => b.id === sid);
+    return acc + (sb ? sb.baselineDays : 0);
   }, 0);
 
   const dynamicExpCompletion = rawProject.startDate 
@@ -93,11 +101,11 @@ export const PhaseView: React.FC<PhaseViewProps> = ({
 
   const project = {
     ...rawProject,
-    expectedDuration: dynamicDuration || rawProject.expectedDuration,
+    services: currentServiceIds,
+    expectedDuration: dynamicDuration, // STICK TO THE CONFIG!
     expectedCompletionDate: dynamicExpCompletion,
     phases,
     milestones: getInitialMilestones(),
-    services: rawProject.services || [],
     risks: rawProject.risks || [],
     comments: rawProject.comments || [],
     activities: rawProject.activities || [],

@@ -1,7 +1,7 @@
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { addDays, isWeekend, parseISO, format, isSameDay } from 'date-fns';
-import { Project, Phase, PhaseName, PhaseStatus } from '../types';
+import { Project, Phase, PhaseName, PhaseStatus, ServiceBaseline } from '../types';
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -359,5 +359,36 @@ export function getPhaseListFromState(
     }
 
     return { id: name, name, status, completionDate };
+  });
+}
+
+/**
+ * Migration helper: Maps service names or IDs to current service IDs.
+ * Essential for transition from name-based to ID-based mapping.
+ */
+export function resolveServiceIds(currentServices: string[], serviceBaselines: ServiceBaseline[]): string[] {
+  if (!currentServices || !serviceBaselines) return currentServices || [];
+  return currentServices.map(s => {
+    // If it's already a valid ID, keep it
+    const idMatch = serviceBaselines.find(sb => sb.id === s);
+    if (idMatch) return s;
+    
+    // If it matches a name, return that ID
+    const nameMatch = serviceBaselines.find(sb => sb.name === s);
+    if (nameMatch) return nameMatch.id;
+    
+    // Fallback to original string if untracked
+    return s;
+  });
+}
+
+/**
+ * Maps service IDs or names to current service names for display.
+ */
+export function getServiceNames(ids: string[], serviceBaselines: ServiceBaseline[]): string[] {
+  if (!ids) return [];
+  return ids.map(id => {
+    const match = serviceBaselines.find(sb => sb.id === id || sb.name === id);
+    return match ? match.name : id;
   });
 }
