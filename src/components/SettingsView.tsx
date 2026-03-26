@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import { 
   Shield, 
   Users, 
@@ -20,7 +21,8 @@ import {
   Save,
   Palette,
   Filter,
-  Link as LinkIcon
+  Link as LinkIcon,
+  AlertTriangle
 } from 'lucide-react';
 import { 
   Role, 
@@ -75,7 +77,40 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const [weightHistory, setWeightHistory] = useState<WeightHistory[]>(MOCK_WEIGHT_HISTORY);
   const [showUserRemoveConfirm, setShowUserRemoveConfirm] = useState<any | null>(null);
 
-  const theme = getThemeClasses(config.brand.themeColor);
+  // Local state for configuration edits
+  const [draftConfig, setDraftConfig] = useState<AppConfig>(config);
+  const [isSaving, setIsSaving] = useState(false);
+
+  // Sync draft with global config if not modified
+  const isDirty = useMemo(() => {
+    return JSON.stringify(draftConfig) !== JSON.stringify(config);
+  }, [draftConfig, config]);
+
+  // If config changes from outside (e.g. reload), sync it if we are not dirty
+  useEffect(() => {
+    if (!isDirty) {
+      setDraftConfig(config);
+    }
+  }, [config, isDirty]);
+
+  const handleSave = async () => {
+    setIsSaving(true);
+    try {
+      await onUpdateConfig(draftConfig);
+      showToast('Settings saved successfully.', 'success');
+    } catch (err: any) {
+      showToast(err.message || 'Failed to save settings.', 'error');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleDiscard = () => {
+    setDraftConfig(config);
+    showToast('Changes discarded.', 'info');
+  };
+
+  const theme = getThemeClasses(draftConfig.brand.themeColor);
   
   // Tab access control
   const canAccess = (tab: SettingsTab) => {
@@ -161,30 +196,82 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         )}
       </div>
 
-      {/* Settings Content */}
-      <div className="flex-1 bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden min-h-[600px]">
-        {activeTab === 'users' && 
-          <UserManagement 
-            users={users} 
-            setUsers={setUsers} 
-            invites={invites}
-            setInvites={setInvites}
-            projects={projects}
-            onUpdateProjects={onUpdateProjects}
-            currentUserRole={userRole}
-            config={config}
-            showToast={showToast}
-            setShowUserRemoveConfirm={setShowUserRemoveConfirm}
-            refreshProfile={refreshProfile}
-          />
-        }
-        {activeTab === 'priority' && <PrioritySettings config={config} setConfig={onUpdateConfig} weightHistory={weightHistory} setWeightHistory={setWeightHistory} userRole={userRole} theme={theme} />}
-        {activeTab === 'project' && <ProjectConfig config={config} setConfig={onUpdateConfig} userRole={userRole} theme={theme} showToast={showToast} projects={projects} />}
-        {activeTab === 'revenue' && <RevenueSettings config={config} setConfig={onUpdateConfig} userRole={userRole} theme={theme} />}
-        {activeTab === 'brand' && <BrandSettings config={config} setConfig={onUpdateConfig} userRole={userRole} theme={theme} />}
-        {activeTab === 'packages' && <PackageServiceConfig config={config} setConfig={onUpdateConfig} userRole={userRole} theme={theme} showToast={showToast} />}
-        {activeTab === 'account' && <AccountSettings user={user} profile={profile} refreshProfile={refreshProfile} theme={theme} showToast={showToast} />}
-        {activeTab === 'audit' && <AuditView logs={auditLogs} />}
+      <div className="flex-1 bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden min-h-[600px] flex flex-col">
+        <div className="flex-1 overflow-y-auto custom-scrollbar relative">
+          {activeTab === 'users' && 
+            <UserManagement 
+              users={users} 
+              setUsers={setUsers} 
+              invites={invites}
+              setInvites={setInvites}
+              projects={projects}
+              onUpdateProjects={onUpdateProjects}
+              currentUserRole={userRole}
+              config={draftConfig}
+              showToast={showToast}
+              setShowUserRemoveConfirm={setShowUserRemoveConfirm}
+              refreshProfile={refreshProfile}
+            />
+          }
+          {activeTab === 'priority' && <PrioritySettings config={draftConfig} setConfig={setDraftConfig} weightHistory={weightHistory} setWeightHistory={setWeightHistory} userRole={userRole} theme={theme} />}
+          {activeTab === 'project' && <ProjectConfig config={draftConfig} setConfig={setDraftConfig} userRole={userRole} theme={theme} showToast={showToast} projects={projects} />}
+          {activeTab === 'revenue' && <RevenueSettings config={draftConfig} setConfig={setDraftConfig} userRole={userRole} theme={theme} />}
+          {activeTab === 'brand' && <BrandSettings config={draftConfig} setConfig={setDraftConfig} userRole={userRole} theme={theme} />}
+          {activeTab === 'packages' && <PackageServiceConfig config={draftConfig} setConfig={setDraftConfig} theme={theme} showToast={showToast} />}
+          {activeTab === 'account' && <AccountSettings user={user} profile={profile} refreshProfile={refreshProfile} theme={theme} showToast={showToast} />}
+          {activeTab === 'audit' && <AuditView logs={auditLogs} />}
+        </div>
+
+        {/* Floating Save Bar */}
+        <AnimatePresence>
+          {isDirty && (
+            <motion.div 
+              initial={{ y: 100, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 100, opacity: 0 }}
+              className="px-8 py-4 bg-slate-900 border-t border-slate-800 flex items-center justify-between z-[60]"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-xl bg-amber-500/20 flex items-center justify-center">
+                  <AlertTriangle className="w-4 h-4 text-amber-500" />
+                </div>
+                <div>
+                  <p className="text-white text-sm font-bold">Unsaved Changes</p>
+                  <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest">You have modified system settings</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <button 
+                  disabled={isSaving}
+                  onClick={handleDiscard}
+                  className="px-6 py-2 text-slate-400 hover:text-white font-bold text-sm transition-colors disabled:opacity-50"
+                >
+                  Discard
+                </button>
+                <button 
+                  disabled={isSaving}
+                  onClick={handleSave}
+                  className={cn(
+                    "px-8 py-2 text-white font-black rounded-xl text-sm shadow-xl flex items-center gap-2 transition-all active:scale-95 disabled:opacity-50",
+                    theme.bg, theme.shadow
+                  )}
+                >
+                  {isSaving ? (
+                    <>
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="w-4 h-4" />
+                      Save Changes
+                    </>
+                  )}
+                </button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
       <ConfirmationModal 
@@ -425,6 +512,32 @@ const MOCK_CLIENT_NAMES = [
   'Legacy Corp', 'Old School Fin', 'Future Bank', 'Amber Ventures'
 ];
 
+const NumberInput = ({ value, onChange, className, step = "1", min, max }: any) => {
+  const [buffer, setBuffer] = useState(value?.toString() || "");
+  
+  useEffect(() => {
+    setBuffer(value?.toString() || "");
+  }, [value]);
+
+  return (
+    <input 
+      type="number"
+      step={step}
+      min={min}
+      max={max}
+      className={className}
+      value={buffer}
+      onChange={e => setBuffer(e.target.value)}
+      onBlur={() => {
+        if (buffer === "") return;
+        const num = parseFloat(buffer);
+        if (!isNaN(num)) onChange(num);
+        else setBuffer(value?.toString() || "");
+      }}
+    />
+  );
+};
+
 const ProjectConfig = ({ config, setConfig, userRole, theme, showToast, projects }: any) => {
   const [isPurging, setIsPurging] = useState(false);
 
@@ -462,11 +575,10 @@ const ProjectConfig = ({ config, setConfig, userRole, theme, showToast, projects
         <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100 space-y-4">
           <h4 className="text-sm font-bold text-slate-900">Stale Project Threshold</h4>
           <div className="flex items-center gap-4">
-            <input 
-              type="number" 
+            <NumberInput 
               className={cn("w-24 px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm font-bold outline-none", theme.focusBorder)}
               value={config.staleThresholdDays}
-              onChange={e => setConfig({...config, staleThresholdDays: parseInt(e.target.value)})}
+              onChange={(val: number) => setConfig({...config, staleThresholdDays: val})}
             />
             <span className="text-sm text-slate-600 font-medium">days without activity</span>
           </div>
@@ -493,28 +605,22 @@ const ProjectConfig = ({ config, setConfig, userRole, theme, showToast, projects
                <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">
                  On-Track (≥)
                </label>
-               <input 
-                 type="number" step="0.01"
+               <NumberInput 
+                 step="0.01"
                  className={cn("w-full px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm font-bold outline-none", theme.focusBorder)}
                  value={config.spiThresholds?.onTrack || 1.0}
-                 onChange={e => {
-                   const val = parseFloat(e.target.value) || 1.0;
-                   setConfig({ ...config, spiThresholds: { ...config.spiThresholds, onTrack: val } });
-                 }}
+                 onChange={(val: number) => setConfig({ ...config, spiThresholds: { ...config.spiThresholds, onTrack: val } })}
                />
              </div>
              <div className="space-y-1.5 focus-within:z-10">
                <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">
                  At Risk (≥)
                </label>
-               <input 
-                 type="number" step="0.01"
+               <NumberInput 
+                 step="0.01"
                  className={cn("w-full px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm font-bold outline-none", theme.focusBorder)}
                  value={config.spiThresholds?.atRisk || 0.8}
-                 onChange={e => {
-                   const val = parseFloat(e.target.value) || 0.8;
-                   setConfig({ ...config, spiThresholds: { ...config.spiThresholds, atRisk: val } });
-                 }}
+                 onChange={(val: number) => setConfig({ ...config, spiThresholds: { ...config.spiThresholds, atRisk: val } })}
                />
              </div>
           </div>
@@ -530,18 +636,14 @@ const ProjectConfig = ({ config, setConfig, userRole, theme, showToast, projects
                    {phase}
                  </label>
                  <div className="flex items-center">
-                   <input 
-                     type="number" 
-                     className={cn("w-full px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm font-bold outline-none", theme.focusBorder)}
-                     value={weight as number}
-                     onChange={e => {
-                       const val = parseInt(e.target.value) || 0;
-                       setConfig({
-                         ...config, 
-                         projectLifecycleWeights: { ...config.projectLifecycleWeights, [phase]: val }
-                       })
-                     }}
-                   />
+                    <NumberInput 
+                      className={cn("w-full px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm font-bold outline-none", theme.focusBorder)}
+                      value={weight as number}
+                      onChange={(val: number) => setConfig({
+                        ...config, 
+                        projectLifecycleWeights: { ...config.projectLifecycleWeights, [phase]: val }
+                      })}
+                    />
                  </div>
                </div>
               ))}
@@ -635,14 +737,13 @@ const PrioritySettings = ({ config, setConfig, weightHistory, setWeightHistory, 
             <p className="text-[10px] font-bold text-slate-500 mb-4">Threshold for projects in "Delayed" state before flagging.</p>
           </div>
           <div className="flex items-center gap-4">
-            <input 
-              type="number" 
+            <NumberInput 
               className={cn(
                 "w-20 px-4 py-3 bg-white border border-slate-200 rounded-2xl text-lg font-black outline-none focus:ring-4 transition-all",
                 theme.ring, theme.focusBorder
               )}
               value={config.atRiskThresholdDays}
-              onChange={e => setConfig({...config, atRiskThresholdDays: parseInt(e.target.value)})}
+              onChange={(val: number) => setConfig({...config, atRiskThresholdDays: val})}
             />
             <span className="text-xs font-bold text-slate-600 uppercase tracking-tighter">Days until flagged</span>
           </div>
@@ -657,14 +758,13 @@ const PrioritySettings = ({ config, setConfig, weightHistory, setWeightHistory, 
                 <span className="text-xs font-black text-slate-600">
                   {p === 'P1' ? 'Tier 1 - Enterprise' : p === 'P2' ? 'Tier 2 - Pro' : 'Tier 3 - Basic'} Projects
                 </span>
-                <input 
-                  type="number" 
+                <NumberInput 
                   className={cn(
                     "w-16 px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm font-black text-center outline-none focus:ring-4 transition-all",
                     theme.ring, theme.focusBorder
                   )}
                   value={config.workloadThresholds[p as ProjectPriority]}
-                  onChange={e => updateWorkload(p as ProjectPriority, parseInt(e.target.value))}
+                  onChange={(val: number) => updateWorkload(p as ProjectPriority, val)}
                 />
               </div>
             ))}
@@ -687,21 +787,20 @@ const PrioritySettings = ({ config, setConfig, weightHistory, setWeightHistory, 
                 {key.replace(/([A-Z])/g, ' $1').trim()} Weight
               </span>
               <div className="flex items-center gap-2">
-                <input 
-                  type="number" 
+                <NumberInput 
                   step="0.05"
                   min="0"
                   max="1"
                   className={cn(
-                    "w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-black outline-none focus:ring-4 transition-all",
+                    "w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm font-black outline-none focus:ring-4 transition-all",
                     theme.ring, theme.focusBorder
                   )}
                   value={config.pmScorecardWeights?.[key as keyof AppConfig['pmScorecardWeights']] || 0}
-                  onChange={e => setConfig({
+                  onChange={(val: number) => setConfig({
                     ...config,
                     pmScorecardWeights: {
                       ...config.pmScorecardWeights,
-                      [key]: parseFloat(e.target.value) || 0
+                      [key]: val
                     }
                   })}
                 />
@@ -724,12 +823,11 @@ const PrioritySettings = ({ config, setConfig, weightHistory, setWeightHistory, 
             )}>
               <span className="text-xs font-bold text-slate-700 truncate mr-2">{pkg.name}</span>
               <div className="flex items-center gap-2">
-                <input 
-                  type="number" 
+                <NumberInput 
                   step="0.1"
-                  className="w-16 px-2 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-black text-center outline-none"
+                  className="w-16 px-2 py-1.5 bg-white border border-slate-200 rounded-xl text-xs font-black text-center outline-none"
                   value={pkg.weight}
-                  onChange={e => updateWeight(pkg.name, parseFloat(e.target.value))}
+                  onChange={(val: number) => updateWeight(pkg.name, val)}
                 />
               </div>
             </div>
@@ -1179,11 +1277,10 @@ const PackageServiceConfig = ({ config, setConfig, theme, showToast }: any) => {
                     />
                   </td>
                   <td className="px-6 py-4 text-center">
-                    <input 
-                      type="number"
+                    <NumberInput 
                       className="w-24 px-4 py-2 bg-white border border-slate-100 rounded-xl text-sm font-bold text-center outline-none ring-teal-500/20 focus:ring-4"
                       value={newForm?.baselineDays || 0}
-                      onChange={e => setNewForm({ ...newForm, baselineDays: parseInt(e.target.value) || 0 })}
+                      onChange={(val: number) => setNewForm({ ...newForm, baselineDays: val })}
                     />
                   </td>
                   <td className="px-6 py-4 text-right">
@@ -1209,11 +1306,10 @@ const PackageServiceConfig = ({ config, setConfig, theme, showToast }: any) => {
                   </td>
                   <td className="px-6 py-4 text-center">
                     {editingId === service.id ? (
-                      <input 
-                        type="number"
+                      <NumberInput 
                         className="w-24 px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm font-bold text-center outline-none"
                         value={editForm.baselineDays}
-                        onChange={e => setEditForm({ ...editForm, baselineDays: parseInt(e.target.value) || 0 })}
+                        onChange={(val: number) => setEditForm({ ...editForm, baselineDays: val })}
                       />
                     ) : (
                       <span className="text-sm font-black text-slate-500">{service.baselineDays} Working Days</span>
