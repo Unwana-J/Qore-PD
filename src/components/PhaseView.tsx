@@ -57,19 +57,20 @@ export const PhaseView: React.FC<PhaseViewProps> = ({
   spiThresholds, validateStateTransition, onShowToast, userName
 }) => {
   // 1. Migration/Consistency Layer: Ensure we are using service IDs internally
-  // Fallback: If project has no services, inherit from its package configuration
   const getEffectiveServiceIds = (): string[] => {
-    let rawServiceList: string[] = [];
-    if (rawProject.services && rawProject.services.length > 0) {
-      rawServiceList = rawProject.services;
-    } else {
-      const pkg = packages.find(p => p.name === rawProject.packageName);
-      if (pkg && pkg.services && pkg.services.length > 0) {
-        rawServiceList = pkg.services;
-      }
+    // ONLY fall back to package defaults if the services array is null/undefined
+    // If it's an empty array [], it means the PM has explicitly de-scoped everything.
+    if (rawProject.services !== undefined && rawProject.services !== null) {
+      return resolveServiceIds(rawProject.services, serviceBaselines);
     }
-    // CRITICAL: Always resolve names to IDs, even for inherited package services
-    return resolveServiceIds(rawServiceList, serviceBaselines);
+    
+    // Fallback: Inherit from package
+    const pkg = packages.find(p => p.name === rawProject.packageName);
+    if (pkg && pkg.services && pkg.services.length > 0) {
+      return resolveServiceIds(pkg.services, serviceBaselines);
+    }
+    
+    return [];
   };
 
   const currentServiceIds = getEffectiveServiceIds();
@@ -276,18 +277,24 @@ export const PhaseView: React.FC<PhaseViewProps> = ({
     setShowAddMilestone(false);
     onShowToast?.('Milestone added', 'success');
   };
-
   const handleDeleteMilestone = (id: string) => {
-    // 1. Remove from milestones
-    const nextMilestones = (project.milestones || []).filter(m => m.id !== id);
-    if (nextMilestones.length === 0) {
-      onShowToast?.('At least one milestone is required', 'error');
-      return;
-    }
-
-    // 2. Remove from services (Sync de-scoped service IDs for Duration/SPI)
+    // 1. Prune the services list
     const nextServices = (project.services || []).filter(sid => sid !== id);
     
+    // 2. Remove from milestones
+    const nextMilestones = (project.milestones || []).filter(m => m.id !== id);
+    
+    // 3. RECALCULATE Duration/Completion (CRITICAL for persistence)
+    const nextDuration = nextServices.reduce((acc, sid) => {
+      const sb = serviceBaselines.find(b => b.id === sid);
+      return acc + (sb ? sb.baselineDays : 0);
+    }, 0);
+    
+    const nextExpCompletion = rawProject.startDate 
+      ? calculateWorkingDays(rawProject.startDate, nextDuration) 
+      : (rawProject.expectedCompletionDate || rawProject.startDate);
+    
+    // 4. Check for phase completion
     const allClosed = nextMilestones.every(m => m.status === 'Closed');
     let updatedPhases = [...project.phases];
     if (allClosed && nextMilestones.length > 0) {
@@ -298,11 +305,13 @@ export const PhaseView: React.FC<PhaseViewProps> = ({
       if (closure && (closure.status === 'Locked' || closure.status === 'Pending')) closure.status = 'In Progress';
     }
     
-    // Save both milestones and services to ensure correct metrics recalculation
+    // Persist NEWLY CALCULATED duration and services
     onUpdateProject({ 
       ...project, 
       milestones: nextMilestones, 
       services: nextServices, 
+      expectedDuration: nextDuration,
+      expectedCompletionDate: nextExpCompletion,
       phases: updatedPhases 
     });
   };
