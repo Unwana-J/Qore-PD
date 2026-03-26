@@ -139,10 +139,8 @@ export function getWorkingDaysInRange(startD: string, endD: string, inclusiveSta
   let current = parseISO(startD);
   const end = parseISO(endD);
   
-  if (!inclusiveStart) {
-    current = addDays(current, 1);
-  }
-
+  // Requirement: If start and end are provided, it should count from start to end (inclusive)
+  // Most industry standards for project duration (e.g. 1 day task) are inclusive.
   if (current > end) return 0;
   
   let count = 0;
@@ -158,37 +156,43 @@ export function getWorkingDaysInRange(startD: string, endD: string, inclusiveSta
 export function getActiveDaysCount(project: Project, refDateStr?: string) {
   const isClosed = project.state === 'Closed' || project.state === 'Billed';
   
-  if (isClosed && project.totalActiveDays !== undefined) {
-    return { days: project.totalActiveDays, text: `${project.totalActiveDays} working days`, label: 'Total Active Days', isStarted: true, isSuspended: false };
-  }
-
   const todayStr = refDateStr || format(new Date(), 'yyyy-MM-dd');
   const startStr = project.startDate;
+  // Priority: If dates are provided, always calculate from them to ensure consistency
+  // Only fall back to stored totalActiveDays if start/end dates are missing (rarer case)
   const endStr = isClosed ? (project.actualCompletionDate || project.currentCompletionDate || todayStr) : todayStr;
 
+  if (!startStr || (!endStr && !isClosed)) {
+    if (isClosed && project.totalActiveDays !== undefined) {
+      return { days: project.totalActiveDays, text: `${project.totalActiveDays} working days`, label: 'Total Active Days', isStarted: true, isSuspended: false };
+    }
+    return { days: 0, text: 'Not Started', label: 'Active Days', isStarted: false, isSuspended: false };
+  }
+
   if (startStr > endStr && !isClosed) {
-    const daysUntil = getWorkingDaysInRange(todayStr, startStr, false);
+    const daysUntil = getWorkingDaysInRange(todayStr, startStr, true);
     return { days: 0, text: `Starts in ${daysUntil} working days`, isStarted: false, isSuspended: false };
   }
 
-  let totalStr = 0;
+  let totalDaysCount = 0;
   const cycles = project.suspensionCycles || [];
   
-  const firstEnd = cycles.length > 0 ? (cycles[0].suspensionDate < endStr ? cycles[0].suspensionDate : endStr) : endStr;
-  totalStr += getWorkingDaysInRange(startStr, firstEnd, false);
+  // Calculate active span: Start -> End, minus suspension durations
+  const baseRangeEnd = cycles.length > 0 ? (cycles[0].suspensionDate < endStr ? cycles[0].suspensionDate : endStr) : endStr;
+  totalDaysCount += getWorkingDaysInRange(startStr, baseRangeEnd, true);
   
   for (let i = 0; i < cycles.length; i++) {
     const cycle = cycles[i];
     if (cycle.reactivationDate && cycle.reactivationDate <= endStr) {
       const nextEnd = (i + 1 < cycles.length) ? (cycles[i+1].suspensionDate < endStr ? cycles[i+1].suspensionDate : endStr) : endStr;
-      totalStr += getWorkingDaysInRange(cycle.reactivationDate, nextEnd, true);
+      totalDaysCount += getWorkingDaysInRange(cycle.reactivationDate, nextEnd, true);
     }
   }
 
   const isSuspended = project.state === 'Suspended';
   const label = isClosed ? 'Total Active Days' : 'Active Days';
   
-  return { days: totalStr, text: `${totalStr} working days`, label, isStarted: true, isSuspended };
+  return { days: totalDaysCount, text: `${totalDaysCount} working days`, label, isStarted: true, isSuspended };
 }
 
 export function calculateSPI(project: Project, thresholds = { onTrack: 1.0, atRisk: 0.8 }, refDateStr?: string) {
@@ -198,9 +202,11 @@ export function calculateSPI(project: Project, thresholds = { onTrack: 1.0, atRi
 
   const activeStats = getActiveDaysCount(project, refDateStr);
   const elapsedDays = activeStats.days;
-  const totalDays = project.expectedDuration || getWorkingDaysInRange(project.startDate, project.expectedCompletionDate || project.currentCompletionDate, false);
   
-  if (totalDays === 0) {
+  // Denominator: The standard/planned duration for the chosen package
+  const totalPlannedDays = project.expectedDuration || getWorkingDaysInRange(project.startDate, project.expectedCompletionDate || project.currentCompletionDate, true);
+  
+  if (totalPlannedDays === 0) {
     return { value: 'N/A', badge: 'N/A', tooltip: 'Project duration is too short to calculate SPI', color: 'bg-slate-100 text-slate-500', isAnomaly: false, ev: 0, pv: 0, rawSpi: null };
   }
 
@@ -209,18 +215,20 @@ export function calculateSPI(project: Project, thresholds = { onTrack: 1.0, atRi
   }
 
   const ev = calculatePhaseScores(project).totalPercentage / 100;
-  // PV is where we SHOULD be. If today is past the planned end, PV is 1.0
-  const pv = Math.max(0.01, Math.min(1.0, elapsedDays / totalDays));
   
-  if (ev === 0 && pv > 0.05) {
-    return { value: '0.00', badge: 'Delayed', tooltip: 'No progress recorded yet', color: 'bg-red-100 text-red-700', isAnomaly: false, ev, pv, rawSpi: 0 };
-  }
-
+  // PV Logic: 
+  // If Today < Start, PV = 0
+  // If Today > Planned End, PV = 1.0
+  // Otherwise PV = Elapsed / TotalPlanned
+  const pv = Math.max(0.01, Math.min(1.0, elapsedDays / totalPlannedDays));
+  
   const rawSpi = ev / pv;
   const roundedSpi = isFinite(rawSpi) ? rawSpi.toFixed(2) : '1.00';
   let isAnomaly = false;
 
-  if (project.state === 'Closed' || project.state === 'Billed') {
+  const isClosed = project.state === 'Closed' || project.state === 'Billed';
+
+  if (isClosed) {
     return { value: roundedSpi, badge: 'Final SPI', tooltip: 'Final SPI at project closure', color: 'bg-slate-800 text-white', isAnomaly: false, ev, pv, rawSpi: isFinite(rawSpi) ? rawSpi : 1.0 };
   }
 
@@ -242,7 +250,7 @@ export function calculateSPI(project: Project, thresholds = { onTrack: 1.0, atRi
     color = 'bg-amber-100 text-amber-700';
   }
 
-  return { value: roundedSpi, badge, tooltip: 'SPI compares your actual progress to where you should be today. Above 1.0 means ahead of schedule.', color, isAnomaly, ev, pv, rawSpi: numericSpi };
+  return { value: roundedSpi, badge, tooltip: 'SPI compares your actual progress to where you should be today.', color, isAnomaly, ev, pv, rawSpi: numericSpi };
 }
 
 export function calculatePhaseScores(project: Project) {
