@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { Project, Phase, Comment, Risk, Role, RebaselineRequest, ServiceState, PackageConfig } from '../types';
+import { Project, Phase, Comment, Risk, Role, RebaselineRequest, ServiceState, PackageConfig, ServiceBaseline } from '../types';
 import { StateBadge } from './ProjectList';
-import { formatCurrency, cn, calculatePhaseScores, getActiveDaysCount, getValidTransitions, isRole, hasRole, getAutoProjectState, getPhaseListFromState, calculateSPI } from '../lib/utils';
+import { formatCurrency, cn, calculatePhaseScores, getActiveDaysCount, getValidTransitions, isRole, hasRole, getAutoProjectState, getPhaseListFromState, calculateSPI, calculateWorkingDays } from '../lib/utils';
 import { 
   Calendar, 
   User, 
@@ -39,7 +39,7 @@ interface PhaseViewProps {
   onApproveRebaseline: (projectId: string, requestId: string, reviewerComment?: string) => Promise<any>;
   onDeclineRebaseline: (projectId: string, requestId: string, reviewerComment: string) => Promise<any>;
   userRole: Role;
-  currencies: any[];
+  serviceBaselines: ServiceBaseline[];
   packages?: PackageConfig[];
   themeColor?: string;
   onReassign?: () => void;
@@ -53,7 +53,7 @@ interface PhaseViewProps {
 export const PhaseView: React.FC<PhaseViewProps> = ({ 
   project: rawProject, onBack, onUpdateProject, onSubmitRebaseline, 
   onApproveRebaseline, onDeclineRebaseline, 
-  userRole, currencies = [], packages = [], themeColor = 'teal', onReassign, defaultPhases = [],
+  userRole, currencies = [], serviceBaselines = [], packages = [], themeColor = 'teal', onReassign, defaultPhases = [],
   spiThresholds, validateStateTransition, onShowToast, userName
 }) => {
   // Defensive fallbacks for imported legacy projects that might lack these arrays
@@ -81,8 +81,20 @@ export const PhaseView: React.FC<PhaseViewProps> = ({
     }));
   };
 
+  // Dynamic Duration Calculation: Derive from current configuration instead of relying on static project.expectedDuration
+  const dynamicDuration = (rawProject.services || []).reduce((acc, s) => {
+    const baseline = serviceBaselines.find(sb => sb.name === s);
+    return acc + (baseline ? baseline.baselineDays : 0);
+  }, 0);
+
+  const dynamicExpCompletion = rawProject.startDate 
+    ? calculateWorkingDays(rawProject.startDate, dynamicDuration) 
+    : (rawProject.expectedCompletionDate || rawProject.startDate);
+
   const project = {
     ...rawProject,
+    expectedDuration: dynamicDuration || rawProject.expectedDuration,
+    expectedCompletionDate: dynamicExpCompletion,
     phases,
     milestones: getInitialMilestones(),
     services: rawProject.services || [],

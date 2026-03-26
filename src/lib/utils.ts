@@ -156,14 +156,17 @@ export function getWorkingDaysInRange(startD: string, endD: string, inclusiveSta
 }
 
 export function getActiveDaysCount(project: Project, refDateStr?: string) {
-  if (project.state === 'Closed' && project.totalActiveDays !== undefined) {
+  const isClosed = project.state === 'Closed' || project.state === 'Billed';
+  
+  if (isClosed && project.totalActiveDays !== undefined) {
     return { days: project.totalActiveDays, text: `${project.totalActiveDays} working days`, label: 'Total Active Days', isStarted: true, isSuspended: false };
   }
 
   const todayStr = refDateStr || format(new Date(), 'yyyy-MM-dd');
   const startStr = project.startDate;
+  const endStr = isClosed ? (project.actualCompletionDate || project.currentCompletionDate || todayStr) : todayStr;
 
-  if (startStr > todayStr) {
+  if (startStr > endStr && !isClosed) {
     const daysUntil = getWorkingDaysInRange(todayStr, startStr, false);
     return { days: 0, text: `Starts in ${daysUntil} working days`, isStarted: false, isSuspended: false };
   }
@@ -171,20 +174,21 @@ export function getActiveDaysCount(project: Project, refDateStr?: string) {
   let totalStr = 0;
   const cycles = project.suspensionCycles || [];
   
-  const firstEnd = cycles.length > 0 ? (cycles[0].suspensionDate < todayStr ? cycles[0].suspensionDate : todayStr) : todayStr;
+  const firstEnd = cycles.length > 0 ? (cycles[0].suspensionDate < endStr ? cycles[0].suspensionDate : endStr) : endStr;
   totalStr += getWorkingDaysInRange(startStr, firstEnd, false);
   
   for (let i = 0; i < cycles.length; i++) {
     const cycle = cycles[i];
-    if (cycle.reactivationDate && cycle.reactivationDate <= todayStr) {
-      const nextEnd = (i + 1 < cycles.length) ? (cycles[i+1].suspensionDate < todayStr ? cycles[i+1].suspensionDate : todayStr) : todayStr;
+    if (cycle.reactivationDate && cycle.reactivationDate <= endStr) {
+      const nextEnd = (i + 1 < cycles.length) ? (cycles[i+1].suspensionDate < endStr ? cycles[i+1].suspensionDate : endStr) : endStr;
       totalStr += getWorkingDaysInRange(cycle.reactivationDate, nextEnd, true);
     }
   }
 
   const isSuspended = project.state === 'Suspended';
+  const label = isClosed ? 'Total Active Days' : 'Active Days';
   
-  return { days: totalStr, text: `${totalStr} working days`, label: 'Active Days', isStarted: true, isSuspended };
+  return { days: totalStr, text: `${totalStr} working days`, label, isStarted: true, isSuspended };
 }
 
 export function calculateSPI(project: Project, thresholds = { onTrack: 1.0, atRisk: 0.8 }, refDateStr?: string) {
@@ -194,7 +198,7 @@ export function calculateSPI(project: Project, thresholds = { onTrack: 1.0, atRi
 
   const activeStats = getActiveDaysCount(project, refDateStr);
   const elapsedDays = activeStats.days;
-  const totalDays = getWorkingDaysInRange(project.startDate, project.currentCompletionDate, false);
+  const totalDays = project.expectedDuration || getWorkingDaysInRange(project.startDate, project.expectedCompletionDate || project.currentCompletionDate, false);
   
   if (totalDays === 0) {
     return { value: 'N/A', badge: 'N/A', tooltip: 'Project duration is too short to calculate SPI', color: 'bg-slate-100 text-slate-500', isAnomaly: false, ev: 0, pv: 0, rawSpi: null };
@@ -203,43 +207,42 @@ export function calculateSPI(project: Project, thresholds = { onTrack: 1.0, atRi
   if (elapsedDays === 0 && !activeStats.isStarted) {
     return { value: 'N/A', badge: 'N/A', tooltip: 'SPI will be available once the project progresses past the start date', color: 'bg-slate-100 text-slate-500', isAnomaly: false, ev: 0, pv: 0, rawSpi: null };
   }
-  if (elapsedDays === 0 && activeStats.isStarted) {
-    // Started today
-    return { value: 'N/A', badge: 'N/A', tooltip: 'SPI will be available once the project progresses past the start date', color: 'bg-slate-100 text-slate-500', isAnomaly: false, ev: 0, pv: 0, rawSpi: null };
-  }
 
   const ev = calculatePhaseScores(project).totalPercentage / 100;
-  const pv = elapsedDays / totalDays;
+  // PV is where we SHOULD be. If today is past the planned end, PV is 1.0
+  const pv = Math.max(0.01, Math.min(1.0, elapsedDays / totalDays));
   
-  if (ev === 0 && pv > 0) {
+  if (ev === 0 && pv > 0.05) {
     return { value: '0.00', badge: 'Delayed', tooltip: 'No progress recorded yet', color: 'bg-red-100 text-red-700', isAnomaly: false, ev, pv, rawSpi: 0 };
   }
 
   const rawSpi = ev / pv;
-  const roundedSpi = rawSpi.toFixed(2);
+  const roundedSpi = isFinite(rawSpi) ? rawSpi.toFixed(2) : '1.00';
   let isAnomaly = false;
 
-  if (project.state === 'Closed') {
-    return { value: roundedSpi, badge: 'Final SPI', tooltip: 'Final SPI at project closure', color: 'bg-slate-800 text-white', isAnomaly: false, ev, pv, rawSpi };
+  if (project.state === 'Closed' || project.state === 'Billed') {
+    return { value: roundedSpi, badge: 'Final SPI', tooltip: 'Final SPI at project closure', color: 'bg-slate-800 text-white', isAnomaly: false, ev, pv, rawSpi: isFinite(rawSpi) ? rawSpi : 1.0 };
   }
 
   if (project.state === 'Suspended') {
-    return { value: roundedSpi, badge: 'Suspended', tooltip: 'SPI frozen at suspension', color: 'bg-slate-200 text-slate-600', isAnomaly: false, ev, pv, rawSpi };
+    return { value: roundedSpi, badge: 'Suspended', tooltip: 'SPI frozen at suspension', color: 'bg-slate-200 text-slate-600', isAnomaly: false, ev, pv, rawSpi: isFinite(rawSpi) ? rawSpi : 1.0 };
   }
 
   let badge = 'Delayed';
   let color = 'bg-red-100 text-red-700';
 
-  if (rawSpi >= thresholds.onTrack) {
+  const numericSpi = isFinite(rawSpi) ? rawSpi : 1.0;
+
+  if (numericSpi >= thresholds.onTrack) {
     badge = 'On Track';
     color = 'bg-emerald-100 text-emerald-700';
-    if (rawSpi > 1.5) isAnomaly = true;
-  } else if (rawSpi >= thresholds.atRisk) {
+    if (numericSpi > 1.5) isAnomaly = true;
+  } else if (numericSpi >= thresholds.atRisk) {
     badge = 'At Risk';
     color = 'bg-amber-100 text-amber-700';
   }
 
-  return { value: roundedSpi, badge, tooltip: 'SPI compares your actual progress to where you should be today. Above 1.0 means ahead of schedule.', color, isAnomaly, ev, pv, rawSpi };
+  return { value: roundedSpi, badge, tooltip: 'SPI compares your actual progress to where you should be today. Above 1.0 means ahead of schedule.', color, isAnomaly, ev, pv, rawSpi: numericSpi };
 }
 
 export function calculatePhaseScores(project: Project) {
