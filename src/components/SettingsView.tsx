@@ -699,14 +699,12 @@ const RevenueSettings = ({ config, setConfig, theme }: any) => (
 );
 
 const PrioritySettings = ({ config, setConfig, weightHistory, setWeightHistory, userRole, theme }: any) => {
-  const updateWeight = (pkgName: string, newWeight: number) => {
-    const pkg = config.packages.find((p: any) => p.name === pkgName);
+  const updateWeight = (id: string, newWeight: number) => {
+    const pkg = config.packages.find((p: any) => p.id === id);
     if (!pkg) return;
 
-    // Use a lighter weight change audit instead of full log table if not necessary
-    // or just perform the update
     const updatedPackages = config.packages.map((p: any) => 
-      p.name === pkgName ? { ...p, weight: newWeight } : p
+      p.id === id ? { ...p, weight: newWeight } : p
     );
     
     setConfig({ ...config, packages: updatedPackages });
@@ -817,7 +815,7 @@ const PrioritySettings = ({ config, setConfig, weightHistory, setWeightHistory, 
         </h4>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {config.packages.map((pkg: any) => (
-            <div key={pkg.name} className={cn(
+            <div key={pkg.id} className={cn(
               "flex items-center justify-between p-4 bg-white border border-slate-100 rounded-2xl transition-all hover:shadow-md",
               theme.hoverBorder
             )}>
@@ -826,8 +824,8 @@ const PrioritySettings = ({ config, setConfig, weightHistory, setWeightHistory, 
                 <NumberInput 
                   step="0.1"
                   className="w-16 px-2 py-1.5 bg-white border border-slate-200 rounded-xl text-xs font-black text-center outline-none"
-                  value={pkg.weight}
-                  onChange={(val: number) => updateWeight(pkg.name, val)}
+                  value={pkg.weight ?? 1.0}
+                  onChange={(val: number) => updateWeight(pkg.id, val)}
                 />
               </div>
             </div>
