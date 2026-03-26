@@ -88,12 +88,20 @@ export const BulkImportView: React.FC<BulkImportViewProps> = ({ users, invites, 
     // Required checks
     if (!safeTrim(row.clientName)) errors.push('Institution Name is blank');
     
-    // Config validation with fuzzy matching
+    // Config validation with stricter matching
     const pName = safeTrim(row.packageName);
     if (!pName) {
       errors.push('Package is blank');
     } else {
-      const match = validPackages.find(p => p.toLowerCase() === pName.toLowerCase() || p.toLowerCase().includes(pName.toLowerCase()));
+      // 1. Exact match
+      let match = validPackages.find(p => p === pName);
+      // 2. Case-insensitive exact match
+      if (!match) match = validPackages.find(p => p.toLowerCase() === pName.toLowerCase());
+      // 3. Starts with match
+      if (!match) match = validPackages.find(p => p.toLowerCase().startsWith(pName.toLowerCase()));
+      // 4. Substring match (fallback)
+      if (!match) match = validPackages.find(p => p.toLowerCase().includes(pName.toLowerCase()));
+
       if (match) {
         row.packageName = match;
       } else {
@@ -173,8 +181,16 @@ export const BulkImportView: React.FC<BulkImportViewProps> = ({ users, invites, 
     const isDuplicateInDb = projects.some(p => p.clientName.toLowerCase() === currentName);
     const duplicatesInFile = allRows.filter((r, idx) => idx !== rowIndex && safeTrim(r.clientName).toLowerCase() === currentName);
 
+    // Summary Row Detection: Skip rows that look like totals/subtotals
+    const summaryKeywords = ['total', 'grand total', 'sub-total', 'subtotal', 'summary'];
+    const lowerClientName = currentName;
+    const isSummaryRow = summaryKeywords.some(k => lowerClientName.includes(k) || pName.toLowerCase().includes(k));
+
     if (errors.length > 0) {
       status = 'error';
+    } else if (isSummaryRow) {
+      status = 'error';
+      errors.push('Skipping summary/total row');
     } else if (isDuplicateInDb || duplicatesInFile.length > 0) {
       status = 'duplicate';
     }

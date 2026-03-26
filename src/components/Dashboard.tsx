@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
-  PieChart, Pie, Cell, Legend 
+  PieChart, Pie, Cell, Legend, LabelList 
 } from 'recharts';
 import { Project, ProductLine, Role, AppConfig } from '../types';
 import { cn, formatCurrency, formatCompactCurrency, calculateSPI } from '../lib/utils';
@@ -74,9 +74,20 @@ export const Dashboard: React.FC<DashboardProps> = ({
       stats.count += 1;
       stats.revenue += p.value;
     });
-    return Array.from(pkgMap.entries())
-      .map(([name, stats]) => ({ name, ...stats }))
+    const revenues = Array.from(pkgMap.values()).map(v => v.revenue);
+    const maxRev = Math.max(...revenues, 1);
+    
+    const result = Array.from(pkgMap.entries())
+      .map(([name, stats]) => {
+        // Restore robust clamped linear scaling (0-100)
+        // Ensure any package with revenue has at least 5% width so it's visible
+        const visualValue = stats.revenue > 0 
+          ? Math.max(5, (stats.revenue / maxRev) * 100) 
+          : 0;
+        return { name, ...stats, visualValue };
+      })
       .sort((a, b) => b.revenue - a.revenue);
+    return result;
   }, [projects, chartCurrency]);
 
   // Performance Stats (Simplified for POC)
@@ -228,21 +239,34 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 {packageData.length > 0 ? (
                   <BarChart data={packageData} layout="vertical" margin={{ left: 10, right: 30, top: 10, bottom: 10 }}>
                     <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#f1f5f9" />
-                    <XAxis type="number" hide />
+                    <XAxis type="number" domain={[0, 100]} hide />
                     <YAxis 
                       dataKey="name" 
                       type="category" 
                       axisLine={false} 
                       tickLine={false} 
                       tick={{fill: '#64748b', fontSize: 10, fontWeight: 700}} 
-                      width={90}
+                      width={120}
                     />
                     <Tooltip 
                       cursor={{fill: '#f8fafc'}}
                       contentStyle={{borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)', fontSize: '12px', fontWeight: 'bold'}}
-                      formatter={(value: number) => [`${chartCurrency === 'NGN' ? '₦' : '$'}${value.toLocaleString()}`, 'Revenue']}
+                      formatter={(value: number, name: string, props: any) => [
+                        `${chartCurrency === 'NGN' ? '₦' : '$'}${props.payload.revenue.toLocaleString()} (${props.payload.count} Projects)`, 
+                        'Revenue'
+                      ]}
                     />
-                    <Bar dataKey="revenue" fill={themeHex} radius={[0, 4, 4, 0]} barSize={16} />
+                    <Bar dataKey="visualValue" fill={themeHex} radius={[0, 4, 4, 0]} barSize={16}>
+                      <LabelList 
+                        dataKey="count" 
+                        position="right" 
+                        content={(props: any) => (
+                           <text x={props.x + 8} y={props.y + 12} className="text-[9px] font-black text-slate-400">
+                             {props.value} P
+                           </text>
+                        )}
+                      />
+                    </Bar>
                   </BarChart>
                 ) : (
                   <div className="flex items-center justify-center h-full">
