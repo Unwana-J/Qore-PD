@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Project, Phase, Comment, Risk, Role, RebaselineRequest, ServiceState, PackageConfig, ServiceBaseline } from '../types';
 import { StateBadge } from './ProjectList';
 import { formatCurrency, cn, calculatePhaseScores, getActiveDaysCount, getValidTransitions, isRole, hasRole, getAutoProjectState, getPhaseListFromState, calculateSPI, calculateWorkingDays, resolveServiceIds, getServiceNames, getEffectiveServiceIds } from '../lib/utils';
@@ -56,7 +56,21 @@ export const PhaseView: React.FC<PhaseViewProps> = ({
   userRole, currencies = [], serviceBaselines = [], packages = [], themeColor = 'teal', onReassign, defaultPhases = [],
   spiThresholds, validateStateTransition, onShowToast, userName
 }) => {
-  const currentServiceIds = getEffectiveServiceIds(rawProject, packages, serviceBaselines);
+  const effectiveIds = getEffectiveServiceIds(rawProject, packages, serviceBaselines);
+
+  // Dynamic Scope Sync: Filter out services that are neither in the package nor in milestones
+  // This cleans up ghost tags like "Bankone" from legacy imports.
+  const syncedServiceIds = useMemo(() => {
+    const pkg = packages.find(p => p.name === rawProject.packageName);
+    const pkgServiceIds = pkg ? resolveServiceIds(pkg.services || [], serviceBaselines) : [];
+    
+    return effectiveIds.filter(id => {
+      const isInPackage = pkgServiceIds.includes(id);
+      const hasMilestone = (rawProject.milestones || []).some(m => m.id === id);
+      // Keep if it's in the package OR if it has work (milestone) associated with it
+      return isInPackage || hasMilestone;
+    });
+  }, [effectiveIds, packages, rawProject.packageName, rawProject.milestones, serviceBaselines]);
 
   // 2. Defensive fallbacks for imported legacy projects that might lack these arrays
   // Resilience Layer: Auto-initialize phases if they are missing
@@ -75,7 +89,7 @@ export const PhaseView: React.FC<PhaseViewProps> = ({
     
     // Check package or project services
     const pkg = packages.find(p => p.name === rawProject.packageName);
-    const serviceIds = pkg ? pkg.services : currentServiceIds;
+    const serviceIds = pkg ? pkg.services : syncedServiceIds;
     
     return serviceIds.map(sid => {
       const sb = serviceBaselines.find(b => b.id === sid);
@@ -89,7 +103,7 @@ export const PhaseView: React.FC<PhaseViewProps> = ({
   };
 
   // 3. Dynamic Duration Calculation: STRICTLY derive from current configuration via IDs
-  const dynamicDuration = currentServiceIds.reduce((acc, sid) => {
+  const dynamicDuration = syncedServiceIds.reduce((acc, sid) => {
     const sb = serviceBaselines.find(b => b.id === sid);
     return acc + (sb ? sb.baselineDays : 0);
   }, 0);
@@ -100,7 +114,7 @@ export const PhaseView: React.FC<PhaseViewProps> = ({
 
   const project = {
     ...rawProject,
-    services: currentServiceIds,
+    services: syncedServiceIds,
     expectedDuration: dynamicDuration, // STICK TO THE CONFIG!
     expectedCompletionDate: dynamicExpCompletion,
     phases,
@@ -111,6 +125,15 @@ export const PhaseView: React.FC<PhaseViewProps> = ({
     serviceStates: rawProject.serviceStates || {},
     suspensionCycles: rawProject.suspensionCycles || []
   };
+
+  // Auto-Persist pruned scope if it changed (important for fixing ghost tags globally)
+  React.useEffect(() => {
+    if (JSON.stringify(rawProject.services) !== JSON.stringify(syncedServiceIds)) {
+      console.log(`[Sync] Pruning ghost services for ${project.clientName}:`, 
+        (rawProject.services || []).filter(id => !syncedServiceIds.includes(id)));
+      onUpdateProject(project);
+    }
+  }, [syncedServiceIds, rawProject.services, project, onUpdateProject]);
 
   const [activeTab, setActiveTab] = useState<'overview' | 'activity'>('overview');
   const [commentText, setCommentText] = useState('');

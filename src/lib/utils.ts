@@ -399,8 +399,8 @@ export function getEffectiveServiceIds(
  * Essential for transition from name-based to ID-based mapping.
  */
 export function resolveServiceIds(currentServices: string[], serviceBaselines: ServiceBaseline[]): string[] {
-  if (!currentServices || !serviceBaselines || serviceBaselines.length === 0) return currentServices || [];
-  return currentServices.map(s => {
+  if (!currentServices || !serviceBaselines || serviceBaselines.length === 0) return Array.from(new Set(currentServices || []));
+  const resolved = currentServices.map(s => {
     // If it's already a valid ID, keep it
     const idMatch = serviceBaselines.find(sb => sb.id === s);
     if (idMatch) return s;
@@ -419,6 +419,7 @@ export function resolveServiceIds(currentServices: string[], serviceBaselines: S
     // Fallback to original string (might be an untracked service)
     return s;
   });
+  return Array.from(new Set(resolved));
 }
 
 /**
@@ -426,8 +427,9 @@ export function resolveServiceIds(currentServices: string[], serviceBaselines: S
  */
 export function getServiceNames(ids: string[], serviceBaselines: ServiceBaseline[]): string[] {
   if (!ids) return [];
-  return ids.map(id => {
+  const names = ids.map(id => {
     const match = serviceBaselines.find(sb => sb.id === id || sb.name === id);
     return match ? match.name : id;
   });
+  return Array.from(new Set(names));
 }
