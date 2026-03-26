@@ -101,6 +101,17 @@ function AppContent() {
     init();
   }, [user?.id, userRole]); // Trigger correctly on user identity or role shift
 
+  const handleUpdateConfig = async (updates: Partial<AppConfig>) => {
+    const newConfig = { ...config, ...updates };
+    try {
+      await api.config.update(newConfig);
+      setConfig(newConfig);
+    } catch (error: any) {
+      console.error("[API] Config persistence failed:", error);
+      showToast(error.message || "Failed to save configuration to cloud.", "error");
+    }
+  };
+
 
   const addProject = async (p: Partial<Project>, force?: boolean) => {
     try {
@@ -332,11 +343,7 @@ function AppContent() {
                           onReassignProject={setProjectToReassign}
                           config={config}
                           loading={projectsLoading}
-                          onUpdateConfig={async (updates) => {
-                            const newConfig = { ...config, ...updates };
-                            await api.config.update(newConfig);
-                            setConfig(newConfig);
-                          }}
+                          onUpdateConfig={handleUpdateConfig}
                           onNavigateToSettings={(tab) => {
                             setCurrentView('settings');
                             setActiveSettingsTab(tab as SettingsTab);
@@ -383,7 +390,7 @@ function AppContent() {
                           projects={projects} 
                           onUpdateProjects={() => {}} 
                           config={config}
-                          onUpdateConfig={setConfig}
+                          onUpdateConfig={handleUpdateConfig}
                           activeTab={activeSettingsTab}
                           setActiveTab={setActiveSettingsTab}
                           showToast={showToast}
@@ -445,7 +452,7 @@ function AppContent() {
                 await refreshProjects();
                 setIsBulkImportOpen(false);
               }}
-              onUpdateConfig={(updates) => setConfig(prev => ({ ...prev, ...updates }))}
+              onUpdateConfig={handleUpdateConfig}
             />
           </div>
         </div>
@@ -455,22 +462,14 @@ function AppContent() {
         <OnboardingWizard 
           config={config}
           userRole={userRole}
-          onUpdateConfig={async (updates) => {
-            const newConfig = { ...config, ...updates };
-            await api.config.update(newConfig);
-            setConfig(newConfig);
-          }}
-          onFinish={async () => {
-            const newConfig = { ...config, isSetupComplete: true };
-            await api.config.update(newConfig);
-            setConfig(newConfig);
+          onUpdateConfig={handleUpdateConfig}
+          onFinish={() => {
+            handleUpdateConfig({ isSetupComplete: true });
             setShowOnboarding(false);
             localStorage.setItem('onboarding_skipped', 'true');
           }}
-          onSkip={async () => {
-            const newConfig = { ...config, isSetupComplete: true };
-            await api.config.update(newConfig);
-            setConfig(newConfig);
+          onSkip={() => {
+            handleUpdateConfig({ isSetupComplete: true });
             setShowOnboarding(false);
             localStorage.setItem('onboarding_skipped', 'true');
           }}

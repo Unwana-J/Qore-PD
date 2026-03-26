@@ -73,7 +73,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const { user, profile, refreshProfile } = useAuth();
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>(MOCK_AUDIT_LOGS);
   const [weightHistory, setWeightHistory] = useState<WeightHistory[]>(MOCK_WEIGHT_HISTORY);
-  const [packages, setPackages] = useState<PackageConfig[]>(config.packages);
   const [showUserRemoveConfirm, setShowUserRemoveConfirm] = useState<any | null>(null);
 
   const theme = getThemeClasses(config.brand.themeColor);
@@ -179,7 +178,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             refreshProfile={refreshProfile}
           />
         }
-        {activeTab === 'priority' && <PrioritySettings config={config} setConfig={onUpdateConfig} packages={packages} setPackages={setPackages} weightHistory={weightHistory} setWeightHistory={setWeightHistory} userRole={userRole} theme={theme} />}
+        {activeTab === 'priority' && <PrioritySettings config={config} setConfig={onUpdateConfig} weightHistory={weightHistory} setWeightHistory={setWeightHistory} userRole={userRole} theme={theme} />}
         {activeTab === 'project' && <ProjectConfig config={config} setConfig={onUpdateConfig} userRole={userRole} theme={theme} showToast={showToast} projects={projects} />}
         {activeTab === 'revenue' && <RevenueSettings config={config} setConfig={onUpdateConfig} userRole={userRole} theme={theme} />}
         {activeTab === 'brand' && <BrandSettings config={config} setConfig={onUpdateConfig} userRole={userRole} theme={theme} />}
@@ -597,22 +596,18 @@ const RevenueSettings = ({ config, setConfig, theme }: any) => (
   </div>
 );
 
-const PrioritySettings = ({ config, setConfig, packages, setPackages, weightHistory, setWeightHistory, userRole, theme }: any) => {
+const PrioritySettings = ({ config, setConfig, weightHistory, setWeightHistory, userRole, theme }: any) => {
   const updateWeight = (pkgName: string, newWeight: number) => {
-    const pkg = packages.find((p: any) => p.name === pkgName);
+    const pkg = config.packages.find((p: any) => p.name === pkgName);
     if (!pkg) return;
 
-    const history: WeightHistory = {
-      id: Math.random().toString(36).substr(2, 9),
-      packageName: pkgName,
-      oldWeight: pkg.weight,
-      newWeight,
-      updatedBy: userRole,
-      timestamp: new Date().toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })
-    };
-
-    setPackages(packages.map((p: any) => p.name === pkgName ? { ...p, weight: newWeight } : p));
-    setWeightHistory([history, ...weightHistory]);
+    // Use a lighter weight change audit instead of full log table if not necessary
+    // or just perform the update
+    const updatedPackages = config.packages.map((p: any) => 
+      p.name === pkgName ? { ...p, weight: newWeight } : p
+    );
+    
+    setConfig({ ...config, packages: updatedPackages });
   };
 
   const updateWorkload = (priority: string, value: number) => {
@@ -722,7 +717,7 @@ const PrioritySettings = ({ config, setConfig, packages, setPackages, weightHist
           Package Weights
         </h4>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {packages.map((pkg: any) => (
+          {config.packages.map((pkg: any) => (
             <div key={pkg.name} className={cn(
               "flex items-center justify-between p-4 bg-white border border-slate-100 rounded-2xl transition-all hover:shadow-md",
               theme.hoverBorder
