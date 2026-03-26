@@ -278,15 +278,19 @@ export const PhaseView: React.FC<PhaseViewProps> = ({
   };
 
   const handleDeleteMilestone = (id: string) => {
-    const next = (project.milestones || []).filter(m => m.id !== id);
-    if (next.length === 0) {
+    // 1. Remove from milestones
+    const nextMilestones = (project.milestones || []).filter(m => m.id !== id);
+    if (nextMilestones.length === 0) {
       onShowToast?.('At least one milestone is required', 'error');
       return;
     }
+
+    // 2. Remove from services (Sync de-scoped service IDs for Duration/SPI)
+    const nextServices = (project.services || []).filter(sid => sid !== id);
     
-    const allClosed = next.every(m => m.status === 'Closed');
+    const allClosed = nextMilestones.every(m => m.status === 'Closed');
     let updatedPhases = [...project.phases];
-    if (allClosed && next.length > 0) {
+    if (allClosed && nextMilestones.length > 0) {
       updatedPhases = updatedPhases.map(p => 
         p.id === 'Execution' ? { ...p, status: 'Completed', completionDate: new Date().toISOString().split('T')[0] } : p
       );
@@ -294,7 +298,13 @@ export const PhaseView: React.FC<PhaseViewProps> = ({
       if (closure && (closure.status === 'Locked' || closure.status === 'Pending')) closure.status = 'In Progress';
     }
     
-    onUpdateProject({ ...project, milestones: next, phases: updatedPhases });
+    // Save both milestones and services to ensure correct metrics recalculation
+    onUpdateProject({ 
+      ...project, 
+      milestones: nextMilestones, 
+      services: nextServices, 
+      phases: updatedPhases 
+    });
   };
 
   const handleSavePhaseComment = (phaseId: string) => {
