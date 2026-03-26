@@ -4,7 +4,7 @@ import {
   PieChart, Pie, Cell, Legend 
 } from 'recharts';
 import { Project, ProductLine, Role, AppConfig } from '../types';
-import { cn, formatCurrency } from '../lib/utils';
+import { cn, formatCurrency, formatCompactCurrency, calculateSPI } from '../lib/utils';
 import { TrendingUp, Briefcase, Layers, Award, DollarSign, Activity, Clock, RefreshCw } from 'lucide-react';
 import { getThemeClasses } from '../lib/theme';
 import { PMScorecard } from './PMScorecard';
@@ -292,11 +292,15 @@ const StatCard = ({ label, value, values, subValue, icon, color = 'theme', theme
         {values ? (
           <div className="flex flex-col">
             {Object.entries(values).map(([code, amount]: any, idx) => (
-              <p key={code} className={cn(
-                "font-black tracking-tighter text-slate-900 leading-none",
-                Object.keys(values).length > 1 ? "text-lg first:text-xl" : "text-3xl"
-              )}>
-                {formatCurrency(amount, code)}
+              <p 
+                key={code} 
+                title={formatCurrency(amount, code)}
+                className={cn(
+                  "font-black tracking-tighter text-slate-900 leading-none cursor-help",
+                  Object.keys(values).length > 1 ? "text-lg first:text-xl" : "text-3xl"
+                )}
+              >
+                {formatCompactCurrency(amount, code)}
               </p>
             ))}
             {Object.keys(values).length === 0 && <p className="text-3xl font-black text-slate-900">-</p>}

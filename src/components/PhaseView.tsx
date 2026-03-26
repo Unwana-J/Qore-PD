@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Project, Phase, Comment, Risk, Role, RebaselineRequest, ServiceState, PackageConfig, ServiceBaseline } from '../types';
 import { StateBadge } from './ProjectList';
-import { formatCurrency, cn, calculatePhaseScores, getActiveDaysCount, getValidTransitions, isRole, hasRole, getAutoProjectState, getPhaseListFromState, calculateSPI, calculateWorkingDays, resolveServiceIds, getServiceNames, getEffectiveServiceIds } from '../lib/utils';
+import { formatCurrency, formatCompactCurrency, cn, calculatePhaseScores, getActiveDaysCount, getValidTransitions, isRole, hasRole, getAutoProjectState, getPhaseListFromState, calculateSPI, calculateWorkingDays, resolveServiceIds, getServiceNames, getEffectiveServiceIds } from '../lib/utils';
 import { 
   Calendar, 
   User, 
@@ -568,7 +568,10 @@ export const PhaseView: React.FC<PhaseViewProps> = ({
                       <h3 className="text-lg font-bold text-slate-900">Project Completion</h3>
                       <p className="text-xs text-slate-500 font-medium mt-1">Overall progress based on phase completion</p>
                     </div>
-                    <span className={cn("text-3xl font-black tracking-tighter", theme.text)}>
+                    <span 
+                      className={cn("text-2xl font-black tracking-tighter", theme.text)}
+                      title={`${scores.totalPercentage}% Completion`}
+                    >
                       {scores.totalPercentage}%
                     </span>
                   </div>
@@ -1265,7 +1268,12 @@ export const PhaseView: React.FC<PhaseViewProps> = ({
                     onChange={e => setEditDraft(d => ({ ...d, value: parseFloat(e.target.value) || 0 }))}
                   />
                 ) : (
-                  <p className="text-sm font-semibold text-slate-900 py-1">{project.value > 0 ? project.value.toLocaleString() : '0'}</p>
+                  <p 
+                    className="text-sm font-semibold text-slate-900 py-1 cursor-help"
+                    title={project.value > 0 ? formatCurrency(project.value, project.currency) : '0'}
+                  >
+                    {project.value > 0 ? formatCompactCurrency(project.value, project.currency) : '0'}
+                  </p>
                 )}
               </div>
 

@@ -104,6 +104,19 @@ export function formatCurrency(amount: number, currencyCode: string = 'USD') {
 }
 
 /**
+ * Returns a compact representation of a currency value (e.g. 1.2B, 300K)
+ */
+export function formatCompactCurrency(amount: number, currencyCode: string = 'USD') {
+  const formatter = new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: currencyCode,
+    notation: 'compact',
+    maximumFractionDigits: 1,
+  });
+  return formatter.format(amount);
+}
+
+/**
  * Calculates a date by adding a number of working days to a start date.
  * Skips weekends (Saturday, Sunday) and can be extended to skip public holidays.
  */
