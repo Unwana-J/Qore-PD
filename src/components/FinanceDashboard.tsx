@@ -18,6 +18,13 @@ import {
   Filter,
   X
 } from 'lucide-react';
+import { 
+  PieChart as RechartsPie, 
+  Pie as RechartsPieComponent, 
+  Cell as RechartsCell, 
+  Tooltip as RechartsTooltip, 
+  ResponsiveContainer as RechartsContainer 
+} from 'recharts';
 import { getThemeClasses } from '../lib/theme';
 import { format, differenceInDays, parseISO } from 'date-fns';
 import { motion, AnimatePresence } from 'motion/react';
@@ -93,6 +100,27 @@ export const FinanceDashboard: React.FC<FinanceDashboardProps> = ({ projects, on
   }, [readyForBillingQueue, currentPage]);
 
   const signedOffCount = projects.filter(p => p.state === 'Signed Off' && !p.isInternalInitiative).length;
+
+  // Billing Health Data
+  const billingHealthData = useMemo(() => {
+    return [
+      { 
+        name: 'Total Billed', 
+        value: projects.filter(p => !p.isInternalInitiative && (p.state === 'Billed' || p.state === 'Closed')).length,
+        color: '#10b981' 
+      },
+      { 
+        name: 'Ready to Bill', 
+        value: projects.filter(p => !p.isInternalInitiative && p.state === 'Signed Off').length,
+        color: '#f59e0b'
+      },
+      { 
+        name: 'Yet to Bill', 
+        value: projects.filter(p => !p.isInternalInitiative && ['On-Track', 'Delayed', 'Suspended'].includes(p.state)).length,
+        color: '#94a3b8'
+      }
+    ];
+  }, [projects]);
 
   const handleSort = (field: SortField) => {
     if (sortField === field) setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
@@ -217,7 +245,108 @@ export const FinanceDashboard: React.FC<FinanceDashboardProps> = ({ projects, on
         </div>
       </div>
 
-      {/* Row 2 - Billing Queue */}
+      {/* Row 2 - Billing Health & Queue Overview */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* Billing Health Chart */}
+        <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm flex flex-col">
+          <div className="mb-6">
+            <h2 className="text-xl font-bold text-slate-900">Billing Health</h2>
+            <p className="text-xs text-slate-500 mt-1">Status of all billable projects</p>
+          </div>
+          <div className="flex-1 relative min-h-[220px]">
+            <RechartsContainer width="100%" height="100%">
+              <RechartsPie>
+                <RechartsPieComponent
+                  data={billingHealthData}
+                  innerRadius={70}
+                  outerRadius={90}
+                  paddingAngle={5}
+                  dataKey="value"
+                >
+                  {billingHealthData.map((entry, index) => (
+                    <RechartsCell key={`cell-${index}`} fill={entry.color} />
+                  ))}
+                </RechartsPieComponent>
+                <RechartsTooltip 
+                  contentStyle={{borderRadius: '20px', border: 'none', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)'}}
+                />
+              </RechartsPie>
+            </RechartsContainer>
+            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none mt-[-20px]">
+              <span className="text-3xl font-black text-slate-900 leading-none">{projects.filter(p => !p.isInternalInitiative).length}</span>
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Billable Items</span>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 gap-y-3 mt-6">
+            {billingHealthData.map((d) => (
+              <div key={d.name} className="flex items-center justify-between group">
+                <div className="flex items-center gap-3">
+                  <div className="w-2.5 h-2.5 rounded-full" style={{backgroundColor: d.color}} />
+                  <span className="text-xs font-bold text-slate-600 group-hover:text-slate-900 transition-colors">{d.name}</span>
+                </div>
+                <div className="flex items-baseline gap-1.5">
+                  <span className="text-sm font-black text-slate-900">{d.value}</span>
+                  <span className="text-[10px] font-bold text-slate-400">
+                    ({Math.round((d.value / projects.filter(p => !p.isInternalInitiative).length || 0) * 100)}%)
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Billing Queue Summary (Table context) */}
+        <div className="lg:col-span-2 bg-white p-8 rounded-3xl border border-slate-200 shadow-sm flex flex-col">
+          <div className="mb-6 flex justify-between items-center">
+            <div>
+              <h2 className="text-xl font-bold text-slate-900">Immediate Actions</h2>
+              <p className="text-xs text-slate-500 mt-1">Pending items in the billing pipeline</p>
+            </div>
+            <div className={cn("px-4 py-1 rounded-full text-[10px] font-black uppercase tracking-widest", theme.lightBg, theme.lightText)}>
+              {readyForBillingQueue.length} Priority Tasks
+            </div>
+          </div>
+          
+          <div className="flex-1 space-y-4">
+            {paginatedQueue.slice(0, 4).map(project => (
+              <div key={project.id} className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100 hover:border-slate-300 transition-colors">
+                <div className="flex items-center gap-4">
+                  <div className={cn("w-1 h-8 rounded-full", getPriorityColor(project.priority))} />
+                  <div>
+                    <p className="text-sm font-bold text-slate-900">{project.clientName}</p>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{project.packageName}</p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="text-sm font-black text-slate-900 font-mono">{formatCurrency(project.value, project.currency)}</p>
+                  <p className="text-[10px] font-bold text-amber-600 uppercase tracking-wider">Ready to Bill</p>
+                </div>
+              </div>
+            ))}
+            {readyForBillingQueue.length === 0 && (
+              <div className="flex flex-col items-center justify-center h-full text-slate-400 py-10">
+                <CheckCircle2 className="w-12 h-12 opacity-20 mb-3" />
+                <p className="text-sm italic font-medium">Billing queue is currently empty</p>
+              </div>
+            )}
+          </div>
+          
+          {readyForBillingQueue.length > 0 && (
+            <button 
+              onClick={() => {
+                const element = document.getElementById('billing-queue-table');
+                element?.scrollIntoView({ behavior: 'smooth' });
+              }}
+              className="mt-6 flex items-center justify-center gap-2 text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-teal-600 transition-colors group"
+            >
+              View Full Billing Queue
+              <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+            </button>
+          )}
+        </div>
+      </div>
+
+      <div id="billing-queue-table" />
       <section className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
         <div className="px-8 py-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
           <div className="flex items-center gap-3">

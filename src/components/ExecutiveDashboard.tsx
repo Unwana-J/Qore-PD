@@ -125,20 +125,25 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
     }));
   }, [currencyFilter]);
 
-  // Charts: Portfolio Health (Donut)
-  const healthData = useMemo(() => {
-    const states: { name: string, state: ProjectState }[] = [
-      { name: 'On-Track', state: 'On-Track' },
-      { name: 'Delayed', state: 'Delayed' },
-      { name: 'On Hold', state: 'Suspended' },
-      { name: 'Signed Off', state: 'Signed Off' },
-      { name: 'Billed', state: 'Billed' },
-      { name: 'Closed', state: 'Closed' }
+  // Charts: Billing Health (Donut)
+  const billingHealthData = useMemo(() => {
+    return [
+      { 
+        name: 'Total Billed', 
+        value: filteredProjects.filter(p => p.state === 'Billed' || p.state === 'Closed').length,
+        color: '#10b981' // emerald-500
+      },
+      { 
+        name: 'Ready to Bill', 
+        value: filteredProjects.filter(p => p.state === 'Signed Off').length,
+        color: '#f59e0b' // amber-500
+      },
+      { 
+        name: 'Yet to Bill', 
+        value: filteredProjects.filter(p => ['On-Track', 'Delayed', 'Suspended'].includes(p.state)).length,
+        color: '#94a3b8' // slate-400
+      }
     ];
-    return states.map(s => ({
-      name: s.name,
-      value: filteredProjects.filter(p => p.state === s.state).length
-    }));
   }, [filteredProjects]);
 
   // Charts: Package Revenue
@@ -601,31 +606,21 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
         {/* Portfolio Health */}
         <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm flex flex-col">
           <div className="mb-6">
-            <h2 className="text-lg font-black text-slate-900">Portfolio Health</h2>
+            <h2 className="text-lg font-black text-slate-900">Billing Health</h2>
           </div>
           <div className="flex-1 relative min-h-[220px]">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
-                  data={healthData}
+                  data={billingHealthData}
                   innerRadius={70}
                   outerRadius={90}
                   paddingAngle={5}
                   dataKey="value"
                 >
-                  {healthData.map((entry, index) => {
-                    const stateStyles: any = {
-                      'On-Track': '#10b981',      // emerald-500
-                      'Delayed': '#ef4444',       // red-500
-                      'On Hold': '#1e293b',       // slate-800
-                      'Signed Off': '#f59e0b',    // amber-500
-                      'Billed': '#3b82f6',        // blue-600
-                      'Closed': '#94a3b8'         // slate-400
-                    };
-                    return (
-                      <Cell key={`cell-${index}`} fill={stateStyles[entry.name]} />
-                    );
-                  })}
+                  {billingHealthData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  ))}
                 </Pie>
                 <Tooltip 
                   contentStyle={{borderRadius: '20px', border: 'none', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)'}}
@@ -638,22 +633,12 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
             </div>
           </div>
           <div className="grid grid-cols-2 gap-y-2 mt-4">
-            {healthData.map((d) => {
-               const stateStyles: any = {
-                  'On-Track': '#10b981',
-                  'Delayed': '#ef4444',
-                  'On Hold': '#1e293b',
-                  'Signed Off': '#f59e0b',
-                  'Billed': '#3b82f6',
-                  'Closed': '#94a3b8'
-                };
-              return (
-                <div key={d.name} className="flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full" style={{backgroundColor: stateStyles[d.name]}} />
-                  <span className="text-[10px] font-bold text-slate-600 truncate">{d.name} ({Math.round((d.value / filteredProjects.length || 0) * 100)}%)</span>
-                </div>
-              );
-            })}
+            {billingHealthData.map((d) => (
+              <div key={d.name} className="flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full" style={{backgroundColor: d.color}} />
+                <span className="text-[10px] font-bold text-slate-600 truncate">{d.name} ({Math.round((d.value / filteredProjects.length || 0) * 100)}%)</span>
+              </div>
+            ))}
           </div>
         </div>
       </div>
