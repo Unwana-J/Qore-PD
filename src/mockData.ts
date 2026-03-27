@@ -454,7 +454,7 @@ export const INITIAL_CONFIG: AppConfig = {
       { code: 'USD', symbol: '$', name: 'US Dollar', isActive: true },
     ],
     brand: {
-      companyName: 'Qore PD',
+      companyName: 'Solution Delivery',
       logoUrl: '',
       themeColor: 'teal'
     },
