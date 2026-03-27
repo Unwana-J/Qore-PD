@@ -450,34 +450,34 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
           variant="neutral"
         />
         <KPIBox
-          label="Internal Initiatives"
-          val={projectCounts.initiatives}
-          subtitle="Strategic tasks"
-          variant="violet"
-        />
-        <KPIBox
           label="On-Track"
           val={projectCounts.onTrack}
-          subtitle="On-Track & performing"
+          subtitle="Performing as planned"
           variant="green"
         />
         <KPIBox
           label="Delayed"
           val={projectCounts.delayed}
-          subtitle="At-risk schedules"
+          subtitle="Schedules at-risk"
           variant="red"
         />
         <KPIBox
           label="On Hold"
           val={projectCounts.onHold}
-          subtitle="Suspended"
+          subtitle="Temporarily paused"
           variant="slate"
         />
         <KPIBox
-          label="Ready to Bill"
+          label="Signed Off"
           val={projectCounts.readyForBilling}
-          subtitle="Awaiting Finance"
+          subtitle="Finalizing delivery"
           variant="amber"
+        />
+        <KPIBox
+          label="Closed"
+          val={projectCounts.closed}
+          subtitle="Project completion"
+          variant="violet"
         />
       </div>
 
