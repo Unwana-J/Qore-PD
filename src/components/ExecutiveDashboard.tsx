@@ -89,7 +89,7 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
       onHold: filteredProjects.filter(p => p.state === 'Suspended').length,
       readyForBilling: filteredProjects.filter(p => p.state === 'Signed Off').length,
       billed: filteredProjects.filter(p => p.state === 'Billed').length,
-      closed: filteredProjects.filter(p => p.state === 'Closed').length,
+      closed: filteredProjects.filter(p => p.state === 'Closed' || p.state === 'Billed').length,
       initiatives: filteredProjects.filter(p => p.isInternalInitiative).length,
     };
   }, [filteredProjects]);
