@@ -1378,7 +1378,7 @@ const IntegrationsSettings = ({ config, setConfig, theme }: any) => {
             <div className="flex">
               <input 
                 readOnly
-                value="https://[YOUR_PROJECT_REF].supabase.co/functions/v1/zoho-webhook"
+                value={`${import.meta.env.VITE_SUPABASE_URL || 'https://[YOUR_PROJECT_REF].supabase.co'}/functions/v1/zoho-webhook`}
                 className="flex-1 px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-mono text-slate-600 outline-none"
               />
             </div>
