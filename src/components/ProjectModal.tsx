@@ -84,6 +84,11 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
 
   const isInternalInitiative = formData.packageName === 'Internal Initiative';
 
+  const getServiceName = (idOrName: string) => {
+    const service = serviceBaselines.find(sb => sb.id === idOrName || sb.name === idOrName);
+    return service ? service.name : idOrName;
+  };
+
   const totalDuration = selectedServices.reduce((acc, sid) => {
     const baseline = serviceBaselines.find(sb => sb.id === sid);
     return acc + (baseline ? baseline.baselineDays : 0);
@@ -640,7 +645,7 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
                         key={service}
                         className="flex items-center gap-2 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 shadow-sm group animate-in zoom-in duration-150"
                       >
-                        <span>{service}</span>
+                        <span>{getServiceName(service)}</span>
                         <button 
                           type="button"
                           onClick={() => toggleService(service)}
@@ -697,7 +702,7 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
                           key={service}
                           className="flex items-center gap-2 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 shadow-sm group animate-in zoom-in duration-150"
                         >
-                          <span>{service}</span>
+                          <span>{getServiceName(service)}</span>
                           <button 
                             type="button"
                             onClick={() => toggleService(service)}
@@ -739,7 +744,7 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
                           theme.hoverBorder, theme.hoverText
                         )}
                       >
-                        + {service}
+                        + {getServiceName(service)}
                       </button>
                     ));
                   })()}
