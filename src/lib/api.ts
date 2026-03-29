@@ -34,7 +34,8 @@ const mapProjectFromDb = (p: any): Project => ({
   suspensionCycles: p.suspension_cycles || [],
   isInternalInitiative: p.is_internal_initiative,
   milestones: p.milestones || [],
-  phaseComments: p.phase_comments || {}
+  phaseComments: p.phase_comments || {},
+  externalId: p.external_id
 });
 
 // Helper to map Frontend camelCase to DB snake_case
@@ -68,6 +69,7 @@ const mapProjectToDb = (p: Partial<Project>) => {
   if (p.isInternalInitiative !== undefined) mapped.is_internal_initiative = p.isInternalInitiative;
   if (p.milestones !== undefined) mapped.milestones = p.milestones;
   if (p.phaseComments !== undefined) mapped.phase_comments = p.phaseComments;
+  if (p.externalId !== undefined) mapped.external_id = p.externalId;
   return mapped;
 };
 

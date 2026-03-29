@@ -120,6 +120,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     if (tab === 'account') return true;
     if (tab === 'project' && hasRole(userRole, ['Manager', 'Team Lead'])) return true;
     if (tab === 'packages' && isRole(userRole, 'Manager')) return true;
+    if (tab === 'integrations' && isRole(userRole, 'Superadmin')) return true;
     if (tab === 'brand' && isRole(userRole, 'Superadmin')) return true;
     if (tab === 'audit' && hasRole(userRole, ['Executive', 'Superadmin'])) return true;
     if (tab === 'revenue' && hasRole(userRole, ['Finance', 'Superadmin'])) return true;
@@ -184,6 +185,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           <SidebarItem id="revenue" icon={DollarSign} label="Revenue Controls" />
           <SidebarItem id="brand" icon={Palette} label="White Labelling" />
           <SidebarItem id="packages" icon={Box} label="Package & Service" />
+          <SidebarItem id="integrations" icon={LinkIcon} label="Integrations" />
           <SidebarItem id="audit" icon={History} label="System Audit Log" />
         </div>
 
@@ -218,6 +220,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           {activeTab === 'revenue' && <RevenueSettings config={draftConfig} setConfig={setDraftConfig} userRole={userRole} theme={theme} />}
           {activeTab === 'brand' && <BrandSettings config={draftConfig} setConfig={setDraftConfig} userRole={userRole} theme={theme} />}
           {activeTab === 'packages' && <PackageServiceConfig config={draftConfig} setConfig={setDraftConfig} theme={theme} showToast={showToast} />}
+          {activeTab === 'integrations' && <IntegrationsSettings config={draftConfig} setConfig={setDraftConfig} theme={theme} />}
           {activeTab === 'account' && <AccountSettings user={user} profile={profile} refreshProfile={refreshProfile} theme={theme} showToast={showToast} />}
           {activeTab === 'audit' && <AuditView logs={auditLogs} />}
         </div>
@@ -1341,6 +1344,66 @@ const PackageServiceConfig = ({ config, setConfig, theme, showToast }: any) => {
           </table>
         </div>
       )}
+    </div>
+  );
+};
+
+const IntegrationsSettings = ({ config, setConfig, theme }: any) => {
+  const generateSecret = () => {
+    const newSecret = 'whsec_' + Math.random().toString(36).substr(2, 10) + Math.random().toString(36).substr(2, 10);
+    setConfig({ ...config, webhookSecret: newSecret });
+  };
+
+  return (
+    <div className="p-8 space-y-8 animate-in fade-in duration-300">
+      <div>
+        <h3 className="text-xl font-black text-slate-900 tracking-tight uppercase">Integrations</h3>
+        <p className="text-sm font-bold text-slate-500">Manage external data connections like Zoho or Data Warehouses.</p>
+      </div>
+
+      <div className="bg-white border border-slate-200 rounded-3xl p-8 shadow-sm">
+        <div className="flex items-center gap-4 mb-6">
+          <div className={cn("p-4 rounded-2xl", theme.lightBg)}>
+            <LinkIcon className={cn("w-8 h-8", theme.text)} />
+          </div>
+          <div>
+             <h4 className="text-lg font-bold text-slate-900">Zoho / Data Warehouse Webhook</h4>
+             <p className="text-sm text-slate-500 mt-1">Receive real-time project updates from your engineering team's endpoint.</p>
+          </div>
+        </div>
+
+        <div className="space-y-6">
+          <div className="space-y-2">
+            <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Webhook URL Endpoint</label>
+            <div className="flex">
+              <input 
+                readOnly
+                value="https://[YOUR_PROJECT_REF].supabase.co/functions/v1/zoho-webhook"
+                className="flex-1 px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-mono text-slate-600 outline-none"
+              />
+            </div>
+            <p className="text-xs text-slate-500 pl-1 mt-2">Provide this endpoint URL to your engineering team to POST their JSON payloads.</p>
+          </div>
+
+          <div className="space-y-2 pt-4 border-t border-slate-100">
+            <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Webhook Secret (X-Webhook-Secret Header)</label>
+            <div className="flex gap-2">
+              <input 
+                 readOnly
+                 value={config.webhookSecret || 'Not generated yet'}
+                 className="flex-1 px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-mono text-slate-600 outline-none"
+              />
+              <button 
+                 onClick={generateSecret}
+                 className="px-6 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition-all whitespace-nowrap"
+              >
+                 {config.webhookSecret ? 'Regenerate' : 'Generate Secret'}
+              </button>
+            </div>
+            <p className="text-[10px] text-amber-600 font-bold pl-1 uppercase tracking-widest mt-1">This secret MUST be included by the engineering team in the <code className="bg-amber-100 px-1 rounded mx-1">X-Webhook-Secret</code> header.</p>
+          </div>
+        </div>
+      </div>
     </div>
   );
 };

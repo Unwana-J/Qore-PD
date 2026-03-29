@@ -115,6 +115,7 @@ export interface Project {
   phaseComments?: Partial<Record<PhaseName, MilestoneComment>>;
   intakeType?: 'New' | 'Old';
   actualCompletionDate?: string;
+  externalId?: string;
 }
 
 export interface PackageConfig {
@@ -169,7 +170,7 @@ export interface BrandConfig {
   companyName: string;
 }
 
-export type SettingsTab = 'performance' | 'users' | 'project' | 'priority' | 'revenue' | 'audit' | 'account' | 'brand' | 'currencies' | 'packages';
+export type SettingsTab = 'performance' | 'users' | 'project' | 'priority' | 'revenue' | 'audit' | 'account' | 'brand' | 'currencies' | 'packages' | 'integrations';
 
 export interface AppConfig {
   spiThresholds: { onTrack: number; atRisk: number };
@@ -193,6 +194,7 @@ export interface AppConfig {
   defaultCurrency?: string;
   isSetupComplete?: boolean;
   dismissedChecklistItems?: string[];
+  webhookSecret?: string;
 }
 
 export interface WeightHistory {
