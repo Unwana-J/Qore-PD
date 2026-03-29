@@ -16,7 +16,7 @@ import { RebaselineRequestsView } from './components/RebaselineRequestsView';
 import { ExecutiveDashboard } from './components/ExecutiveDashboard';
 import { BulkImportView } from './components/BulkImportView';
 import { INITIAL_CONFIG } from './mockData';
-import { Role, AppConfig, SettingsTab, Project } from './types';
+import { Role, AppConfig, SettingsTab, Project, ProjectState } from './types';
 import { useProjects } from './hooks/useProjects';
 import { Toast } from './components/common/Toast';
 import { api } from './lib/api';
@@ -35,6 +35,7 @@ function AppContent() {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [activeSettingsTab, setActiveSettingsTab] = useState<SettingsTab>('account');
+  const [projectListFilter, setProjectListFilter] = useState<ProjectState | 'All'>('All');
   const [isBulkImportOpen, setIsBulkImportOpen] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [config, setConfig] = useState<AppConfig>(INITIAL_CONFIG);
@@ -338,6 +339,10 @@ function AppContent() {
                           packages={config.packages}
                           themeColor={config.brand.themeColor}
                           onSelectProject={setSelectedProject}
+                          onFilterClick={(state) => {
+                            setProjectListFilter(state);
+                            setCurrentView('projects');
+                          }}
                           staleThresholdDays={config.staleThresholdDays}
                           spiThresholds={config.spiThresholds}
                           loading={projectsLoading}
@@ -363,6 +368,7 @@ function AppContent() {
                     {currentView === 'projects' && (
                       <ProjectList 
                         projects={filteredProjects} 
+                        initialStateFilter={projectListFilter}
                         onSelectProject={setSelectedProject} 
                         themeColor={config.brand.themeColor}
                         staleThresholdDays={config.staleThresholdDays}

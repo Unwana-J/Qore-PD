@@ -24,6 +24,7 @@ interface ExecutiveDashboardProps {
   staleThresholdDays: number;
   spiThresholds: { onTrack: number; atRisk: number };
   loading?: boolean;
+  onFilterClick?: (state: ProjectState | 'All') => void;
 }
 
 export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
@@ -33,7 +34,8 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
   themeColor = 'teal',
   onSelectProject,
   spiThresholds,
-  loading = false
+  loading = false,
+  onFilterClick
 }) => {
   const [currencyFilter, setCurrencyFilter] = useState<'All' | 'NGN' | 'USD'>('All');
   const [globalFilter, setGlobalFilter] = useState<'All' | 'Enterprise' | 'Initiative'>('All');
@@ -453,36 +455,42 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
           val={projectCounts.total}
           subtitle="Across all statuses"
           variant="neutral"
+          onClick={() => onFilterClick?.('All')}
         />
         <KPIBox
           label="On-Track"
           val={projectCounts.onTrack}
           subtitle="Performing as planned"
           variant="green"
+          onClick={() => onFilterClick?.('On-Track')}
         />
         <KPIBox
           label="Delayed"
           val={projectCounts.delayed}
           subtitle="Schedules at-risk"
           variant="red"
+          onClick={() => onFilterClick?.('Delayed')}
         />
         <KPIBox
           label="On Hold"
           val={projectCounts.onHold}
           subtitle="Temporarily paused"
           variant="slate"
+          onClick={() => onFilterClick?.('Suspended')}
         />
         <KPIBox
           label="Signed Off"
           val={projectCounts.readyForBilling}
           subtitle="Finalizing delivery"
           variant="amber"
+          onClick={() => onFilterClick?.('Signed Off')}
         />
         <KPIBox
           label="Closed"
           val={projectCounts.closed}
           subtitle="Project completion"
           variant="violet"
+          onClick={() => onFilterClick?.('Closed')}
         />
       </div>
 
@@ -835,7 +843,7 @@ const BreakdownStat = ({ label, count, total, color }: { label: string, count: n
   );
 };
 
-const KPIBox = ({ label, val, subtitle, variant = 'neutral' }: any) => {
+const KPIBox = ({ label, val, subtitle, variant = 'neutral', onClick }: any) => {
   const styles: any = {
     neutral: "bg-white border-slate-200 text-slate-900 icon-bg-slate-50 icon-text-slate-400 border-b-4 border-b-slate-800",
     green: "bg-white border-emerald-100 text-emerald-900 icon-bg-emerald-50 icon-text-emerald-500 border-b-4 border-b-emerald-500",
@@ -856,7 +864,10 @@ const KPIBox = ({ label, val, subtitle, variant = 'neutral' }: any) => {
   const Icon = IconMap[variant];
 
   return (
-    <div className={cn("p-4 rounded-3xl border shadow-sm flex flex-col justify-between transition-all hover:-translate-y-1 hover:shadow-md h-full relative overflow-hidden", styles[variant])}>
+    <div 
+      onClick={onClick}
+      className={cn("p-4 rounded-3xl border shadow-sm flex flex-col justify-between transition-all hover:-translate-y-1 hover:shadow-md h-full relative overflow-hidden", styles[variant], onClick ? "cursor-pointer" : "")}
+    >
       <div className="flex justify-between items-start mb-6">
         <div className={cn("p-2 rounded-xl backdrop-blur-sm", variant === 'slate' ? "bg-white" : "bg-slate-50")}>
           <Icon className={cn("w-4 h-4 opacity-80", styles[variant].match(/icon-text-[a-z0-9-]+/)![0].replace('icon-text-', 'text-'))} />

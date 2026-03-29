@@ -21,15 +21,16 @@ interface ProjectListProps {
   onReassignProject: (project: Project) => void;
   spiThresholds: { onTrack: number, atRisk: number };
   initialSearch?: string;
+  initialStateFilter?: ProjectState | 'All';
   loading?: boolean;
 }
 
 export const ProjectList: React.FC<ProjectListProps> = ({ 
   projects, onSelectProject, userRole, users, packages = [], serviceBaselines = [], allPMNames = [], onReassignProject, 
-  themeColor = 'teal', staleThresholdDays, spiThresholds, initialSearch = '', loading = false 
+  themeColor = 'teal', staleThresholdDays, spiThresholds, initialSearch = '', initialStateFilter = 'All', loading = false 
 }) => {
   const [search, setSearch] = useState(initialSearch);
-  const [stateFilter, setStateFilter] = useState<ProjectState | 'All'>('All');
+  const [stateFilter, setStateFilter] = useState<ProjectState | 'All'>(initialStateFilter);
   const [periodFilter, setPeriodFilter] = useState<string>('All Time');
   const [customDateRange, setCustomDateRange] = useState<{ from: string; to: string }>({ from: '', to: '' });
   const [selectedPackages, setSelectedPackages] = useState<string[]>([]);
