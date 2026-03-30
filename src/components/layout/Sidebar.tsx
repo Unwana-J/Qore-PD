@@ -102,15 +102,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
             isSidebarCollapsed ? "justify-center" : "justify-between"
           )}>
             <div className="flex items-center gap-3">
-              {config.brand.logoUrl ? (
-                <div className="h-8 w-auto flex-shrink-0">
-                  <img src={config.brand.logoUrl} alt="Logo" className="h-full w-auto object-contain" />
-                </div>
-              ) : (
-                <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center shadow-md flex-shrink-0", theme.bg, theme.shadow)}>
-                  <Briefcase className="w-6 h-6 text-white" />
-                </div>
-              )}
+              <div className="h-8 w-auto flex-shrink-0">
+                <img src={config.brand.logoUrl || '/logo.png'} alt="Logo" className="h-full w-auto object-contain" />
+              </div>
               {!isSidebarCollapsed && (
                 <div className="animate-in fade-in slide-in-from-left-2 duration-300">
                   <h1 className="text-lg font-bold tracking-tight text-slate-900 leading-none">{config.brand.companyName}</h1>

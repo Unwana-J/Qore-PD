@@ -112,11 +112,11 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
       case 'welcome':
         return (
           <div className="text-center space-y-6 max-w-2xl mx-auto py-12">
-            <div className="w-24 h-24 bg-teal-600 rounded-3xl flex items-center justify-center mx-auto shadow-2xl shadow-teal-200">
-               <Building2 className="w-12 h-12 text-white" />
+            <div className="h-24 flex items-center justify-center mx-auto">
+               <img src="/logo.png" alt="Logo" className="h-full w-auto object-contain" />
             </div>
             <div className="space-y-2">
-              <h1 className="text-4xl font-black text-slate-900 tracking-tight leading-tight">Qore Project Information System</h1>
+              <h1 className="text-4xl font-black text-slate-900 tracking-tight leading-tight">Solution Delivery Project Information System</h1>
               <h2 className="text-2xl font-bold text-slate-600">Welcome — let's set up your organisation</h2>
             </div>
             <p className="text-slate-500 font-medium leading-relaxed">
