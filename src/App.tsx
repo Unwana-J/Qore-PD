@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Loader2, AlertCircle, RefreshCw, UserCircle, ChevronRight } from 'lucide-react';
+import { Loader2, AlertCircle, RefreshCw, UserCircle, ChevronRight, Clock, AlertTriangle, CheckCircle2, X } from 'lucide-react';
 import { cn, isRole, hasRole, resolveServiceIds } from './lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
 import { Sidebar } from './components/layout/Sidebar';
@@ -18,11 +18,12 @@ import { BulkImportView } from './components/BulkImportView';
 import { INITIAL_CONFIG } from './mockData';
 import { Role, AppConfig, SettingsTab, Project, ProjectState } from './types';
 import { useProjects } from './hooks/useProjects';
-import { Toast } from './components/common/Toast';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { NotificationProvider, useNotifications } from './contexts/NotificationContext';
+import { AuthView } from './components/AuthView';
 import { api } from './lib/api';
 import { OnboardingWizard } from './components/OnboardingWizard';
-import { AuthProvider, useAuth } from './contexts/AuthContext';
-import { AuthView } from './components/AuthView';
+import { calculateSPI } from './lib/utils';
 
 type View = 'dashboard' | 'projects' | 'risks' | 'settings' | 'rebaseline-requests';
 
@@ -42,14 +43,8 @@ function AppContent() {
   const [users, setUsers] = useState<any[]>([]);
   const [invites, setInvites] = useState<any[]>([]);
   const [projectToReassign, setProjectToReassign] = useState<Project | null>(null);
-  const [toast, setToast] = useState<{ message: string, type: 'success' | 'error' | 'info' } | null>(null);
-
+  const { success, error: notifyError, info } = useNotifications();
   const userRole = profile?.role;
-
-  const showToast = (message: string, type: 'success' | 'error' | 'info' = 'success') => {
-    setToast({ message, type });
-    setTimeout(() => setToast(null), 3000);
-  };
 
   const {
     filteredProjects,
@@ -119,9 +114,9 @@ function AppContent() {
     try {
       await api.config.update(newConfig);
       setConfig(newConfig);
-    } catch (error: any) {
-      console.error("[API] Config persistence failed:", error);
-      showToast(error.message || "Failed to save configuration to cloud.", "error");
+    } catch (err: any) {
+      console.error("[API] Config persistence failed:", err);
+      notifyError(err.message || "Failed to save configuration to cloud.");
     }
   };
 
@@ -130,11 +125,11 @@ function AppContent() {
     try {
       const result: any = await originalAddProject(p, force);
       if (!result?.warning) {
-        showToast('Project created successfully!');
+        success('Project created successfully!');
       }
       return result;
     } catch (err: any) {
-      showToast(err.message, 'error');
+      notifyError(err.message);
       throw err;
     }
   };
@@ -142,9 +137,9 @@ function AppContent() {
   const reassignProject = async (id: string, pm: string) => {
     try {
       await originalReassignProject(id, pm);
-      showToast('Project reassigned successfully!');
+      success('Project reassigned successfully!');
     } catch (err: any) {
-      showToast(err.message, 'error');
+      notifyError(err.message);
     }
   };
 
@@ -254,6 +249,7 @@ function AppContent() {
         isSidebarCollapsed={isSidebarCollapsed}
         setIsSidebarCollapsed={setIsSidebarCollapsed}
         pendingRebaselineCount={allRebaselineRequests.filter(r => r.status === 'Pending').length}
+        pendingBillingCount={projects.filter(p => p.state === 'Signed Off').length}
         onSignOut={signOut}
         userName={profile?.name}
       />
@@ -322,7 +318,7 @@ function AppContent() {
                     onDeclineRebaseline={declineRebaselineRequest}
                     spiThresholds={config.spiThresholds}
                     validateStateTransition={validateStateTransition}
-                    onShowToast={showToast}
+                    onShowToast={(msg, type) => type === 'error' ? notifyError(msg) : success(msg)}
                     userName={profile?.name}
                   />
                 ) : (
@@ -413,7 +409,7 @@ function AppContent() {
                           onUpdateConfig={handleUpdateConfig}
                           activeTab={activeSettingsTab}
                           setActiveTab={setActiveSettingsTab}
-                          showToast={showToast}
+                          showToast={(msg, type) => type === 'error' ? notifyError(msg) : success(msg)}
                           users={users}
                           setUsers={setUsers}
                           invites={invites}
@@ -467,7 +463,7 @@ function AppContent() {
               config={config}
               userRole={userRole}
               onImportBulk={importBulkProjects}
-              onShowToast={showToast}
+              onShowToast={(msg, type) => type === 'error' ? notifyError(msg) : success(msg)}
               onClose={async () => {
                 await refreshProjects();
                 setIsBulkImportOpen(false);
@@ -496,25 +492,61 @@ function AppContent() {
         />
       )}
 
+      {/* SPI Anomaly Banner — Only for Managers & Superadmins */}
+      {hasRole(userRole, ['Superadmin', 'Manager']) && projects.some(p => calculateSPI(p).isAnomaly) && (
+        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[100] w-full max-w-lg px-4 pointer-events-none">
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-red-600 text-white p-4 rounded-2xl shadow-2xl flex items-center justify-between gap-4 pointer-events-auto border border-red-500/50 backdrop-blur-md bg-opacity-95"
+          >
+            <div className="flex items-center gap-3">
+              <div className="bg-white/20 p-2 rounded-xl">
+                <AlertCircle className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <p className="text-sm font-black uppercase tracking-widest leading-none">SPI Anomaly Detected</p>
+                <p className="text-[11px] font-bold opacity-90 mt-1 leading-tight">
+                  Multiple projects are showing extreme schedule performance (+1.50). 
+                  Please review progress tracking accuracy.
+                </p>
+              </div>
+            </div>
+            <button 
+              onClick={() => setCurrentView('dashboard')}
+              className="px-4 py-2 bg-white text-red-600 text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-slate-50 transition-colors shadow-sm whitespace-nowrap"
+            >
+              Review Now
+            </button>
+          </motion.div>
+        </div>
+      )}
+
+      {/* Project-Specific Alerts list (Rebaseline, Stale data, etc) */}
       <div className="fixed bottom-6 right-6 z-[100] pointer-events-none flex flex-col gap-2 items-end">
         <AnimatePresence>
           {notifications.map(n => (
-            <div key={n.id} className="pointer-events-auto bg-blue-600 text-white rounded-2xl shadow-xl px-5 py-3 flex items-center gap-3 max-w-sm animate-in slide-in-from-right-4 duration-300">
-              <span className="text-sm font-semibold flex-1">{n.message}</span>
-              <button onClick={() => dismissNotification(n.id)} className="p-1 hover:bg-blue-700 rounded-lg transition-colors">
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12"/></svg>
+            <motion.div 
+              key={n.id}
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 20 }}
+              className="pointer-events-auto bg-slate-900/90 backdrop-blur-md text-white rounded-2xl shadow-xl px-5 py-3 flex items-center gap-3 max-w-sm border border-white/10"
+            >
+              <div className="bg-white/10 p-1.5 rounded-lg">
+                {n.message.includes('rebaseline') ? <Clock className="w-4 h-4 text-amber-400" /> : 
+                 n.message.includes('stale') ? <AlertTriangle className="w-4 h-4 text-rose-400" /> :
+                 <CheckCircle2 className="w-4 h-4 text-emerald-400" />}
+              </div>
+              <span className="text-[11px] font-bold flex-1 leading-tight">{n.message}</span>
+              <button 
+                onClick={() => dismissNotification(n.id)} 
+                className="p-1 hover:bg-white/10 rounded-lg transition-colors text-white/40 hover:text-white"
+              >
+                <X className="w-3.5 h-3.5" />
               </button>
-            </div>
+            </motion.div>
           ))}
-          {toast && (
-            <div className="pointer-events-auto">
-              <Toast 
-                message={toast.message} 
-                type={toast.type} 
-                onClose={() => setToast(null)} 
-              />
-            </div>
-          )}
         </AnimatePresence>
       </div>
     </div>
@@ -524,7 +556,9 @@ function AppContent() {
 export default function App() {
   return (
     <AuthProvider>
-      <AppContent />
+      <NotificationProvider>
+        <AppContent />
+      </NotificationProvider>
     </AuthProvider>
   );
 }

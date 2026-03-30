@@ -27,6 +27,7 @@ interface SidebarProps {
   isSidebarCollapsed: boolean;
   setIsSidebarCollapsed: (isCollapsed: boolean) => void;
   pendingRebaselineCount?: number;
+  pendingBillingCount?: number;
   onSignOut: () => void;
   userName?: string;
 }
@@ -44,6 +45,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   isSidebarCollapsed,
   setIsSidebarCollapsed,
   pendingRebaselineCount = 0,
+  pendingBillingCount = 0,
   onSignOut,
   userName = 'User'
 }) => {
@@ -119,7 +121,20 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </div>
 
           <nav className="flex-1 space-y-1.5 px-1">
+          <div className="relative">
             <NavItem icon={LayoutDashboard} label="Dashboard" view="dashboard" />
+            {isRole(userRole, 'Finance') && pendingBillingCount > 0 && (
+              <>
+                {!isSidebarCollapsed ? (
+                  <span className="absolute right-8 top-1/2 -translate-y-1/2 bg-emerald-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full shadow-sm animate-pulse">
+                    {pendingBillingCount}
+                  </span>
+                ) : (
+                  <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-emerald-500 border-2 border-white rounded-full" />
+                )}
+              </>
+            )}
+          </div>
             <NavItem icon={Briefcase} label="Projects" view="projects" />
             {!isRole(userRole, 'Executive') && !isRole(userRole, 'Finance') && (
               <>

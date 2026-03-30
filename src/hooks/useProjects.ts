@@ -64,6 +64,45 @@ export function useProjects(userRole: Role, config: AppConfig, userName: string 
     staleTime: 5 * 60 * 1000, // 5 minutes fresh
   });
 
+  // Rebaseline Notifications for leadership
+  useMemo(() => {
+    if (!hasRole(userRole, ['Superadmin', 'Manager', 'Team Lead'])) return;
+    
+    // Clear old rebaseline notifications (simple logic for demo/dashboard purposes)
+    const pending = rawProjects.flatMap(p => (p.rebaselineRequests || [])
+      .filter(r => r.status === 'Pending')
+      .map(r => ({ projectId: p.id, projectName: p.clientName, requestId: r.id }))
+    );
+
+    pending.forEach(r => {
+      const exists = notifications.some(n => n.projectId === r.projectId && n.message.includes('rebaseline'));
+      if (!exists) {
+        addNotification(`New rebaseline request for "${r.projectName}"`, r.projectId);
+      }
+    });
+  }, [rawProjects, userRole]);
+
+  // Stale Data Notifications for assigned PM
+  useMemo(() => {
+    if (userRole !== 'PM') return;
+    
+    const staleProjects = rawProjects.filter(p => {
+      const isOwner = p.assignedPM?.trim().toLowerCase() === userName?.trim().toLowerCase();
+      if (!isOwner || p.state === 'Closed' || p.state === 'Billed' || p.state === 'Suspended') return false;
+      
+      const lastUpdate = p.updatedAt ? new Date(p.updatedAt) : new Date(p.createdAt);
+      const diffDays = (new Date().getTime() - lastUpdate.getTime()) / (1000 * 60 * 60 * 24);
+      return diffDays > (config.staleThresholdDays || 7);
+    });
+
+    staleProjects.forEach(p => {
+      const exists = notifications.some(n => n.projectId === p.id && n.message.includes('stale'));
+      if (!exists) {
+        addNotification(`Project "${p.clientName}" hasn't been updated in over ${config.staleThresholdDays || 7} days.`, p.id);
+      }
+    });
+  }, [rawProjects, userRole, userName, config.staleThresholdDays]);
+
   // Alias for compatibility
   const projects = rawProjects;
 
