@@ -159,8 +159,8 @@ function AppContent() {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 gap-6">
         <div className="relative">
-          <div className="w-16 h-16 bg-teal-600 rounded-2xl flex items-center justify-center shadow-xl shadow-teal-200 animate-pulse">
-            <Loader2 className="w-8 h-8 text-white animate-spin" />
+          <div className="w-16 h-16 rounded-2xl flex items-center justify-center animate-pulse">
+            <img src="/icon.png" alt="Loading..." className="w-12 h-12 object-contain" />
           </div>
         </div>
         <div className="text-center space-y-1">

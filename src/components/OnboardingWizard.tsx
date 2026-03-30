@@ -113,7 +113,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
         return (
           <div className="text-center space-y-6 max-w-2xl mx-auto py-12">
             <div className="h-24 flex items-center justify-center mx-auto">
-               <img src="/logo.png" alt="Logo" className="h-full w-auto object-contain" />
+               <img src="/icon.png" alt="Icon" className="h-full w-auto object-contain" />
             </div>
             <div className="space-y-2">
               <h1 className="text-4xl font-black text-slate-900 tracking-tight leading-tight">Solution Delivery Project Information System</h1>
