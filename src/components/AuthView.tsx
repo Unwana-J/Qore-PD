@@ -69,7 +69,7 @@ export const AuthView: React.FC = () => {
             <Building2 className="w-8 h-8 text-white" />
           </motion.div>
           <div className="space-y-1">
-            <h1 className="text-3xl font-black text-slate-900 tracking-tight leading-tight">Solution Delivery Project Information System</h1>
+            <h1 className="text-3xl font-black text-slate-900 tracking-tight leading-tight">Qore Project Information System</h1>
             <p className="text-slate-400 font-bold uppercase tracking-[0.2em] text-[10px]">Strategic Project Portfolio Management</p>
           </div>
         </div>
@@ -202,7 +202,7 @@ export const AuthView: React.FC = () => {
         </motion.div>
 
         <p className="text-center mt-8 text-slate-400 text-[10px] font-black uppercase tracking-[0.2em] px-8">
-          Secure access for Solution Delivery operations team only
+          Secure access for Qore operations team only
         </p>
       </div>
     </div>

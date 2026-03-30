@@ -103,8 +103,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
           )}>
             <div className="flex items-center gap-3">
               {config.brand.logoUrl ? (
-                <div className="w-10 h-10 rounded-xl overflow-hidden shadow-md flex-shrink-0">
-                  <img src={config.brand.logoUrl} alt="Logo" className="w-full h-full object-contain bg-white" />
+                <div className="h-8 w-auto flex-shrink-0">
+                  <img src={config.brand.logoUrl} alt="Logo" className="h-full w-auto object-contain" />
                 </div>
               ) : (
                 <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center shadow-md flex-shrink-0", theme.bg, theme.shadow)}>

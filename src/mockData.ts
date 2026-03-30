@@ -454,8 +454,8 @@ export const INITIAL_CONFIG: AppConfig = {
       { code: 'USD', symbol: '$', name: 'US Dollar', isActive: true },
     ],
     brand: {
-      companyName: 'Solution Delivery',
-      logoUrl: '',
+      companyName: 'Qore',
+      logoUrl: '/logo.png',
       themeColor: 'teal'
     },
     projectLifecycleWeights: { initiation: 10, planning: 10, execution: 60, closure: 20 },
@@ -498,7 +498,10 @@ export const INITIAL_CONFIG: AppConfig = {
         P3: 8
     },
     maxImportRows: 500,
-    hideImportGuide: false
+    hideImportGuide: false,
+    orgName: 'Qore',
+    logoUrl: '/logo.png',
+    isSetupComplete: true
 };
 
 export const MOCK_WEIGHT_HISTORY: WeightHistory[] = [
