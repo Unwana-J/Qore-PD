@@ -80,7 +80,15 @@ function AppContent() {
     // Load config and user/invite data
     const init = async () => {
       try {
-        const cloudConfig = await api.config.get();
+        const [cloudConfig, fetchedUsers, fetchedInvites] = await Promise.all([
+          api.config.get(),
+          api.users.getAll().catch(e => { console.error(e); return []; }),
+          api.invites.getAll().catch(e => { console.error(e); return []; })
+        ]);
+
+        setUsers(fetchedUsers);
+        setInvites(fetchedInvites);
+
         // Universal Migration Layer: Sanitize packages to always use service IDs
         const sanitizedPackages = (cloudConfig.packages || []).map(pkg => ({
           ...pkg,
@@ -99,10 +107,6 @@ function AppContent() {
           console.log("[Migration] Permanent ID-based synchronization triggered...");
           api.config.update(nextConfig).catch(err => console.error("[Migration] Save failed:", err));
         }
-
-        // Background load users/invites
-        api.users.getAll().then(setUsers).catch(e => console.error(e));
-        api.invites.getAll().then(setInvites).catch(e => console.error(e));
       } catch (err) {
         console.error("Failed to load cloud config:", err);
       }

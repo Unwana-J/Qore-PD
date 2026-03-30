@@ -78,11 +78,69 @@ export const api = {
     getAll: async (): Promise<Project[]> => {
       const { data, error } = await supabase
         .from('projects')
-        .select('*')
+        .select('id, client_name, package_name, services, product_lines, assigned_pm, start_date, expected_duration, expected_completion_date, current_completion_date, value, currency, state, phases, phase_weights, service_states, pid_signed_off_date, priority, created_at, updated_at, signed_off_at, billed_at, total_active_days, suspension_cycles, is_internal_initiative, rebaseline_requests')
         .order('created_at', { ascending: false });
       
       if (error) throw error;
       return (data || []).map(mapProjectFromDb);
+    },
+    getPaginated: async (
+      page: number, 
+      pageSize: number, 
+      filters?: { 
+        state?: string, 
+        pm?: string,
+        search?: string,
+        portfolio?: 'All' | 'Enterprise' | 'Initiative',
+        packages?: string[],
+        pms?: string[]
+      }
+    ): Promise<{ data: Project[]; count: number }> => {
+      let query = supabase
+        .from('projects')
+        .select('id, client_name, package_name, services, product_lines, assigned_pm, start_date, expected_duration, expected_completion_date, current_completion_date, value, currency, state, phases, phase_weights, service_states, pid_signed_off_date, priority, created_at, updated_at, signed_off_at, billed_at, total_active_days, suspension_cycles, is_internal_initiative, rebaseline_requests', { count: 'exact' });
+
+      if (filters?.state && filters.state !== 'All') {
+        query = query.eq('state', filters.state);
+      }
+      if (filters?.portfolio === 'Enterprise') {
+        query = query.eq('is_internal_initiative', false).eq('priority', 'P1');
+      } else if (filters?.portfolio === 'Initiative') {
+        query = query.eq('is_internal_initiative', true);
+      }
+      if (filters?.packages && filters.packages.length > 0) {
+        query = query.in('package_name', filters.packages);
+      }
+      if (filters?.pms && filters.pms.length > 0) {
+        query = query.in('assigned_pm', filters.pms);
+      } else if (filters?.pm) {
+        query = query.ilike('assigned_pm', filters.pm);
+      }
+      if (filters?.search) {
+        query = query.ilike('client_name', `%${filters.search}%`);
+      }
+
+      const from = (page - 1) * pageSize;
+      const to = from + pageSize - 1;
+
+      const { data, count, error } = await query
+        .order('created_at', { ascending: false })
+        .range(from, to);
+
+      if (error) throw error;
+      return {
+        data: (data || []).map(mapProjectFromDb),
+        count: count || 0
+      };
+    },
+    getById: async (id: string): Promise<Project> => {
+      const { data, error } = await supabase
+        .from('projects')
+        .select('*')
+        .eq('id', id)
+        .single();
+      if (error) throw error;
+      return mapProjectFromDb(data);
     },
     update: async (project: Project): Promise<Project> => {
       const { data, error } = await supabase

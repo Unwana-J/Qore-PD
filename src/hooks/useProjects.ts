@@ -1,13 +1,13 @@
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useMemo, useCallback } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import { Project, Role, AppConfig, ProjectPriority, ProjectActivity, ActivityType, RebaselineRequest, Phase, ServiceState, ProjectState } from '../types';
 import { api } from '../lib/api';
 import { calculateWorkingDays, getActiveDaysCount, calculateSPI, getAutoProjectState, isRole, hasRole } from '../lib/utils';
 
 export function useProjects(userRole: Role, config: AppConfig, userName: string = 'User') {
-  const [projects, setProjects] = useState<Project[]>([]);
+  const queryClient = useQueryClient();
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
-  const [loading, setLoading] = useState(true);
   const [notifications, setNotifications] = useState<Array<{ id: string; message: string; projectId: string }>>([]);
 
   const addNotification = (message: string, projectId: string) => {
@@ -19,21 +19,15 @@ export function useProjects(userRole: Role, config: AppConfig, userName: string 
     setNotifications(prev => prev.filter(n => n.id !== id));
   };
 
-  /**
-   * Validates a manual state transition, returning an error string if invalid.
-   */
   const validateStateTransition = (project: Project, newState: string): string | null => {
     const current = project.state;
 
-    // Billed can only be set by Finance
     if (newState === 'Billed' && !isRole(userRole, 'Finance')) {
       return 'Only Finance can mark a project as Billed.';
     }
-    // Closed requires Billed
     if (newState === 'Closed' && current !== 'Billed') {
       return 'Project must be Billed before it can be Closed.';
     }
-    // Sign Off requires all Execution services closed
     if (newState === 'Signed Off') {
       const allClosed = project.services.length > 0 &&
         project.services.every(s => project.serviceStates?.[s] === 'Closed');
@@ -41,25 +35,23 @@ export function useProjects(userRole: Role, config: AppConfig, userName: string 
         return 'All services must be closed before signing off.';
       }
     }
-    // Cannot manually set auto-managed states
     if (newState === 'Delayed') {
       return 'Delayed status is set automatically by the system.';
     }
-    // Closed is irreversible
     if (current === 'Closed') {
       return 'This project is closed and cannot be changed.';
     }
     return null;
   };
 
-  const fetchProjects = useCallback(async () => {
-    console.log("[Diagnostics] Starting projects sync...");
-    try {
+  const { data: rawProjects = [], isLoading: loading, refetch: refreshProjects } = useQuery({
+    queryKey: ['projects'],
+    queryFn: async () => {
+      console.log("[Diagnostics] Fetching lightweight projects projection...");
       const data = await api.projects.getAll();
-      console.log(`[Diagnostics] Fetched ${data.length} projects.`);
       
       const terminalStates: ProjectState[] = ['Signed Off', 'Billed', 'Closed', 'Suspended'];
-      const correctedData = data.map(p => {
+      return data.map(p => {
         if (!terminalStates.includes(p.state)) {
            const autoState = getAutoProjectState(p, config.spiThresholds);
            if (p.state !== autoState) {
@@ -68,34 +60,12 @@ export function useProjects(userRole: Role, config: AppConfig, userName: string 
         }
         return p;
       });
+    },
+    staleTime: 5 * 60 * 1000, // 5 minutes fresh
+  });
 
-      setProjects(correctedData);
-      console.log("[Diagnostics] Projects state updated.");
-    } catch (error) {
-      console.error('[Diagnostics] Failed to fetch projects:', error);
-    } finally {
-      setLoading(false);
-      console.log("[Diagnostics] Projects loading set to false.");
-    }
-  }, [config.spiThresholds.atRisk, config.spiThresholds.onTrack]);
-
-  useEffect(() => {
-    let isMounted = true;
-
-    const syncTimeout = setTimeout(() => {
-      if (isMounted) {
-        console.warn("[Diagnostics] Projects sync timed out. Releasing UI lock.");
-        setLoading(false);
-      }
-    }, 25000);
-
-    fetchProjects().finally(() => clearTimeout(syncTimeout));
-    
-    return () => {
-      isMounted = false;
-      clearTimeout(syncTimeout);
-    };
-  }, [fetchProjects]);
+  // Alias for compatibility
+  const projects = rawProjects;
 
   const getPMWorkload = useCallback((pmName: string) => {
     const pmProjects = projects.filter(p => 
@@ -112,8 +82,6 @@ export function useProjects(userRole: Role, config: AppConfig, userName: string 
 
   const filteredProjects = useMemo(() => {
     if (isRole(userRole, 'PM')) {
-      // PMs can only see projects assigned to them
-      // Robust matching: trim and case-insensitive to handle "Eniye" vs "Eniye " vs "eniye"
       const normalizedUserName = userName?.trim().toLowerCase();
       return projects.filter(p => p.assignedPM?.trim().toLowerCase() === normalizedUserName);
     }
@@ -185,7 +153,7 @@ export function useProjects(userRole: Role, config: AppConfig, userName: string 
         rebaselineRequests: [],
         suspensionCycles: []
       });
-      setProjects(prev => [newProject, ...prev]);
+      queryClient.setQueryData<Project[]>(['projects'], (old = []) => [newProject, ...old]);
       return newProject;
     } catch (error) {
       console.error('Failed to add project', error);
@@ -322,7 +290,7 @@ export function useProjects(userRole: Role, config: AppConfig, userName: string 
       }
       
       const result = await api.projects.update(updatedProject);
-      setProjects(prev => prev.map(p => p.id === result.id ? result : p));
+      queryClient.setQueryData<Project[]>(['projects'], (old = []) => old.map(p => p.id === result.id ? result : p));
       if (selectedProject?.id === result.id) {
         setSelectedProject(result);
       }
@@ -492,7 +460,7 @@ export function useProjects(userRole: Role, config: AppConfig, userName: string 
 
       // Refetch projects to sync
       const data = await api.projects.getAll();
-      setProjects(data);
+      queryClient.setQueryData(['projects'], data);
 
       return { added: projectsToAdd.length, updated: projectsToUpdate.length };
     } catch (error) {
@@ -524,6 +492,6 @@ export function useProjects(userRole: Role, config: AppConfig, userName: string 
     notifications,
     dismissNotification,
     loading,
-    refreshProjects: fetchProjects
+    refreshProjects
   };
 }
