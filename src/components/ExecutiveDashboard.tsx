@@ -552,7 +552,7 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
           <BreakdownStat label="On-Track" count={projectCounts.onTrack} total={filteredProjects.length} color="text-emerald-500" />
           <BreakdownStat label="Delayed" count={projectCounts.delayed} total={filteredProjects.length} color="text-red-500" />
           <BreakdownStat label="On Hold" count={projectCounts.onHold} total={filteredProjects.length} color="text-slate-800" />
-          <BreakdownStat label="Ready to Bill" count={projectCounts.readyForBilling} total={filteredProjects.length} color="text-amber-500" />
+          <BreakdownStat label="Signed Off" count={projectCounts.readyForBilling} total={filteredProjects.length} color="text-amber-500" />
           <BreakdownStat label="Billed" count={projectCounts.billed} total={filteredProjects.length} color="text-blue-600" />
           <BreakdownStat label="Closed" count={projectCounts.closed} total={filteredProjects.length} color="text-slate-400" />
         </div>
