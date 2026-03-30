@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Project, AppConfig, Role } from '../types';
-import { calculateSPI, getActiveDaysCount, cn, resolveServiceIds, getEffectiveServiceIds } from '../lib/utils';
+import { calculateSPI, getActiveDaysCount, cn, resolveServiceIds, getEffectiveServiceIds, calculatePhaseScores } from '../lib/utils';
 import { ChevronDown, ChevronRight, AlertTriangle, TrendingDown, Clock, Search, Filter, Layers } from 'lucide-react';
 import { differenceInDays, parseISO, isAfter, isBefore, subDays, startOfMonth, startOfQuarter, startOfYear } from 'date-fns';
 import { getThemeClasses } from '../lib/theme';
@@ -376,7 +376,7 @@ export const PMScorecard: React.FC<PMScorecardProps> = ({ projects, config, user
                                 <div className="flex flex-wrap items-center justify-end gap-6 text-sm">
                                   <div className="text-center">
                                     <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Progress</p>
-                                    <p className="font-bold text-slate-700">{p.percentageComplete || 0}%</p>
+                                    <p className="font-bold text-slate-700">{calculatePhaseScores(p).totalPercentage}%</p>
                                   </div>
                                   <div className="text-center w-12">
                                     <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">SPI</p>
