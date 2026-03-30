@@ -69,7 +69,7 @@ export const AuthView: React.FC = () => {
             <img src="/logo.png" alt="Logo" className="h-full w-auto object-contain" />
           </motion.div>
           <div className="space-y-1">
-            <h1 className="text-3xl font-black text-slate-900 tracking-tight leading-tight">Solution Delivery Project Information System</h1>
+            <h1 className="text-3xl font-black text-slate-900 tracking-tight leading-tight">SD Project Information System</h1>
             <p className="text-slate-400 font-bold uppercase tracking-[0.2em] text-[10px]">Strategic Project Portfolio Management</p>
           </div>
         </div>

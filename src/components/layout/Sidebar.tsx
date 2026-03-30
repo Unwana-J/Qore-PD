@@ -111,7 +111,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </div>
               {!isSidebarCollapsed && (
                 <div className="animate-in fade-in slide-in-from-left-2 duration-300">
-                  <h1 className="text-lg font-bold tracking-tight text-slate-900 leading-none">{config.brand.companyName}</h1>
+                  <h1 className="text-lg font-black tracking-tight text-slate-900 leading-none">SD</h1>
                   <p className={cn("text-[10px] font-bold uppercase tracking-widest mt-1", theme.text)}>Project Information System</p>
                 </div>
               )}
