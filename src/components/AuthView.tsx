@@ -60,7 +60,7 @@ export const AuthView: React.FC = () => {
       <div className="absolute bottom-0 left-0 w-1/4 h-1/4 bg-slate-100 rounded-tr-[100%] transition-all -z-10 opacity-30" />
       
       <div className="w-full max-w-md">
-        <div className="text-center mb-10 space-y-4">
+        <div className="text-center mb-6 space-y-4">
           <motion.div 
             initial={{ scale: 0.8, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
@@ -150,7 +150,7 @@ export const AuthView: React.FC = () => {
                   type={showPassword ? 'text' : 'password'} 
                   required
                   className="w-full pl-11 pr-12 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl font-bold focus:outline-none focus:border-teal-500 transition-all"
-                  placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢"
+                  placeholder="••••••••"
                   value={password}
                   onChange={e => setPassword(e.target.value)}
                 />
