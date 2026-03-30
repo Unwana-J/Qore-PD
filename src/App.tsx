@@ -43,6 +43,7 @@ function AppContent() {
   const [users, setUsers] = useState<any[]>([]);
   const [invites, setInvites] = useState<any[]>([]);
   const [projectToReassign, setProjectToReassign] = useState<Project | null>(null);
+  const [showSPIAnomaly, setShowSPIAnomaly] = useState(true);
   const { success, error: notifyError, info } = useNotifications();
   const userRole = profile?.role;
 
@@ -269,6 +270,9 @@ function AppContent() {
           setIsModalOpen={setIsModalOpen}
           setIsBulkImportOpen={setIsBulkImportOpen}
           userName={profile?.name}
+          notifications={notifications}
+          dismissNotification={dismissNotification}
+          onSelectProject={setSelectedProject}
         />
 
         <div className="flex-1 overflow-y-auto bg-slate-50/50">
@@ -493,12 +497,13 @@ function AppContent() {
       )}
 
       {/* SPI Anomaly Banner — Only for Managers & Superadmins */}
-      {hasRole(userRole, ['Superadmin', 'Manager']) && projects.some(p => calculateSPI(p).isAnomaly) && (
+      {showSPIAnomaly && hasRole(userRole, ['Superadmin', 'Manager']) && projects.some(p => calculateSPI(p).isAnomaly) && (
         <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[100] w-full max-w-lg px-4 pointer-events-none">
           <motion.div 
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="bg-red-600 text-white p-4 rounded-2xl shadow-2xl flex items-center justify-between gap-4 pointer-events-auto border border-red-500/50 backdrop-blur-md bg-opacity-95"
+            exit={{ opacity: 0, scale: 0.95 }}
+            className="bg-red-600 text-white p-4 rounded-2xl shadow-2xl flex items-center justify-between gap-4 pointer-events-auto border border-red-500/50 backdrop-blur-md bg-opacity-95 group"
           >
             <div className="flex items-center gap-3">
               <div className="bg-white/20 p-2 rounded-xl">
@@ -512,12 +517,25 @@ function AppContent() {
                 </p>
               </div>
             </div>
-            <button 
-              onClick={() => setCurrentView('dashboard')}
-              className="px-4 py-2 bg-white text-red-600 text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-slate-50 transition-colors shadow-sm whitespace-nowrap"
-            >
-              Review Now
-            </button>
+            <div className="flex items-center gap-2">
+              <button 
+                onClick={() => {
+                  setProjectListFilter('Delayed');
+                  setCurrentView('projects');
+                  setSelectedProject(null);
+                }}
+                className="px-4 py-2 bg-white text-red-600 text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-slate-50 transition-colors shadow-sm whitespace-nowrap"
+              >
+                Review Now
+              </button>
+              <button 
+                onClick={() => setShowSPIAnomaly(false)}
+                className="p-2 hover:bg-white/20 rounded-xl transition-colors text-white/60 hover:text-white"
+                title="Dismiss"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
           </motion.div>
         </div>
       )}

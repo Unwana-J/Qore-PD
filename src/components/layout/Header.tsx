@@ -27,6 +27,9 @@ interface HeaderProps {
   setIsModalOpen: (isOpen: boolean) => void;
   setIsBulkImportOpen: (isOpen: boolean) => void;
   userName?: string;
+  notifications?: Array<{ id: string; message: string; projectId: string }>;
+  dismissNotification?: (id: string) => void;
+  onSelectProject?: (project: any) => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -42,8 +45,12 @@ export const Header: React.FC<HeaderProps> = ({
   onNavigateBack,
   setIsModalOpen,
   setIsBulkImportOpen,
-  userName = 'User'
+  userName = 'User',
+  notifications = [],
+  dismissNotification,
+  onSelectProject
 }) => {
+  const [isNotifOpen, setIsNotifOpen] = React.useState(false);
   const theme = getThemeClasses(themeColor);
   const now = new Date();
 
@@ -164,10 +171,81 @@ export const Header: React.FC<HeaderProps> = ({
             ⌘K
           </div>
         </div>
-        <button className={cn("p-2 text-slate-400 rounded-lg transition-all relative", theme.hoverText, theme.hoverLightBg)}>
-          <Bell className="w-5 h-5" />
-          <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
-        </button>
+        <div className="relative">
+          <button 
+            onClick={() => setIsNotifOpen(!isNotifOpen)}
+            className={cn("p-2 text-slate-400 rounded-lg transition-all relative", theme.hoverText, theme.hoverLightBg, isNotifOpen && "bg-slate-50 text-slate-900")}
+          >
+            <Bell className="w-5 h-5" />
+            {notifications.length > 0 && (
+              <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-white animate-pulse"></span>
+            )}
+          </button>
+
+          {isNotifOpen && (
+            <>
+              <div className="fixed inset-0 z-40" onClick={() => setIsNotifOpen(false)} />
+              <div className="absolute right-0 mt-3 w-80 bg-white border border-slate-200 rounded-3xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200 ring-1 ring-slate-900/5">
+                <div className="px-5 py-4 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center text-xs font-bold text-slate-900 uppercase tracking-widest">
+                  Notifications
+                  <span className="bg-slate-200 text-slate-600 px-2 py-0.5 rounded-full text-[9px]">{notifications.length}</span>
+                </div>
+                <div className="max-h-96 overflow-y-auto">
+                  {notifications.length === 0 ? (
+                    <div className="px-5 py-12 text-center">
+                      <div className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                        <Bell className="w-6 h-6 text-slate-300" />
+                      </div>
+                      <p className="text-xs font-bold text-slate-400">All caught up!</p>
+                      <p className="text-[10px] text-slate-400 mt-1">No new alerts at the moment.</p>
+                    </div>
+                  ) : (
+                    notifications.map(n => (
+                      <div 
+                        key={n.id} 
+                        className="px-5 py-4 border-b border-slate-50 last:border-0 hover:bg-slate-50 transition-colors group cursor-pointer"
+                        onClick={() => {
+                          if (onSelectProject) {
+                            onSelectProject({ id: n.projectId }); // Partial project for hydration
+                          }
+                          setIsNotifOpen(false);
+                        }}
+                      >
+                        <div className="flex gap-3">
+                          <div className={cn("mt-1 w-2 h-2 rounded-full shrink-0", n.message.includes('rebaseline') ? 'bg-amber-500' : 'bg-rose-500')} />
+                          <div className="flex-1">
+                            <p className="text-xs font-bold text-slate-900 leading-tight mb-1">{n.message}</p>
+                            <p className="text-[10px] font-medium text-slate-400">Just now</p>
+                          </div>
+                          <button 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              dismissNotification?.(n.id);
+                            }}
+                            className="p-1 opacity-0 group-hover:opacity-100 hover:bg-slate-200 rounded-lg transition-all"
+                          >
+                            <X className="w-3 h-3 text-slate-400" />
+                          </button>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+                {notifications.length > 0 && dismissNotification && (
+                  <button 
+                    onClick={() => {
+                      notifications.forEach(n => dismissNotification(n.id));
+                      setIsNotifOpen(false);
+                    }}
+                    className="w-full px-5 py-3 text-center text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-indigo-600 border-t border-slate-50 transition-colors"
+                  >
+                    Clear All
+                  </button>
+                )}
+              </div>
+            </>
+          )}
+        </div>
         {['Superadmin', 'Manager', 'Team Lead'].includes(userRole) && currentView === 'dashboard' && (
           <button 
             onClick={() => setIsBulkImportOpen(true)}
