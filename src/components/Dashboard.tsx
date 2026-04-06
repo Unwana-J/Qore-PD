@@ -318,7 +318,7 @@ const StatCard = ({ label, value, values, subValue, icon, color = 'theme', theme
             {Object.entries(values).map(([code, amount]: any, idx) => (
               <p 
                 key={code} 
-                title={formatCurrency(amount, code)}
+                title={`${code === 'NGN' ? 'Revenue in Naira: ' : code === 'USD' ? 'Revenue in Dollars: ' : ''}${formatCurrency(amount, code)}`}
                 className={cn(
                   "font-black tracking-tighter text-slate-900 leading-none cursor-help",
                   Object.keys(values).length > 1 ? "text-lg first:text-xl" : "text-3xl"

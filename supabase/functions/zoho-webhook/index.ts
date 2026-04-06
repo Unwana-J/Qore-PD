@@ -20,7 +20,7 @@ serve(async (req) => {
     const { data: configData } = await supabase
       .from('app_config')
       .select('config')
-      .eq('id', 'default')
+      .eq('id', 1)
       .single();
 
     const storedSecret = configData?.config?.webhookSecret;

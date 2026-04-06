@@ -901,7 +901,7 @@ const RevenueBox = ({ label, ngn, usd, subtitle, variant = 'neutral', themeColor
       <div className="space-y-1 overflow-hidden">
         {(currencyFilter === 'All' || currencyFilter === 'NGN') && (
           <p 
-            title={formatCurrency(ngn, 'NGN')}
+            title={`Revenue in Naira: ${formatCurrency(ngn, 'NGN')}`}
             className={cn(
               "font-black leading-none tracking-tighter truncate",
               currencyFilter === 'NGN' ? "text-3xl" : "text-xl"
@@ -912,7 +912,7 @@ const RevenueBox = ({ label, ngn, usd, subtitle, variant = 'neutral', themeColor
         )}
         {(currencyFilter === 'All' || currencyFilter === 'USD') && (
           <p 
-            title={formatCurrency(usd, 'USD')}
+            title={`Revenue in Dollars: ${formatCurrency(usd, 'USD')}`}
             className={cn(
               "font-black tracking-tighter truncate opacity-70",
               currencyFilter === 'USD' ? "text-3xl" : "text-sm"
