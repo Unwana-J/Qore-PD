@@ -33,6 +33,7 @@ const mapProjectFromDb = (p: any): Project => ({
   totalActiveDays: p.total_active_days,
   suspensionCycles: p.suspension_cycles || [],
   isInternalInitiative: p.is_internal_initiative,
+  deliveryTrack: p.delivery_track || (p.is_internal_initiative ? 'Internal Initiative' : 'Standard'),
   milestones: p.milestones || [],
   phaseComments: p.phase_comments || {},
   externalId: p.external_id
@@ -67,6 +68,7 @@ const mapProjectToDb = (p: Partial<Project>) => {
   if (p.totalActiveDays !== undefined) mapped.total_active_days = p.totalActiveDays;
   if (p.suspensionCycles !== undefined) mapped.suspension_cycles = p.suspensionCycles;
   if (p.isInternalInitiative !== undefined) mapped.is_internal_initiative = p.isInternalInitiative;
+  if (p.deliveryTrack !== undefined) mapped.delivery_track = p.deliveryTrack;
   if (p.milestones !== undefined) mapped.milestones = p.milestones;
   if (p.phaseComments !== undefined) mapped.phase_comments = p.phaseComments;
   if (p.externalId !== undefined) mapped.external_id = p.externalId;
@@ -78,7 +80,7 @@ export const api = {
     getAll: async (): Promise<Project[]> => {
       const { data, error } = await supabase
         .from('projects')
-        .select('id, client_name, package_name, services, product_lines, assigned_pm, start_date, expected_duration, expected_completion_date, current_completion_date, value, currency, state, phases, phase_weights, service_states, pid_signed_off_date, priority, created_at, updated_at, signed_off_at, billed_at, total_active_days, suspension_cycles, is_internal_initiative, rebaseline_requests')
+        .select('id, client_name, package_name, services, product_lines, assigned_pm, start_date, expected_duration, expected_completion_date, current_completion_date, value, currency, state, phases, phase_weights, service_states, pid_signed_off_date, priority, created_at, updated_at, signed_off_at, billed_at, total_active_days, suspension_cycles, is_internal_initiative, delivery_track, rebaseline_requests')
         .order('created_at', { ascending: false });
       
       if (error) throw error;
@@ -98,7 +100,7 @@ export const api = {
     ): Promise<{ data: Project[]; count: number }> => {
       let query = supabase
         .from('projects')
-        .select('id, client_name, package_name, services, product_lines, assigned_pm, start_date, expected_duration, expected_completion_date, current_completion_date, value, currency, state, phases, phase_weights, service_states, pid_signed_off_date, priority, created_at, updated_at, signed_off_at, billed_at, total_active_days, suspension_cycles, is_internal_initiative, rebaseline_requests', { count: 'exact' });
+        .select('id, client_name, package_name, services, product_lines, assigned_pm, start_date, expected_duration, expected_completion_date, current_completion_date, value, currency, state, phases, phase_weights, service_states, pid_signed_off_date, priority, created_at, updated_at, signed_off_at, billed_at, total_active_days, suspension_cycles, is_internal_initiative, delivery_track, rebaseline_requests', { count: 'exact' });
 
       if (filters?.state && filters.state !== 'All') {
         query = query.eq('state', filters.state);

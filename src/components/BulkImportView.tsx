@@ -556,6 +556,10 @@ export const BulkImportView: React.FC<BulkImportViewProps> = ({ users, invites, 
         };
       });
 
+      // Derive delivery track from package name
+      const isInternalInitiativeImport = row.packageName === 'Internal Initiative';
+      const importedDeliveryTrack = isInternalInitiativeImport ? 'Internal Initiative' : 'Standard';
+
       const mappedData: Partial<Project> = {
         clientName: row.clientName,
         packageName: row.packageName,
@@ -567,14 +571,16 @@ export const BulkImportView: React.FC<BulkImportViewProps> = ({ users, invites, 
         value: Number(numVal) || 0,
         currency: row.currency,
         state: isClosed ? 'Closed' : (row.closureStatus as any || 'On-Track'),
-        priority: 'P2', 
+        priority: 'P2',
         productLines,
-        services: mappedServiceIds,
-        serviceStates: finalServiceStates,
+        services: isInternalInitiativeImport ? [] : mappedServiceIds,
+        serviceStates: isInternalInitiativeImport ? {} : finalServiceStates,
         milestones,
         phases,
         intakeType: isOld ? 'Old' : 'New',
         actualCompletionDate: actualCompDate,
+        deliveryTrack: importedDeliveryTrack,
+        isInternalInitiative: isInternalInitiativeImport,
         phaseWeights: {
           initiation: 10,
           planning: 10,

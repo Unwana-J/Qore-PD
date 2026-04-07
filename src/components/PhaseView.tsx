@@ -466,7 +466,13 @@ export const PhaseView: React.FC<PhaseViewProps> = ({
             </div>
             <div className="flex items-center gap-3 mt-1">
               <StateBadge state={getAutoProjectState(project, spiThresholds)} />
-              <span className="text-sm text-slate-500 font-medium">{project.isInternalInitiative ? "Internal Initiative" : project.packageName}</span>
+              <span className="text-sm text-slate-500 font-medium">
+                {project.isInternalInitiative || project.deliveryTrack === 'Internal Initiative'
+                  ? 'Internal Initiative'
+                  : project.deliveryTrack === 'Customization'
+                    ? 'Custom Engagement'
+                    : project.packageName}
+              </span>
               {canReassign && (
                 <button 
                   onClick={onReassign}
@@ -1211,8 +1217,10 @@ export const PhaseView: React.FC<PhaseViewProps> = ({
               </div>
 
               <div className="col-span-2">
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Package</p>
-                {isEditingDetails ? (
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">
+                  {project.deliveryTrack === 'Customization' ? 'Engagement Type' : 'Package'}
+                </p>
+                {isEditingDetails && !project.isInternalInitiative && project.deliveryTrack !== 'Customization' && project.deliveryTrack !== 'Internal Initiative' ? (
                   <select
                     className={cn(
                       "w-full text-sm font-semibold text-slate-900 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 outline-none focus:ring-2 transition-all",
@@ -1222,12 +1230,18 @@ export const PhaseView: React.FC<PhaseViewProps> = ({
                     onChange={e => setEditDraft(d => ({ ...d, packageName: e.target.value }))}
                   >
                     <option value="">— Select package —</option>
-                    {packages.map(pkg => (
+                    {packages.filter(p => p.name !== 'Internal Initiative').map(pkg => (
                       <option key={pkg.name} value={pkg.name}>{pkg.name}</option>
                     ))}
                   </select>
                 ) : (
-                  <p className="text-sm font-semibold text-slate-900 py-1">{project.packageName || '—'}</p>
+                  <p className="text-sm font-semibold text-slate-900 py-1">
+                    {project.deliveryTrack === 'Customization'
+                      ? 'Custom Engagement'
+                      : project.isInternalInitiative || project.deliveryTrack === 'Internal Initiative'
+                        ? 'Internal Initiative'
+                        : project.packageName || '—'}
+                  </p>
                 )}
               </div>
 

@@ -29,10 +29,26 @@ export function useProjects(userRole: Role, config: AppConfig, userName: string 
       return 'Project must be Billed before it can be Closed.';
     }
     if (newState === 'Signed Off') {
-      const allClosed = project.services.length > 0 &&
-        project.services.every(s => project.serviceStates?.[s] === 'Closed');
-      if (!allClosed) {
-        return 'All services must be closed before signing off.';
+      const isInitiativeTrack = project.isInternalInitiative || project.deliveryTrack === 'Internal Initiative';
+      const isCustomTrack = project.deliveryTrack === 'Customization';
+
+      if (isInitiativeTrack || isCustomTrack) {
+        // For milestone-based projects, all milestones must be completed
+        const milestones = project.milestones || [];
+        if (milestones.length === 0) {
+          return 'At least one milestone must be completed before signing off.';
+        }
+        const allMilestonesDone = milestones.every(m => m.status === 'Closed');
+        if (!allMilestonesDone) {
+          return 'All milestones must be marked complete before signing off.';
+        }
+      } else {
+        // Standard track: all services must be closed
+        const allClosed = project.services.length > 0 &&
+          project.services.every(s => project.serviceStates?.[s] === 'Closed');
+        if (!allClosed) {
+          return 'All services must be closed before signing off.';
+        }
       }
     }
     if (newState === 'Delayed') {
@@ -147,9 +163,10 @@ export function useProjects(userRole: Role, config: AppConfig, userName: string 
     }
 
     try {
-      const isInternalInitiative = newProjectData.isInternalInitiative;
+      const isInternalInitiative = newProjectData.deliveryTrack === 'Internal Initiative' || newProjectData.isInternalInitiative;
+      const isCustomization = newProjectData.deliveryTrack === 'Customization';
       
-      const baselineDays = isInternalInitiative ? 0 : (newProjectData.services || []).reduce((acc, serviceName) => {
+      const baselineDays = (isInternalInitiative || isCustomization) ? (newProjectData.expectedDuration || 0) : (newProjectData.services || []).reduce((acc, serviceName) => {
         const baseline = config.serviceBaselines.find(sb => sb.name === serviceName);
         return acc + (baseline ? baseline.baselineDays : 0);
       }, 0);
@@ -172,7 +189,7 @@ export function useProjects(userRole: Role, config: AppConfig, userName: string 
         });
       }
 
-      const productLines = isInternalInitiative ? [] : Array.from(new Set(
+      const productLines = (isInternalInitiative || isCustomization) ? [] : Array.from(new Set(
         config.productLines
           .filter(pl => pl.services.some(s => (newProjectData.services || []).includes(s)))
           .map(pl => pl.name)
@@ -182,13 +199,15 @@ export function useProjects(userRole: Role, config: AppConfig, userName: string 
         ...newProjectData,
         assignedPM: pmName,
         productLines,
-        expectedDuration: isInternalInitiative ? 0 : baselineDays,
+        expectedDuration: (isInternalInitiative || isCustomization) ? (newProjectData.expectedDuration || 0) : baselineDays,
         expectedCompletionDate,
         currentCompletionDate: expectedCompletionDate,
         phases,
         phaseWeights: { ...config.projectLifecycleWeights },
         serviceStates,
         state: newProjectData.state || 'On-Track',
+        deliveryTrack: newProjectData.deliveryTrack || 'Standard',
+        isInternalInitiative,
         rebaselineRequests: [],
         suspensionCycles: []
       });

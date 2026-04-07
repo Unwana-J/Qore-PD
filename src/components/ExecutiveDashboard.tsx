@@ -10,7 +10,7 @@ import {
   Filter, Check, ChevronDown, X
 } from 'lucide-react';
 import { format, differenceInDays, parseISO, isWithinInterval } from 'date-fns';
-import { Project, Role, RevenueTrend, ProjectState, ProjectPriority, User, PackageConfig } from '../types';
+import { Project, Role, RevenueTrend, ProjectState, ProjectPriority, User, PackageConfig, DeliveryTrack } from '../types';
 import { MOCK_REVENUE_TREND } from '../mockData';
 import { formatCurrency, cn, calculateSPI } from '../lib/utils';
 import { PROJECT_STATE_COLORS, PRIORITY_COLORS, getThemeClasses } from '../lib/theme';
@@ -39,6 +39,7 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
 }) => {
   const [currencyFilter, setCurrencyFilter] = useState<'All' | 'NGN' | 'USD'>('All');
   const [globalFilter, setGlobalFilter] = useState<'All' | 'Enterprise' | 'Initiative'>('All');
+  const [deliveryTrackFilter, setDeliveryTrackFilter] = useState<'All' | DeliveryTrack>('All');
   const [periodFilter, setPeriodFilter] = useState<string>('All Time');
   const [customDateRange, setCustomDateRange] = useState<{ from: string; to: string }>({ from: '', to: '' });
   const [selectedPackages, setSelectedPackages] = useState<string[]>([]);
@@ -58,27 +59,32 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
         if (!p.isInternalInitiative) return false;
       }
 
-      // 2. Currency
+      // 2. Delivery Track filter (takes precedence over Portfolio Initiative tab)
+      if (deliveryTrackFilter !== 'All') {
+        const track = p.deliveryTrack || (p.isInternalInitiative ? 'Internal Initiative' : 'Standard');
+        if (track !== deliveryTrackFilter) return false;
+      }
+
+      // 3. Currency
       if (currencyFilter !== 'All' && p.currency !== currencyFilter) return false;
 
-      // 3. Packages (Multi-select)
+      // 4. Packages (Multi-select) — skip for non-standard tracks
       if (selectedPackages.length > 0 && !selectedPackages.includes(p.packageName)) return false;
 
-      // 4. Period
+      // 5. Period
       if (periodFilter !== 'All Time') {
         const pDate = new Date(p.startDate);
         if (periodFilter === 'Custom') {
           if (customDateRange.from && pDate < new Date(customDateRange.from)) return false;
           if (customDateRange.to && pDate > new Date(customDateRange.to)) return false;
         } else {
-          // Year preset
           if (pDate.getFullYear().toString() !== periodFilter) return false;
         }
       }
 
       return true;
     });
-  }, [projects, globalFilter, currencyFilter, periodFilter, customDateRange, selectedPackages]);
+  }, [projects, globalFilter, deliveryTrackFilter, currencyFilter, periodFilter, customDateRange, selectedPackages]);
 
   // --- Computations ---
 
@@ -368,6 +374,35 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
             ))}
           </div>
 
+          <div className="h-6 w-px bg-slate-200 mx-1" />
+
+          {/* Delivery Track Filter */}
+          <div className="flex bg-slate-100 p-1 rounded-2xl border border-slate-200">
+            {([
+              { id: 'All', label: 'All Tracks' },
+              { id: 'Standard', label: 'Standard' },
+              { id: 'Customization', label: 'Custom' },
+              { id: 'Internal Initiative', label: 'Internal' },
+            ] as { id: 'All' | DeliveryTrack; label: string }[]).map(f => (
+              <button
+                key={f.id}
+                onClick={() => setDeliveryTrackFilter(f.id)}
+                className={cn(
+                  "px-3 py-1.5 rounded-xl text-[10px] font-black transition-all uppercase tracking-wider",
+                  deliveryTrackFilter === f.id
+                    ? f.id === 'Customization'
+                      ? "bg-violet-600 text-white shadow-sm"
+                      : f.id === 'Internal Initiative'
+                        ? "bg-slate-700 text-white shadow-sm"
+                        : "bg-white text-slate-900 shadow-sm ring-1 ring-slate-200"
+                    : "text-slate-500 hover:text-slate-700"
+                )}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
+
           {/* Currency Filter */}
           <div className="flex bg-slate-100 p-1 rounded-2xl border border-slate-200 ml-auto">
             {(['All', 'NGN', 'USD'] as const).map(c => (
@@ -388,7 +423,7 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
         </div>
 
         {/* Active Filter Chips */}
-        {(periodFilter !== 'All Time' || selectedPackages.length > 0 || globalFilter !== 'All' || currencyFilter !== 'All') && (
+        {(periodFilter !== 'All Time' || selectedPackages.length > 0 || globalFilter !== 'All' || currencyFilter !== 'All' || deliveryTrackFilter !== 'All') && (
           <div className="flex flex-wrap items-center gap-2 animate-in fade-in slide-in-from-left-2 transition-all">
             <div className="flex items-center gap-1.5 px-2 text-slate-400">
               <Filter className="w-3 h-3" />
@@ -406,6 +441,13 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
               <FilterChip 
                 label={globalFilter === 'Enterprise' ? 'Enterprise' : 'Initiatives'} 
                 onRemove={() => setGlobalFilter('All')} 
+              />
+            )}
+
+            {deliveryTrackFilter !== 'All' && (
+              <FilterChip
+                label={`Track: ${deliveryTrackFilter}`}
+                onRemove={() => setDeliveryTrackFilter('All')}
               />
             )}
 
@@ -430,6 +472,7 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
                 setSelectedPackages([]);
                 setGlobalFilter('All');
                 setCurrencyFilter('All');
+                setDeliveryTrackFilter('All');
                 setCustomDateRange({ from: '', to: '' });
               }}
               className="px-3 py-1 text-[10px] font-black text-slate-400 hover:text-red-500 uppercase tracking-widest transition-colors flex items-center gap-1.5"

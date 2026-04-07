@@ -1,5 +1,7 @@
 export type Role = 'Superadmin' | 'Manager' | 'Team Lead' | 'PM' | 'Finance' | 'Executive';
 
+export type DeliveryTrack = 'Standard' | 'Customization' | 'Internal Initiative';
+
 export type ProjectState = 
   | 'On-Track' 
   | 'Delayed' 
@@ -111,6 +113,7 @@ export interface Project {
   totalActiveDays?: number;
   suspensionCycles: SuspensionCycle[];
   isInternalInitiative?: boolean;
+  deliveryTrack?: DeliveryTrack;
   milestones?: ExecutionMilestone[];
   phaseComments?: Partial<Record<PhaseName, MilestoneComment>>;
   intakeType?: 'New' | 'Old';
