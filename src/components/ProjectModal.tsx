@@ -498,7 +498,7 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
                       onChange={e => setFormData({ ...formData, value: e.target.value })}
                     />
                     <select required
-                      className={cn("w-32 flex-shrink-0 px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 outline-none transition-all font-bold", theme.ring, theme.focusBorder)}
+                      className={cn("w-36 flex-shrink-0 px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 outline-none transition-all font-bold", theme.ring, theme.focusBorder)}
                       value={formData.currency}
                       onChange={e => setFormData({ ...formData, currency: e.target.value })}>
                       {currencies.filter(c => c.isActive).map(c => (
