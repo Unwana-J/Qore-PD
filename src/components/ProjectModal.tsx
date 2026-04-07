@@ -605,7 +605,7 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
 
             {/* ======= STANDARD: Services in Scope ======= */}
             {isStandard && (
-              <div className="pt-6 border-t border-slate-100 flex flex-col gap-4">
+              <div className="pt-6 border-t border-slate-100 flex flex-col gap-3">
                 <div className="flex justify-between items-center">
                   <label className="text-xs font-bold text-slate-500 uppercase">Services in Scope</label>
                   <span className={cn("text-[10px] font-black px-2 py-0.5 rounded uppercase tracking-tighter", theme.lightText, theme.lightBg)}>
@@ -613,51 +613,54 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
                   </span>
                 </div>
 
-                <div className="max-h-[160px] overflow-y-auto px-1 pr-2 space-y-4 custom-scrollbar">
-                  {productLines.filter(pl => pl.services.some(s => selectedServices.includes(s))).map(pl => (
-                    <div key={pl.name} className="bg-slate-50 rounded-2xl p-4 border border-slate-100">
-                      <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2">
-                        <div className={cn("w-1.5 h-1.5 rounded-full", theme.bg)} />{pl.name}
-                      </h4>
-                      <div className="flex flex-wrap gap-2">
-                        {pl.services.filter(s => selectedServices.includes(s)).map(service => (
-                          <div key={service} className="flex items-center gap-2 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 shadow-sm">
-                            <span>{getServiceName(service)}</span>
-                            <button type="button" onClick={() => toggleService(service)} className="p-0.5 hover:bg-red-50 hover:text-red-500 rounded-md transition-colors">
-                              <X className="w-3 h-3" />
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-
-                  {selectedServices.length === 0 && (
-                    <div className="py-10 text-center border-2 border-dashed border-slate-100 rounded-2xl">
-                      <p className="text-sm text-slate-400 italic font-medium">No services selected. Select a package to auto-populate.</p>
-                    </div>
-                  )}
-
-                  <div className="pt-2">
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Add More Services (In Package)</p>
-                    <div className="flex flex-wrap gap-2">
-                      {(() => {
-                        const pkg = packages.find(p => p.name === formData.packageName);
-                        if (!pkg) return <p className="text-[10px] italic text-slate-400">Select a package to see available services</p>;
-                        const unselected = pkg.services.filter(s => !selectedServices.includes(s));
-                        if (unselected.length === 0) return <p className="text-[10px] italic text-slate-400">All package services selected</p>;
-                        return unselected.map(service => (
-                          <button key={service} type="button" onClick={() => toggleService(service)}
-                            className={cn("px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-[10px] font-bold text-slate-500 transition-all active:scale-95 shadow-sm hover:shadow-md", theme.hoverBorder, theme.hoverText)}>
-                            + {getServiceName(service)}
-                          </button>
-                        ));
-                      })()}
-                    </div>
+                {/* No package selected yet */}
+                {!formData.packageName && (
+                  <div className="py-8 text-center border-2 border-dashed border-slate-100 rounded-2xl">
+                    <p className="text-sm text-slate-400 italic font-medium">Select a package above to load services</p>
                   </div>
-                </div>
+                )}
+
+                {/* Package selected — show all services as chips; selected = teal, deselected = faded */}
+                {formData.packageName && (() => {
+                  const pkg = packages.find(p => p.name === formData.packageName);
+                  if (!pkg) return null;
+                  return (
+                    <div className="flex flex-wrap gap-2 p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                      {pkg.services.map(serviceId => {
+                        const isSelected = selectedServices.includes(serviceId);
+                        const serviceName = getServiceName(serviceId);
+                        return (
+                          <button
+                            key={serviceId}
+                            type="button"
+                            onClick={() => {
+                              setSelectedServices(prev =>
+                                isSelected ? prev.filter(s => s !== serviceId) : [...prev, serviceId]
+                              );
+                            }}
+                            className={cn(
+                              "flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all border active:scale-95",
+                              isSelected
+                                ? cn(theme.bg, "text-white border-transparent shadow-sm")
+                                : "bg-white text-slate-400 border-slate-200 line-through opacity-60 hover:opacity-100 hover:no-underline hover:text-slate-600"
+                            )}
+                            title={isSelected ? `Click to remove "${serviceName}" from scope` : `Click to add "${serviceName}" back to scope`}
+                          >
+                            {serviceName}
+                            {isSelected && <X className="w-3 h-3 flex-shrink-0" />}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  );
+                })()}
+
+                {formData.packageName && selectedServices.length === 0 && (
+                  <p className="text-xs text-red-500 font-bold">⚠ At least one service must be in scope</p>
+                )}
               </div>
             )}
+
 
             {/* ======= CUSTOMIZATION: Free-pick services ======= */}
             {isCustomization && (
