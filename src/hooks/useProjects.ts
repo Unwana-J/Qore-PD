@@ -310,6 +310,70 @@ export function useProjects(userRole: Role, config: AppConfig, userName: string 
         });
       }
 
+      // ── Detail-edit diff detection ────────────────────────────────
+      if (oldProject.startDate !== project.startDate) {
+        newActivities.unshift({
+          id: Math.random().toString(36).substr(2, 9),
+          type: 'Edit',
+          user: userName,
+          description: `Start date changed from ${oldProject.startDate} to ${project.startDate}`,
+          timestamp: now
+        });
+      }
+
+      if (oldProject.expectedCompletionDate !== project.expectedCompletionDate) {
+        newActivities.unshift({
+          id: Math.random().toString(36).substr(2, 9),
+          type: 'Edit',
+          user: userName,
+          description: `Expected completion date changed from ${oldProject.expectedCompletionDate} to ${project.expectedCompletionDate}`,
+          timestamp: now
+        });
+      }
+
+      if (oldProject.value !== project.value) {
+        newActivities.unshift({
+          id: Math.random().toString(36).substr(2, 9),
+          type: 'Edit',
+          user: userName,
+          description: `Project value updated from ${oldProject.value.toLocaleString()} to ${project.value.toLocaleString()} ${project.currency}`,
+          timestamp: now
+        });
+      }
+
+      if (oldProject.priority !== project.priority) {
+        newActivities.unshift({
+          id: Math.random().toString(36).substr(2, 9),
+          type: 'Edit',
+          user: userName,
+          description: `Priority changed from ${oldProject.priority} to ${project.priority}`,
+          timestamp: now
+        });
+      }
+
+      if (oldProject.packageName !== project.packageName) {
+        newActivities.unshift({
+          id: Math.random().toString(36).substr(2, 9),
+          type: 'Edit',
+          user: userName,
+          description: `Package changed from "${oldProject.packageName}" to "${project.packageName}"`,
+          timestamp: now
+        });
+      }
+
+      // PID sign-off
+      if (oldProject.pidSignedOffDate !== project.pidSignedOffDate) {
+        newActivities.unshift({
+          id: Math.random().toString(36).substr(2, 9),
+          type: 'Phase',
+          user: userName,
+          description: project.pidSignedOffDate
+            ? `PID signed off on ${project.pidSignedOffDate}`
+            : `PID sign-off reversed`,
+          timestamp: now
+        });
+      }
+
       const updatedProject = { 
         ...project, 
         updatedAt: new Date().toISOString().split('T')[0],
@@ -435,9 +499,19 @@ export function useProjects(userRole: Role, config: AppConfig, userName: string 
       submittedAt: new Date().toISOString()
     };
 
-    const updatedProject = {
+    const updatedProject: Project = {
       ...project,
-      rebaselineRequests: [request, ...(project.rebaselineRequests || [])]
+      rebaselineRequests: [request, ...(project.rebaselineRequests || [])],
+      activities: [
+        {
+          id: Math.random().toString(36).substr(2, 9),
+          type: 'Rebaseline' as const,
+          user: userName,
+          description: `Rebaseline requested: +${extensionDays} working day${extensionDays !== 1 ? 's' : ''}. New target: ${newDate}. Reason: "${comment}"`,
+          timestamp: new Date().toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })
+        },
+        ...(project.activities || [])
+      ]
     };
 
     return updateProject(updatedProject);

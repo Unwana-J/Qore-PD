@@ -156,11 +156,15 @@ export const PhaseView: React.FC<PhaseViewProps> = ({
     priority: string;
     value: number;
     currency: string;
+    startDate: string;
+    expectedCompletionDate: string;
   }>({
     packageName: project.packageName || '',
     priority: project.priority || 'P3',
     value: project.value || 0,
     currency: project.currency || 'NGN',
+    startDate: project.startDate || '',
+    expectedCompletionDate: project.expectedCompletionDate || '',
   });
 
   const handleOpenEdit = () => {
@@ -169,17 +173,29 @@ export const PhaseView: React.FC<PhaseViewProps> = ({
       priority: project.priority || 'P3',
       value: project.value || 0,
       currency: project.currency || 'NGN',
+      startDate: project.startDate || '',
+      expectedCompletionDate: project.expectedCompletionDate || '',
     });
     setIsEditingDetails(true);
   };
 
   const handleSaveDetails = () => {
+    const isInitiativeOrCustom = project.isInternalInitiative ||
+      project.deliveryTrack === 'Internal Initiative' ||
+      project.deliveryTrack === 'Customization';
+
     onUpdateProject({
       ...project,
       packageName: editDraft.packageName,
       priority: editDraft.priority as any,
       value: editDraft.value,
       currency: editDraft.currency,
+      // Dates only editable for Initiative/Customization (Standard uses rebaseline workflow)
+      ...(isInitiativeOrCustom && {
+        startDate: editDraft.startDate,
+        expectedCompletionDate: editDraft.expectedCompletionDate,
+        currentCompletionDate: editDraft.expectedCompletionDate,
+      })
     });
     setIsEditingDetails(false);
     onShowToast?.('Project details updated', 'success');
@@ -1146,13 +1162,18 @@ export const PhaseView: React.FC<PhaseViewProps> = ({
                       activity.type === 'Phase' ? "bg-emerald-500 text-white" :
                       activity.type === 'Risk' ? "bg-red-500 text-white" :
                       activity.type === 'Comment' ? "bg-purple-500 text-white" :
-                      activity.type === 'Rebaseline' ? "bg-amber-500 text-white" : "bg-slate-400 text-white"
+                      activity.type === 'Rebaseline' ? "bg-amber-500 text-white" :
+                      activity.type === 'Edit' ? "bg-indigo-500 text-white" :
+                      activity.type === 'Milestone' ? "bg-teal-500 text-white" : "bg-slate-400 text-white"
                     )}>
                       {activity.type === 'StateChange' ? <RefreshCw className="w-4 h-4" /> :
                        activity.type === 'Phase' ? <CheckCircle2 className="w-4 h-4" /> :
                        activity.type === 'Risk' ? <AlertTriangle className="w-4 h-4" /> :
                        activity.type === 'Comment' ? <MessageSquare className="w-4 h-4" /> :
-                       activity.type === 'Rebaseline' ? <RefreshCw className="w-4 h-4" /> : <Clock className="w-4 h-4" />}
+                       activity.type === 'Rebaseline' ? <RefreshCw className="w-4 h-4" /> :
+                       activity.type === 'Edit' ? <Pencil className="w-4 h-4" /> :
+                       activity.type === 'Milestone' ? <Check className="w-4 h-4" /> :
+                       <Clock className="w-4 h-4" />}
                     </div>
                     <div>
                       <div className="flex items-center justify-between mb-1">
@@ -1313,10 +1334,22 @@ export const PhaseView: React.FC<PhaseViewProps> = ({
 
               <div>
                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Start Date</p>
-                <div className="flex items-center gap-2">
-                  <Calendar className="w-4 h-4 text-slate-400" />
-                  <p className="text-sm font-semibold text-slate-900">{project.startDate}</p>
-                </div>
+                {isEditingDetails && (project.isInternalInitiative || project.deliveryTrack === 'Internal Initiative' || project.deliveryTrack === 'Customization') ? (
+                  <input
+                    type="date"
+                    className={cn(
+                      "w-full text-sm font-semibold text-slate-900 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 outline-none focus:ring-2 transition-all",
+                      theme.ring
+                    )}
+                    value={editDraft.startDate}
+                    onChange={e => setEditDraft(d => ({ ...d, startDate: e.target.value }))}
+                  />
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <Calendar className="w-4 h-4 text-slate-400" />
+                    <p className="text-sm font-semibold text-slate-900">{project.startDate}</p>
+                  </div>
+                )}
               </div>
 
               <div>
@@ -1326,7 +1359,19 @@ export const PhaseView: React.FC<PhaseViewProps> = ({
 
               <div>
                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Exp. Completion</p>
-                <p className="text-sm font-semibold text-slate-900">{project.expectedCompletionDate || project.startDate}</p>
+                {isEditingDetails && (project.isInternalInitiative || project.deliveryTrack === 'Internal Initiative' || project.deliveryTrack === 'Customization') ? (
+                  <input
+                    type="date"
+                    className={cn(
+                      "w-full text-sm font-semibold text-slate-900 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 outline-none focus:ring-2 transition-all",
+                      theme.ring
+                    )}
+                    value={editDraft.expectedCompletionDate}
+                    onChange={e => setEditDraft(d => ({ ...d, expectedCompletionDate: e.target.value }))}
+                  />
+                ) : (
+                  <p className="text-sm font-semibold text-slate-900">{project.expectedCompletionDate || project.startDate}</p>
+                )}
               </div>
 
               <div>

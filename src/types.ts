@@ -31,7 +31,7 @@ export interface Phase {
   status: PhaseStatus;
 }
 
-export type ActivityType = 'Comment' | 'Risk' | 'Phase' | 'StateChange' | 'System' | 'Rebaseline';
+export type ActivityType = 'Comment' | 'Risk' | 'Phase' | 'StateChange' | 'System' | 'Rebaseline' | 'Edit' | 'Milestone';
 
 export interface ProjectActivity {
   id: string;
