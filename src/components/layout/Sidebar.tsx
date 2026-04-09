@@ -20,7 +20,8 @@ interface SidebarProps {
   selectedProject: any;
   setSelectedProject: (project: any) => void;
   userRole: Role;
-  setUserRole: (role: Role) => void;
+  setUserRole: (role: Role | null) => void;
+  actualRole?: Role;
   config: AppConfig;
   isSidebarOpen: boolean;
   setIsSidebarOpen: (isOpen: boolean) => void;
@@ -39,6 +40,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   setSelectedProject,
   userRole,
   setUserRole,
+  actualRole,
   config,
   isSidebarOpen,
   setIsSidebarOpen,
@@ -49,7 +51,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onSignOut,
   userName = 'User'
 }) => {
+  const [isRoleSelectOpen, setIsRoleSelectOpen] = React.useState(false);
   const theme = getThemeClasses(config.brand.themeColor);
+  
+  const allRoles: Role[] = ['PM', 'Team Lead', 'Manager', 'Executive', 'Finance', 'Superadmin'];
 
   const NavItem = ({ icon: Icon, label, view }: { icon: any, label: string, view: View }) => (
     <button 
@@ -166,9 +171,48 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 {userRole[0]}
               </div>
               {!isSidebarCollapsed && (
-                <div className="min-w-0 animate-in fade-in slide-in-from-left-2 duration-300">
+                <div className="min-w-0 animate-in fade-in slide-in-from-left-2 duration-300 relative">
                   <p className="text-sm font-bold text-slate-900 truncate">{userName}</p>
-                  <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">{userRole}</p>
+                  {actualRole === 'Superadmin' || actualRole === 'Executive' ? (
+                    <div className="relative">
+                      <button 
+                        onClick={() => setIsRoleSelectOpen(!isRoleSelectOpen)}
+                        className="text-[10px] font-bold text-slate-500 uppercase tracking-wider hover:text-indigo-600 transition-colors flex items-center gap-1 group"
+                        title="Switch view role"
+                      >
+                        {userRole}
+                        <ChevronRight className={cn("w-3 h-3 opacity-50 group-hover:opacity-100 transition-transform", isRoleSelectOpen && "rotate-90")} />
+                      </button>
+                      
+                      {isRoleSelectOpen && (
+                        <>
+                          <div className="fixed inset-0 z-40" onClick={() => setIsRoleSelectOpen(false)} />
+                          <div className="absolute bottom-full left-0 mb-2 w-48 bg-white border border-slate-200 rounded-xl shadow-xl overflow-hidden py-1 z-50">
+                            <div className="px-3 py-2 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                              View As
+                            </div>
+                            {allRoles.map(r => (
+                              <button
+                                key={r}
+                                onClick={() => {
+                                  setUserRole(r === actualRole ? null : r);
+                                  setIsRoleSelectOpen(false);
+                                }}
+                                className={cn(
+                                  "w-full text-left px-3 py-2 text-xs font-bold transition-colors",
+                                  userRole === r ? "bg-indigo-50 text-indigo-700" : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                                )}
+                              >
+                                {r}
+                              </button>
+                            ))}
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  ) : (
+                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">{userRole}</p>
+                  )}
                 </div>
               )}
             </div>

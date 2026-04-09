@@ -1,8 +1,9 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import { Project, Role, AppConfig, ProjectPriority, ProjectActivity, ActivityType, RebaselineRequest, Phase, ServiceState, ProjectState } from '../types';
 import { api } from '../lib/api';
+import { supabase } from '../lib/supabase';
 import { calculateWorkingDays, getActiveDaysCount, calculateSPI, getAutoProjectState, isRole, hasRole } from '../lib/utils';
 
 export function useProjects(userRole: Role, config: AppConfig, userName: string = 'User') {
@@ -79,6 +80,38 @@ export function useProjects(userRole: Role, config: AppConfig, userName: string 
     },
     staleTime: 5 * 60 * 1000, // 5 minutes fresh
   });
+
+  // ── Realtime: instant notification when webhook inserts a new project ──────
+  useEffect(() => {
+    const channel = supabase
+      .channel('projects-webhook-inserts')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'projects' },
+        (payload) => {
+          // Invalidate React Query cache so the new project is fetched immediately
+          queryClient.invalidateQueries({ queryKey: ['projects'] });
+
+          // Fire an in-app notification for leadership roles
+          const clientName = (payload.new as any).client_name || 'Unknown project';
+          const projectId  = (payload.new as any).id || '';
+          const notifId    = Math.random().toString(36).substr(2, 9);
+          setNotifications(prev => [
+            ...prev,
+            {
+              id: notifId,
+              message: `New project received from data warehouse: "${clientName}"`,
+              projectId,
+            },
+          ]);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [queryClient]);
 
   // Rebaseline Notifications for leadership
   useMemo(() => {

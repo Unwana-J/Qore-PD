@@ -45,7 +45,9 @@ function AppContent() {
   const [projectToReassign, setProjectToReassign] = useState<Project | null>(null);
   const [showSPIAnomaly, setShowSPIAnomaly] = useState(true);
   const { success, error: notifyError, info } = useNotifications();
-  const userRole = profile?.role;
+  const [simulatedRole, setSimulatedRole] = useState<Role | null>(null);
+  const actualRole = profile?.role;
+  const userRole = simulatedRole || actualRole;
 
   const {
     filteredProjects,
@@ -242,8 +244,9 @@ function AppContent() {
         setCurrentView={setCurrentView}
         selectedProject={selectedProject}
         setSelectedProject={setSelectedProject}
-        userRole={userRole}
-        setUserRole={() => {}} // Disabled for now as it's profile-based
+        userRole={userRole as Role}
+        setUserRole={setSimulatedRole}
+        actualRole={actualRole as Role}
         config={config}
         isSidebarOpen={isSidebarOpen}
         setIsSidebarOpen={setIsSidebarOpen}
