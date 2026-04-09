@@ -431,6 +431,7 @@ function AppContent() {
                       <RisksTable 
                         projects={filteredProjects} 
                         onSelectProject={setSelectedProject} 
+                        riskCategories={config.riskCategories}
                       />
                     )}
                     {currentView === 'rebaseline-requests' && (

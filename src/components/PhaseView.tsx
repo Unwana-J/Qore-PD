@@ -140,6 +140,13 @@ export const PhaseView: React.FC<PhaseViewProps> = ({
   const [commentText, setCommentText] = useState('');
   const [isAddingRisk, setIsAddingRisk] = useState(false);
   const [newRisk, setNewRisk] = useState({ description: '', impact: 'Medium' as Risk['impact'], category: riskCategories[0] || 'General' });
+
+  // Sync newRisk category if riskCategories load after mount
+  React.useEffect(() => {
+    if (newRisk.category === 'General' && riskCategories.length > 0) {
+      setNewRisk(prev => ({ ...prev, category: riskCategories[0] }));
+    }
+  }, [riskCategories]);
   
   const [isRebaselineModalOpen, setIsRebaselineModalOpen] = useState(false);
   const [rebaselineDays, setRebaselineDays] = useState(1);
@@ -398,6 +405,13 @@ export const PhaseView: React.FC<PhaseViewProps> = ({
   const handleRiskStatusChange = (riskId: string, newStatus: Risk['status']) => {
     const updatedRisks = project.risks.map(r => 
       r.id === riskId ? { ...r, status: newStatus } : r
+    );
+    onUpdateProject({ ...project, risks: updatedRisks });
+  };
+
+  const handleRiskCategoryChange = (riskId: string, newCategory: string) => {
+    const updatedRisks = (project.risks || []).map(r => 
+      r.id === riskId ? { ...r, category: newCategory } : r
     );
     onUpdateProject({ ...project, risks: updatedRisks });
   };
@@ -1132,6 +1146,18 @@ export const PhaseView: React.FC<PhaseViewProps> = ({
                         )}>
                           {risk.impact}
                         </span>
+                        {canEdit && riskCategories.length > 0 && (
+                          <select 
+                            value={risk.category || 'General'}
+                            onChange={(e) => handleRiskCategoryChange(risk.id, e.target.value)}
+                            className="text-[10px] font-bold uppercase flex items-center gap-1 bg-slate-100 border border-transparent hover:border-slate-300 rounded px-1.5 py-0.5 transition-all outline-none"
+                          >
+                            <option value="General">General</option>
+                            {riskCategories.map(cat => (
+                              <option key={cat} value={cat}>{cat}</option>
+                            ))}
+                          </select>
+                        )}
                         {canEdit ? (
                           <select 
                             value={risk.status}

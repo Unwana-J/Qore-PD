@@ -6,9 +6,10 @@ import { AlertTriangle, Shield, Clock, CheckCircle, Filter } from 'lucide-react'
 interface RisksTableProps {
   projects: Project[];
   onSelectProject: (project: Project) => void;
+  riskCategories?: string[];
 }
 
-export const RisksTable: React.FC<RisksTableProps> = ({ projects, onSelectProject }) => {
+export const RisksTable: React.FC<RisksTableProps> = ({ projects, onSelectProject, riskCategories = [] }) => {
   const [filterStatus, setFilterStatus] = useState<string>('All');
   const [filterCategory, setFilterCategory] = useState<string>('All');
   const [filterPM, setFilterPM] = useState<string>('All');
@@ -26,7 +27,10 @@ export const RisksTable: React.FC<RisksTableProps> = ({ projects, onSelectProjec
     );
   }, [projects]);
 
-  const categories = useMemo(() => Array.from(new Set(allRisks.map(r => r.category || 'General'))).sort(), [allRisks]);
+  const categories = useMemo(() => {
+    const fromRisks = allRisks.map(r => r.category || 'General');
+    return Array.from(new Set([...riskCategories, ...fromRisks])).sort();
+  }, [allRisks, riskCategories]);
   const pms = useMemo(() => Array.from(new Set(allRisks.map(r => r.assignedPM))).sort(), [allRisks]);
 
   const filteredRisks = useMemo(() => {
