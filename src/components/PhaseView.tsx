@@ -48,13 +48,14 @@ interface PhaseViewProps {
   validateStateTransition?: (project: Project, newState: string) => string | null;
   onShowToast?: (msg: string, type?: 'success' | 'error' | 'info') => void;
   userName?: string;
+  riskCategories?: string[];
 }
 
 export const PhaseView: React.FC<PhaseViewProps> = ({ 
   project: rawProject, onBack, onUpdateProject, onSubmitRebaseline, 
   onApproveRebaseline, onDeclineRebaseline, 
   userRole, currencies = [], serviceBaselines = [], packages = [], themeColor = 'teal', onReassign, defaultPhases = [],
-  spiThresholds, validateStateTransition, onShowToast, userName
+  spiThresholds, validateStateTransition, onShowToast, userName, riskCategories = []
 }) => {
   const effectiveIds = getEffectiveServiceIds(rawProject, packages, serviceBaselines);
 
@@ -138,7 +139,7 @@ export const PhaseView: React.FC<PhaseViewProps> = ({
   const [activeTab, setActiveTab] = useState<'overview' | 'activity'>('overview');
   const [commentText, setCommentText] = useState('');
   const [isAddingRisk, setIsAddingRisk] = useState(false);
-  const [newRisk, setNewRisk] = useState({ description: '', impact: 'Medium' as Risk['impact'] });
+  const [newRisk, setNewRisk] = useState({ description: '', impact: 'Medium' as Risk['impact'], category: riskCategories[0] || 'General' });
   
   const [isRebaselineModalOpen, setIsRebaselineModalOpen] = useState(false);
   const [rebaselineDays, setRebaselineDays] = useState(1);
@@ -428,6 +429,7 @@ export const PhaseView: React.FC<PhaseViewProps> = ({
       description: newRisk.description,
       impact: newRisk.impact,
       status: 'Open',
+      category: newRisk.category,
       createdAt: new Date().toISOString().split('T')[0]
     };
 
@@ -435,7 +437,7 @@ export const PhaseView: React.FC<PhaseViewProps> = ({
       ...project,
       risks: [risk, ...project.risks]
     });
-    setNewRisk({ description: '', impact: 'Medium' });
+    setNewRisk({ description: '', impact: 'Medium', category: riskCategories[0] || 'General' });
     setIsAddingRisk(false);
   };
 
@@ -1091,6 +1093,17 @@ export const PhaseView: React.FC<PhaseViewProps> = ({
                         <option value="Medium">Medium Impact</option>
                         <option value="High">High Impact</option>
                       </select>
+                      {riskCategories.length > 0 && (
+                        <select
+                          className="flex-1 px-3 py-2 bg-white border border-red-200 rounded-xl text-sm outline-none"
+                          value={newRisk.category}
+                          onChange={e => setNewRisk({...newRisk, category: e.target.value})}
+                        >
+                          {riskCategories.map(cat => (
+                            <option key={cat} value={cat}>{cat}</option>
+                          ))}
+                        </select>
+                      )}
                       <button type="submit" className="px-6 py-2 bg-red-600 text-white font-bold rounded-xl text-sm">Log Risk</button>
                     </div>
                   </form>
@@ -1101,7 +1114,15 @@ export const PhaseView: React.FC<PhaseViewProps> = ({
                     <div key={risk.id} className="p-4 bg-slate-50 rounded-2xl border border-slate-100 flex justify-between items-start">
                       <div className="space-y-1">
                         <p className="text-sm font-semibold text-slate-900">{risk.description}</p>
-                        <p className="text-[10px] text-slate-400 font-mono">Logged on {risk.createdAt}</p>
+                        <div className="flex gap-2 items-center">
+                          <p className="text-[10px] text-slate-400 font-mono">Logged on {risk.createdAt}</p>
+                          {risk.category && (
+                            <>
+                              <span className="text-slate-300 text-[10px]">•</span>
+                              <span className="text-[10px] bg-slate-200/50 text-slate-500 uppercase font-black px-1.5 py-0.5 rounded tracking-widest">{risk.category}</span>
+                            </>
+                          )}
+                        </div>
                       </div>
                       <div className="flex flex-col items-end gap-2">
                         <span className={cn(

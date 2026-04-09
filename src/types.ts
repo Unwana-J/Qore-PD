@@ -55,6 +55,7 @@ export interface Risk {
   description: string;
   impact: 'Low' | 'Medium' | 'High';
   status: 'Open' | 'Addressing' | 'Closed';
+  category?: string;
   createdAt: string;
 }
 
@@ -119,6 +120,7 @@ export interface Project {
   intakeType?: 'New' | 'Old';
   actualCompletionDate?: string;
   externalId?: string;
+  tags?: string[];
 }
 
 export interface PackageConfig {
@@ -173,7 +175,7 @@ export interface BrandConfig {
   companyName: string;
 }
 
-export type SettingsTab = 'performance' | 'users' | 'project' | 'priority' | 'revenue' | 'audit' | 'account' | 'brand' | 'currencies' | 'packages' | 'integrations';
+export type SettingsTab = 'performance' | 'users' | 'project' | 'priority' | 'revenue' | 'audit' | 'account' | 'brand' | 'currencies' | 'packages' | 'integrations' | 'taxonomies';
 
 export interface AppConfig {
   spiThresholds: { onTrack: number; atRisk: number };
@@ -198,6 +200,10 @@ export interface AppConfig {
   isSetupComplete?: boolean;
   dismissedChecklistItems?: string[];
   webhookSecret?: string;
+  allowedRoleSwitchers?: Role[];
+  maintenanceMode?: boolean;
+  customTags?: { id: string; name: string; color: string }[];
+  riskCategories?: string[];
 }
 
 export interface WeightHistory {

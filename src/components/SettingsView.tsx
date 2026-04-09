@@ -22,7 +22,9 @@ import {
   Palette,
   Filter,
   Link as LinkIcon,
-  AlertTriangle
+  AlertTriangle,
+  Tags,
+  Plus
 } from 'lucide-react';
 import { 
   Role, 
@@ -125,6 +127,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     if (tab === 'audit' && hasRole(userRole, ['Executive', 'Superadmin'])) return true;
     if (tab === 'revenue' && hasRole(userRole, ['Finance', 'Superadmin'])) return true;
     if (tab === 'users' && isRole(userRole, 'Manager')) return true;
+    if (tab === 'taxonomies' && isRole(userRole, 'Superadmin')) return true;
 
     return false;
   };
@@ -185,6 +188,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           <SidebarItem id="revenue" icon={DollarSign} label="Revenue Controls" />
           <SidebarItem id="brand" icon={Palette} label="White Labelling" />
           <SidebarItem id="packages" icon={Box} label="Package & Service" />
+          <SidebarItem id="taxonomies" icon={Tags} label="Taxonomies & Labels" />
           <SidebarItem id="integrations" icon={LinkIcon} label="Integrations" />
           <SidebarItem id="audit" icon={History} label="System Audit Log" />
         </div>
@@ -210,6 +214,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               onUpdateProjects={onUpdateProjects}
               currentUserRole={userRole}
               config={draftConfig}
+              setConfig={setDraftConfig}
               showToast={showToast}
               setShowUserRemoveConfirm={setShowUserRemoveConfirm}
               refreshProfile={refreshProfile}
@@ -220,6 +225,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           {activeTab === 'revenue' && <RevenueSettings config={draftConfig} setConfig={setDraftConfig} userRole={userRole} theme={theme} />}
           {activeTab === 'brand' && <BrandSettings config={draftConfig} setConfig={setDraftConfig} userRole={userRole} theme={theme} />}
           {activeTab === 'packages' && <PackageServiceConfig config={draftConfig} setConfig={setDraftConfig} theme={theme} showToast={showToast} />}
+          {activeTab === 'taxonomies' && <TaxonomiesSettings config={draftConfig} setConfig={setDraftConfig} theme={theme} showToast={showToast} />}
           {activeTab === 'integrations' && <IntegrationsSettings config={draftConfig} setConfig={setDraftConfig} theme={theme} />}
           {activeTab === 'account' && <AccountSettings user={user} profile={profile} refreshProfile={refreshProfile} theme={theme} showToast={showToast} />}
           {activeTab === 'audit' && <AuditView logs={auditLogs} />}
@@ -296,7 +302,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 // --- Sub-components ---
 
 
-const UserManagement = ({ users, setUsers, invites, setInvites, projects, onUpdateProjects, currentUserRole, config, showToast, setShowUserRemoveConfirm, refreshProfile }: any) => {
+const UserManagement = ({ users, setUsers, invites, setInvites, projects, onUpdateProjects, currentUserRole, config, setConfig, showToast, setShowUserRemoveConfirm, refreshProfile }: any) => {
   const theme = getThemeClasses(config.brand.themeColor);
   const [isAdding, setIsAdding] = useState(false);
   const [newUser, setNewUser] = useState({ name: '', email: '', role: 'PM' as Role });
@@ -505,6 +511,66 @@ const UserManagement = ({ users, setUsers, invites, setInvites, projects, onUpda
           </div>
         )}
       </div>
+
+      {isRole(currentUserRole, 'Superadmin') && (
+        <div className="pt-8 mt-8 border-t border-slate-200 space-y-6">
+          <div>
+            <h3 className="text-lg font-bold text-slate-900">System Permissions</h3>
+            <p className="text-sm text-slate-500">Enable advanced features for specific user roles.</p>
+          </div>
+
+          <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100 flex flex-col gap-4">
+            <div>
+              <p className="text-sm font-bold text-slate-900">Platform Role Simulation</p>
+              <p className="text-xs text-slate-500 mt-1">Allow specific roles to use the "View As" switcher to simulate how the system looks to different levels of clearance. <span className="text-indigo-600 font-medium">Superadmins always have access.</span></p>
+            </div>
+            
+            <div className="flex flex-wrap gap-4 mt-2">
+              {['Executive', 'Manager', 'Finance', 'Team Lead'].map((roleStr) => {
+                const role = roleStr as Role;
+                const isEnabled = (config.allowedRoleSwitchers || ['Superadmin', 'Executive']).includes(role);
+                return (
+                   <label key={role} className="flex items-center gap-3 p-3 bg-white border border-slate-200 rounded-xl cursor-pointer hover:border-indigo-200 transition-all select-none">
+                     <div className={cn(
+                       "w-5 h-5 rounded flex items-center justify-center transition-colors",
+                       isEnabled ? cn(theme.bg, "border-transparent") : "border-2 border-slate-300 bg-white"
+                     )}>
+                       {isEnabled && <Check className="w-3 h-3 text-white" />}
+                     </div>
+                     <span className="text-sm font-bold text-slate-700">{role}</span>
+                     <input 
+                       type="checkbox" 
+                       className="hidden"
+                       checked={isEnabled}
+                       onChange={() => {
+                         const current = config.allowedRoleSwitchers || ['Superadmin', 'Executive'];
+                         const updated = isEnabled 
+                           ? current.filter(r => r !== role)
+                           : [...current, role];
+                           
+                         setConfig({ ...config, allowedRoleSwitchers: updated });
+                       }}
+                     />
+                   </label>
+                )
+              })}
+            </div>
+          </div>
+
+          <div className="bg-red-50 p-6 rounded-2xl border border-red-100 flex items-center justify-between">
+            <div>
+              <p className="text-sm font-bold text-red-900">Emergency Maintenance Mode</p>
+              <p className="text-xs text-red-700 mt-1">Globally intercept and lock out all non-Superadmin traffic to a "System Maintenance" holding screen.</p>
+            </div>
+            <button 
+              onClick={() => setConfig({...config, maintenanceMode: !config.maintenanceMode})}
+              className={cn("w-12 h-6 rounded-full relative transition-all", config.maintenanceMode ? "bg-red-600" : "bg-red-200/50")}
+            >
+              <div className={cn("absolute top-1 w-4 h-4 bg-white rounded-full transition-all", config.maintenanceMode ? "left-7 shadow-md" : "left-1")} />
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
@@ -1407,3 +1473,161 @@ const IntegrationsSettings = ({ config, setConfig, theme }: any) => {
     </div>
   );
 };
+
+const TaxonomiesSettings = ({ config, setConfig, theme, showToast }: any) => {
+  const [newTag, setNewTag] = useState({ name: '', color: 'indigo' });
+  const [newRiskCategory, setNewRiskCategory] = useState('');
+
+  const colors = ['indigo', 'amber', 'rose', 'emerald', 'sky', 'violet', 'fuchsia'];
+
+  const handleAddTag = () => {
+    if (!newTag.name.trim()) return;
+    const tag = {
+      id: 't_' + Math.random().toString(36).substr(2, 9),
+      name: newTag.name.trim(),
+      color: newTag.color
+    };
+    setConfig({ ...config, customTags: [...(config.customTags || []), tag] });
+    setNewTag({ name: '', color: 'indigo' });
+    showToast('Tag added.', 'success');
+  };
+
+  const handleRemoveTag = (id: string) => {
+    setConfig({ ...config, customTags: (config.customTags || []).filter((t: any) => t.id !== id) });
+  };
+
+  const handleAddRiskCategory = () => {
+    if (!newRiskCategory.trim()) return;
+    if ((config.riskCategories || []).includes(newRiskCategory.trim())) {
+      showToast('Category already exists.', 'error');
+      return;
+    }
+    setConfig({ ...config, riskCategories: [...(config.riskCategories || []), newRiskCategory.trim()] });
+    setNewRiskCategory('');
+    showToast('Risk category added.', 'success');
+  };
+
+  const handleRemoveRiskCategory = (category: string) => {
+    setConfig({ ...config, riskCategories: (config.riskCategories || []).filter((c: string) => c !== category) });
+  };
+
+  return (
+    <div className="p-8 space-y-8 animate-in fade-in duration-300">
+      <div>
+        <h3 className="text-xl font-black text-slate-900 tracking-tight uppercase">Taxonomies & Labels</h3>
+        <p className="text-sm font-bold text-slate-500">Manage dynamic categories and project tags used across the application.</p>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* Project Tags */}
+        <div className="space-y-4">
+          <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100 h-full flex flex-col">
+            <h4 className="text-sm font-black text-slate-900 mb-1">Custom Project Tags</h4>
+            <p className="text-xs font-bold text-slate-500 mb-6">Create badge labels that can be assigned to projects.</p>
+            
+            <div className="space-y-4 mb-6">
+              <input 
+                placeholder="New Tag Name..."
+                className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm font-bold outline-none"
+                value={newTag.name}
+                onChange={e => setNewTag({ ...newTag, name: e.target.value })}
+              />
+              <div className="flex gap-2 items-center justify-between">
+                <div className="flex gap-2">
+                  {colors.map(color => (
+                    <button
+                      key={color}
+                      onClick={() => setNewTag({ ...newTag, color })}
+                      className={cn(
+                        "w-6 h-6 rounded-full border-2 transition-all",
+                        newTag.color === color ? "border-slate-800 scale-110" : "border-transparent opacity-50 hover:opacity-100",
+                        `bg-${color}-500`
+                      )}
+                    />
+                  ))}
+                </div>
+                <button
+                  onClick={handleAddTag}
+                  className={cn("p-2 rounded-xl text-white transition-all active:scale-95", theme.bg)}
+                >
+                  <Plus className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap gap-2 flex-1 content-start">
+              {(config.customTags || []).map((tag: any) => (
+                <div 
+                  key={tag.id}
+                  className={cn(
+                    "group flex items-center gap-2 pl-3 pr-1 py-1 rounded-full border text-xs font-bold",
+                    `bg-${tag.color}-50 text-${tag.color}-700 border-${tag.color}-200`
+                  )}
+                >
+                  {tag.name}
+                  <button 
+                    onClick={() => handleRemoveTag(tag.id)}
+                    className={cn(
+                      "p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity",
+                      `hover:bg-${tag.color}-100`
+                    )}
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </div>
+              ))}
+              {(config.customTags || []).length === 0 && (
+                <p className="text-xs text-slate-400 font-medium italic">No custom tags created yet.</p>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Risk Categories */}
+        <div className="space-y-4">
+          <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100 h-full flex flex-col">
+            <h4 className="text-sm font-black text-slate-900 mb-1">Risk Categories</h4>
+            <p className="text-xs font-bold text-slate-500 mb-6">Manage the dropdown list options for documenting project risks.</p>
+            
+            <div className="flex gap-2 mb-6">
+              <input 
+                placeholder="New Category..."
+                className="flex-1 px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm font-bold outline-none"
+                value={newRiskCategory}
+                onChange={e => setNewRiskCategory(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && handleAddRiskCategory()}
+              />
+              <button
+                onClick={handleAddRiskCategory}
+                className={cn("px-4 py-2 rounded-xl text-white font-bold transition-all active:scale-95", theme.bg)}
+              >
+                Add
+              </button>
+            </div>
+
+            <div className="space-y-2 flex-1 content-start overflow-y-auto max-h-[300px] pr-2 custom-scrollbar">
+              {(config.riskCategories || []).map((category: string) => (
+                <div 
+                  key={category}
+                  className="group flex flex-col justify-center px-4 py-2 bg-white border border-slate-200 rounded-xl relative overflow-hidden transition-all"
+                >
+                  <p className="text-sm font-bold text-slate-900 z-10">{category}</p>
+                  <button 
+                    onClick={() => handleRemoveRiskCategory(category)}
+                    className="absolute right-2 p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg opacity-0 group-hover:opacity-100 transition-all z-20"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              ))}
+              {(config.riskCategories || []).length === 0 && (
+                <p className="text-xs text-slate-400 font-medium italic">No risk categories created yet.</p>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+

@@ -23,11 +23,12 @@ interface ProjectListProps {
   initialSearch?: string;
   initialStateFilter?: ProjectState | 'All';
   loading?: boolean;
+  customTags?: { id: string; name: string; color: string }[];
 }
 
 export const ProjectList: React.FC<ProjectListProps> = ({ 
   projects, onSelectProject, userRole, users, packages = [], serviceBaselines = [], allPMNames = [], onReassignProject, 
-  themeColor = 'teal', staleThresholdDays, spiThresholds, initialSearch = '', initialStateFilter = 'All', loading = false 
+  themeColor = 'teal', staleThresholdDays, spiThresholds, initialSearch = '', initialStateFilter = 'All', loading = false, customTags = []
 }) => {
   const [search, setSearch] = useState(initialSearch);
   const [stateFilter, setStateFilter] = useState<ProjectState | 'All'>(initialStateFilter);
@@ -409,6 +410,18 @@ export const ProjectList: React.FC<ProjectListProps> = ({
                         Initiative
                       </span>
                     )}
+                    {(project.tags || []).map(tagId => {
+                      const tagDef = customTags.find(t => t.id === tagId);
+                      if (!tagDef) return null;
+                      return (
+                        <span key={tagId} className={cn(
+                          "flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-tighter border backdrop-blur-sm shadow-sm ring-4",
+                          `bg-${tagDef.color}-100/50 text-${tagDef.color}-700 border-${tagDef.color}-200/50 ring-${tagDef.color}-500/5`
+                        )}>
+                          {tagDef.name}
+                        </span>
+                      );
+                    })}
                   </div>
                 </div>
                 <p className="text-[13px] text-slate-500 font-bold uppercase tracking-wider">{project.packageName}</p>

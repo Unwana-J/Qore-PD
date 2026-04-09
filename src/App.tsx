@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Loader2, AlertCircle, RefreshCw, UserCircle, ChevronRight, Clock, AlertTriangle, CheckCircle2, X } from 'lucide-react';
+import { Loader2, AlertCircle, RefreshCw, UserCircle, ChevronRight, Clock, AlertTriangle, CheckCircle2, X, Settings } from 'lucide-react';
 import { cn, isRole, hasRole, resolveServiceIds } from './lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
 import { Sidebar } from './components/layout/Sidebar';
@@ -223,6 +223,39 @@ function AppContent() {
     );
   }
 
+  // Maintenance Mode Intercept
+  if (config.maintenanceMode && actualRole !== 'Superadmin') {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-slate-900 text-slate-200 p-6 selection:bg-teal-500/30">
+        <div className="w-20 h-20 bg-slate-800 rounded-3xl flex items-center justify-center mb-8 shadow-2xl relative overflow-hidden backdrop-blur-xl border border-slate-700/50">
+          <div className="absolute inset-0 bg-gradient-to-tr from-teal-500/20 to-transparent" />
+          <Settings className="w-10 h-10 text-teal-400 animate-spin-slow relative z-10" />
+        </div>
+        
+        <h1 className="text-3xl font-black text-white tracking-tight mb-3">System Under Maintenance</h1>
+        <p className="max-w-md text-center text-slate-400 font-medium mb-10 text-sm leading-relaxed">
+          The Solution Delivery platform is currently undergoing scheduled maintenance to improve performance and reliability.
+          Please check back shortly.
+        </p>
+
+        <div className="flex gap-4">
+          <button 
+            onClick={() => window.location.reload()}
+            className="px-6 py-3 bg-white text-slate-900 font-bold rounded-xl shadow-xl hover:bg-slate-100 transition-all active:scale-95 flex items-center gap-2"
+          >
+            <RefreshCw className="w-4 h-4" /> Try Again
+          </button>
+          <button 
+            onClick={signOut}
+            className="px-6 py-3 bg-slate-800 text-slate-300 font-bold rounded-xl hover:bg-slate-700 hover:text-white transition-all active:scale-95"
+          >
+            Sign Out
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-slate-50 flex font-sans text-slate-900 relative">
       {/* Graceful reconnection banner — slides in during idle-resume token refresh */}
@@ -327,6 +360,7 @@ function AppContent() {
                     validateStateTransition={validateStateTransition}
                     onShowToast={(msg, type) => type === 'error' ? notifyError(msg) : success(msg)}
                     userName={profile?.name}
+                    riskCategories={config.riskCategories}
                   />
                 ) : (
                   <>
@@ -390,6 +424,7 @@ function AppContent() {
                         onReassignProject={setProjectToReassign}
                         spiThresholds={config.spiThresholds}
                         loading={projectsLoading}
+                        customTags={config.customTags}
                       />
                     )}
                     {currentView === 'risks' && (
@@ -445,6 +480,7 @@ function AppContent() {
         serviceBaselines={config.serviceBaselines}
         packages={config.packages}
         productLines={config.productLines}
+        customTags={config.customTags}
       />
 
       {projectToReassign && (

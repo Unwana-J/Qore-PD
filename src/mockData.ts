@@ -501,7 +501,15 @@ export const INITIAL_CONFIG: AppConfig = {
     hideImportGuide: false,
     orgName: 'Qore',
     logoUrl: '/logo.png',
-    isSetupComplete: true
+    isSetupComplete: true,
+    allowedRoleSwitchers: ['Superadmin', 'Executive'],
+    maintenanceMode: false,
+    customTags: [
+      { id: 't1', name: 'VIP Client', color: 'indigo' },
+      { id: 't2', name: 'Compliance', color: 'amber' },
+      { id: 't3', name: 'Critical SLA', color: 'rose' }
+    ],
+    riskCategories: ['Technical', 'Financial', 'Operational', 'Resourcing', 'Vendor', 'Compliance']
 };
 
 export const MOCK_WEIGHT_HISTORY: WeightHistory[] = [

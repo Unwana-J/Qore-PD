@@ -20,6 +20,7 @@ interface ProjectModalProps {
   serviceBaselines: ServiceBaseline[];
   packages: PackageConfig[];
   productLines: ProductLineConfig[];
+  customTags?: { id: string; name: string; color: string }[];
 }
 
 const DELIVERY_TRACKS: { id: DeliveryTrack; label: string; desc: string; color: string }[] = [
@@ -31,7 +32,7 @@ const DELIVERY_TRACKS: { id: DeliveryTrack; label: string; desc: string; color: 
 export const ProjectModal: React.FC<ProjectModalProps> = ({ 
   isOpen, onClose, onSubmit, userRole, getPMWorkload, workloadThresholds, 
   themeColor = 'teal', currencies = [], users = [], importedPMs = [],
-  serviceBaselines = [], packages = [], productLines = []
+  serviceBaselines = [], packages = [], productLines = [], customTags = []
 }) => {
   const currentUserName = userRole === 'PM' ? 'Sarah Jenkins' : 'Admin User';
   
@@ -48,6 +49,7 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
     expectedCompletionDate: '',
     deliveryTrack: 'Standard' as DeliveryTrack,
     customDuration: '', // working days for Customization track
+    tags: [] as string[],
   });
 
   const [pmSearch, setPmSearch] = useState('');
@@ -79,7 +81,7 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
   // Reset form state when track changes
   useEffect(() => {
     setSelectedServices([]);
-    setFormData(prev => ({ ...prev, packageName: '', customDuration: '' }));
+    setFormData(prev => ({ ...prev, packageName: '', customDuration: '', tags: [] }));
     setInternalMilestones(['']);
     setManualCompletionDate('');
   }, [formData.deliveryTrack]);
@@ -270,6 +272,7 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
           actualCompletionDate
         ) : [],
         risks: [],
+        tags: formData.tags,
         actualCompletionDate: isCompletedAlready ? actualCompletionDate : undefined,
         phaseWeights: { initiation: 10, planning: 10, execution: 60, closure: 20 }
       }, force);
@@ -456,6 +459,38 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
                 </select>
               </div>
             </div>
+
+            {/* Custom Tags Section */}
+            {customTags.length > 0 && (
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-500 uppercase">Project Tags <span className="text-normal lowercase font-medium">(optional)</span></label>
+                <div className="flex flex-wrap gap-2 p-3 bg-slate-50 border border-slate-200 rounded-xl">
+                  {customTags.map(tag => {
+                    const isSelected = formData.tags.includes(tag.id);
+                    return (
+                      <button
+                        key={tag.id}
+                        type="button"
+                        onClick={() => {
+                           setFormData({
+                             ...formData,
+                             tags: isSelected ? formData.tags.filter(t => t !== tag.id) : [...formData.tags, tag.id]
+                           });
+                        }}
+                        className={cn(
+                          "px-3 py-1 rounded-full text-[10px] font-bold transition-all border",
+                          isSelected 
+                            ? `bg-${tag.color}-100 text-${tag.color}-700 border-${tag.color}-300 shadow-sm` 
+                            : "bg-white text-slate-500 border-slate-200 hover:border-slate-300"
+                        )}
+                      >
+                        {tag.name}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
             {/* Row 3: Package (Standard only) or empty placeholder */}
             {isStandard && (

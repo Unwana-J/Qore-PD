@@ -173,7 +173,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               {!isSidebarCollapsed && (
                 <div className="min-w-0 animate-in fade-in slide-in-from-left-2 duration-300 relative">
                   <p className="text-sm font-bold text-slate-900 truncate">{userName}</p>
-                  {actualRole === 'Superadmin' || actualRole === 'Executive' ? (
+                  {(config.allowedRoleSwitchers || ['Superadmin', 'Executive']).includes(actualRole as Role) || actualRole === 'Superadmin' ? (
                     <div className="relative">
                       <button 
                         onClick={() => setIsRoleSelectOpen(!isRoleSelectOpen)}
