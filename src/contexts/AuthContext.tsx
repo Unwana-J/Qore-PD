@@ -6,7 +6,14 @@ import { Role } from '../types';
 
 interface AuthContextType {
   user: User | null;
-  profile: { name: string; role: Role } | null;
+  profile: { 
+    name: string; 
+    role: Role; 
+    email: string; 
+    status: string; 
+    created_at: string; 
+    updated_at: string; 
+  } | null;
   loading: boolean;
   profileLoading: boolean;
   isReconnecting: boolean;
@@ -72,13 +79,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setLoadingStage('profile');
       const { data, error } = await supabase
         .from('profiles')
-        .select('name, role')
+        .select('name, role, email, status, created_at, updated_at')
         .eq('id', user.id)
         .single();
 
       if (error) throw error;
       setLoadingStage('ready');
-      return { name: data.name, role: data.role as Role };
+      return { 
+        name: data.name, 
+        role: data.role as Role,
+        email: data.email,
+        status: data.status || 'Active',
+        created_at: data.created_at,
+        updated_at: data.updated_at
+      };
     },
     enabled: !!user?.id,
     staleTime: 60000, // 1 minute stale-while-revalidate

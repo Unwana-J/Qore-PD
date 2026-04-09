@@ -15,6 +15,7 @@ import { SettingsView } from './components/SettingsView';
 import { RebaselineRequestsView } from './components/RebaselineRequestsView';
 import { ExecutiveDashboard } from './components/ExecutiveDashboard';
 import { BulkImportView } from './components/BulkImportView';
+import { DeactivatedScreen } from './components/DeactivatedScreen';
 import { INITIAL_CONFIG } from './mockData';
 import { Role, AppConfig, SettingsTab, Project, ProjectState } from './types';
 import { useProjects } from './hooks/useProjects';
@@ -145,6 +146,23 @@ function AppContent() {
       notifyError(err.message);
     }
   };
+
+  // User Deactivation / Stale 90-Day Logic
+  const ninetyDaysAgo = new Date();
+  ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+  const lastActivity = profile?.updated_at ? new Date(profile.updated_at) : (profile?.created_at ? new Date(profile.created_at) : new Date());
+  const isStaleUser = profile && lastActivity < ninetyDaysAgo;
+  const isDeactivated = profile?.status === 'Inactive' || isStaleUser;
+
+  if (isDeactivated && !authLoading) {
+    return (
+      <DeactivatedScreen 
+        brand={config.brand} 
+        userName={profile?.name} 
+        onLogout={signOut} 
+      />
+    );
+  }
 
   // Progressive loading screen with staged contextual messages
   if (authLoading || (user && profileLoading && !profile)) {

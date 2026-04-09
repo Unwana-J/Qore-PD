@@ -229,24 +229,43 @@ export const api = {
     getAll: async (): Promise<User[]> => {
       const { data, error } = await supabase.from('profiles').select('*');
       if (error) throw error;
-      return (data || []).map(u => ({
-        id: u.id,
-        name: u.name,
-        email: '', 
-        role: u.role,
-        status: 'Active',
-        avatar: u.name?.substring(0, 2).toUpperCase() || 'U',
-        lastLogin: u.updated_at
-      }));
+
+      const ninetyDaysAgo = new Date();
+      ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+
+      return (data || []).map(u => {
+        const lastActivity = u.updated_at ? new Date(u.updated_at) : new Date(u.created_at);
+        const isStale = lastActivity < ninetyDaysAgo;
+        
+        return {
+          id: u.id,
+          name: u.name,
+          email: u.email, 
+          role: u.role,
+          status: isStale ? 'Inactive' : (u.status || 'Active'),
+          avatar: u.name?.substring(0, 2).toUpperCase() || 'U',
+          lastLogin: u.updated_at || u.created_at
+        };
+      });
     },
     update: async (userId: string, updates: Partial<User>): Promise<void> => {
       const { error } = await supabase
         .from('profiles')
         .update({
           role: updates.role,
-          name: updates.name
+          name: updates.name,
+          status: updates.status
         })
         .eq('id', userId);
+      if (error) throw error;
+    },
+    delete: async (userId: string, email: string): Promise<void> => {
+      // 1. Delete pending invites first (Cleanup)
+      if (email) {
+        await supabase.from('invites').delete().eq('email', email.toLowerCase().trim());
+      }
+      // 2. Delete the profile
+      const { error } = await supabase.from('profiles').delete().eq('id', userId);
       if (error) throw error;
     }
   },

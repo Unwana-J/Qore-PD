@@ -24,7 +24,8 @@ import {
   Link as LinkIcon,
   AlertTriangle,
   Tags,
-  Plus
+  Plus,
+  ShieldAlert
 } from 'lucide-react';
 import { 
   Role, 
@@ -135,11 +136,11 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const handleConfirmedRemove = async () => {
     if (showUserRemoveConfirm) {
       try {
-        if (showUserRemoveConfirm.status === 'Pending') {
+        if (showUserRemoveConfirm.statusType === 'Pending') {
           await api.invites.delete(showUserRemoveConfirm.id);
           setInvites(invites.filter(i => i.id !== showUserRemoveConfirm.id));
         } else {
-          // Future: Add user deletion logic
+          await api.users.delete(showUserRemoveConfirm.id, showUserRemoveConfirm.email);
           setUsers(users.filter(u => u.id !== showUserRemoveConfirm.id));
         }
         showToast(`${showUserRemoveConfirm.email || showUserRemoveConfirm.name} has been removed.`, 'success');
@@ -352,8 +353,22 @@ const UserManagement = ({ users, setUsers, invites, setInvites, projects, onUpda
     }
   };
 
+  const handleStatusToggle = async (user: User) => {
+    const newStatus = user.status === 'Active' ? 'Inactive' : 'Active';
+    try {
+      await api.users.update(user.id, { status: newStatus });
+      setUsers(users.map(u => u.id === user.id ? { ...u, status: newStatus } : u));
+      showToast(`User ${newStatus === 'Active' ? 'reactivated' : 'deactivated'} successfully.`, 'success');
+      
+      // If deactivating the current user, refresh profile to trigger intercept screen
+      await refreshProfile();
+    } catch (err) {
+      showToast("Failed to update user status", "error");
+    }
+  };
+
   const filteredItems = [
-    ...users.map(u => ({ ...u, statusType: 'Active' })),
+    ...users.map(u => ({ ...u, statusType: u.status })),
     ...invites.map(i => ({ ...i, statusType: 'Pending', name: i.name || 'Invitee' }))
   ].filter(item => filter === 'All' || item.statusType === filter);
 
@@ -474,8 +489,15 @@ const UserManagement = ({ users, setUsers, invites, setInvites, projects, onUpda
                 {item.avatar || item.email?.substring(0, 2).toUpperCase() || 'U'}
               </div>
               <div>
-                <p className="text-sm font-bold text-slate-900">{item.name || item.email}</p>
-                <p className="text-xs text-slate-500">{item.email || 'No email provided'}</p>
+                <p className="text-sm font-bold text-slate-900 leading-tight">
+                  {item.name || item.email}
+                </p>
+                <div className="flex items-center gap-2 mt-0.5">
+                  <p className="text-[10px] font-medium text-slate-400 font-mono italic">{item.email}</p>
+                  {item.statusType === 'Inactive' && (
+                    <span className="text-[9px] font-black uppercase text-rose-500 tracking-tighter bg-rose-50 px-1 rounded">Stale/Inactive</span>
+                  )}
+                </div>
               </div>
             </div>
             <div className="flex items-center gap-6">
@@ -515,6 +537,20 @@ const UserManagement = ({ users, setUsers, invites, setInvites, projects, onUpda
                     className="p-2 text-slate-400 hover:text-teal-600 hover:bg-teal-50 rounded-lg transition-colors"
                   >
                     <LinkIcon className="w-4 h-4" />
+                  </button>
+                )}
+                {item.statusType !== 'Pending' && (isRole(currentUserRole, 'Superadmin') || (isRole(currentUserRole, 'Manager') && isRole(item.role, 'PM'))) && (
+                  <button 
+                    onClick={() => handleStatusToggle(item)} 
+                    title={item.status === 'Active' ? "Deactivate User" : "Reactivate User"}
+                    className={cn(
+                      "p-2 rounded-lg transition-colors",
+                      item.status === 'Active' 
+                        ? "text-slate-400 hover:text-amber-500 hover:bg-amber-50" 
+                        : "text-amber-500 hover:text-emerald-600 hover:bg-emerald-50"
+                    )}
+                  >
+                    <ShieldAlert className="w-4 h-4" />
                   </button>
                 )}
                 {(isRole(currentUserRole, 'Superadmin') || (isRole(currentUserRole, 'Manager') && !isRole(item.role, 'Superadmin'))) && (
