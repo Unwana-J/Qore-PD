@@ -7,9 +7,10 @@ interface RisksTableProps {
   projects: Project[];
   onSelectProject: (project: Project) => void;
   riskCategories?: string[];
+  allPMNames?: string[];
 }
 
-export const RisksTable: React.FC<RisksTableProps> = ({ projects, onSelectProject, riskCategories = [] }) => {
+export const RisksTable: React.FC<RisksTableProps> = ({ projects, onSelectProject, riskCategories = [], allPMNames = [] }) => {
   const [filterStatus, setFilterStatus] = useState<string>('All');
   const [filterCategory, setFilterCategory] = useState<string>('All');
   const [filterPM, setFilterPM] = useState<string>('All');
@@ -31,7 +32,10 @@ export const RisksTable: React.FC<RisksTableProps> = ({ projects, onSelectProjec
     const fromRisks = allRisks.map(r => r.category || 'General');
     return Array.from(new Set([...riskCategories, ...fromRisks])).sort();
   }, [allRisks, riskCategories]);
-  const pms = useMemo(() => Array.from(new Set(allRisks.map(r => r.assignedPM))).sort(), [allRisks]);
+  const pms = useMemo(() => {
+    const fromRisks = allRisks.map(r => r.assignedPM);
+    return Array.from(new Set([...allPMNames, ...fromRisks])).sort();
+  }, [allRisks, allPMNames]);
 
   const filteredRisks = useMemo(() => {
     return allRisks.filter(risk => {

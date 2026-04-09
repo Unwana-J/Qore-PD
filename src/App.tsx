@@ -432,6 +432,10 @@ function AppContent() {
                         projects={filteredProjects} 
                         onSelectProject={setSelectedProject} 
                         riskCategories={config.riskCategories}
+                        allPMNames={Array.from(new Set([
+                          ...users.filter(u => u.role === 'PM').map(u => u.name),
+                          ...projects.map(p => p.assignedPM)
+                        ])).sort()}
                       />
                     )}
                     {currentView === 'rebaseline-requests' && (
