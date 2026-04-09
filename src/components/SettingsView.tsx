@@ -307,6 +307,8 @@ const UserManagement = ({ users, setUsers, invites, setInvites, projects, onUpda
   const [isAdding, setIsAdding] = useState(false);
   const [newUser, setNewUser] = useState({ name: '', email: '', role: 'PM' as Role });
   const [filter, setFilter] = useState<'All' | 'Active' | 'Pending'>('All');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [activeSubTab, setActiveSubTab] = useState<'users' | 'permissions'>('users');
 
   const [isSendingInvite, setIsSendingInvite] = useState(false);
   const handleInvite = async (e: React.FormEvent) => {
@@ -362,23 +364,43 @@ const UserManagement = ({ users, setUsers, invites, setInvites, projects, onUpda
           <h3 className="text-lg font-bold text-slate-900">User Management</h3>
           <p className="text-sm text-slate-500">Manage team members, roles, and pending invitations.</p>
         </div>
-        <button 
-          onClick={() => setIsAdding(true)}
-          className={cn(
-            "flex items-center gap-2 px-4 py-2 text-white text-sm font-bold rounded-xl transition-all",
-            theme.bg, theme.hoverBg
+        <div className="flex gap-4 items-center">
+          {isRole(currentUserRole, 'Superadmin') && (
+            <div className="flex gap-1 bg-slate-100 p-1 rounded-xl">
+              <button 
+                onClick={() => setActiveSubTab('users')}
+                className={cn("px-4 py-1.5 text-xs font-bold rounded-lg transition-all", activeSubTab === 'users' ? "bg-white text-slate-900 shadow-sm" : "text-slate-500")}
+              >
+                Users
+              </button>
+              <button 
+                onClick={() => setActiveSubTab('permissions')}
+                className={cn("px-4 py-1.5 text-xs font-bold rounded-lg transition-all", activeSubTab === 'permissions' ? "bg-white text-slate-900 shadow-sm" : "text-slate-500")}
+              >
+                System Permissions
+              </button>
+            </div>
           )}
-        >
-          <UserPlus className="w-4 h-4" />
-          Invite Staff
-        </button>
+          <button 
+            onClick={() => setIsAdding(true)}
+            className={cn(
+              "flex items-center gap-2 px-4 py-2 text-white text-sm font-bold rounded-xl transition-all",
+              theme.bg, theme.hoverBg
+            )}
+          >
+            <UserPlus className="w-4 h-4" />
+            Invite Staff
+          </button>
+        </div>
       </div>
 
-      <div className="flex gap-2">
+      {activeSubTab === 'users' ? (
+        <>
+          <div className="flex gap-2">
         {['All', 'Active', 'Pending'].map((f: any) => (
             <button
               key={f}
-              onClick={() => setFilter(f)}
+              onClick={() => { setFilter(f); setCurrentPage(1); }}
               className={cn(
                 "px-3 py-1.5 text-xs font-bold rounded-lg border transition-all",
                 filter === f 
@@ -439,7 +461,7 @@ const UserManagement = ({ users, setUsers, invites, setInvites, projects, onUpda
       )}
 
       <div className="grid grid-cols-1 gap-4">
-        {filteredItems.map((item: any) => (
+        {filteredItems.slice((currentPage - 1) * 10, currentPage * 10).map((item: any) => (
           <div key={item.id} className={cn(
             "flex items-center justify-between p-4 bg-white border rounded-2xl transition-all group",
             item.statusType === 'Pending' ? "border-amber-100 bg-amber-50/20" : cn("border-slate-100", theme.hoverBorder)
@@ -453,7 +475,7 @@ const UserManagement = ({ users, setUsers, invites, setInvites, projects, onUpda
               </div>
               <div>
                 <p className="text-sm font-bold text-slate-900">{item.name || item.email}</p>
-                <p className="text-xs text-slate-500">{item.email}</p>
+                <p className="text-xs text-slate-500">{item.email || 'No email provided'}</p>
               </div>
             </div>
             <div className="flex items-center gap-6">
@@ -512,8 +534,32 @@ const UserManagement = ({ users, setUsers, invites, setInvites, projects, onUpda
         )}
       </div>
 
-      {isRole(currentUserRole, 'Superadmin') && (
-        <div className="pt-8 mt-8 border-t border-slate-200 space-y-6">
+      {filteredItems.length > 10 && activeSubTab === 'users' && (
+        <div className="flex items-center justify-between pt-4 border-t border-slate-100">
+          <p className="text-xs text-slate-400 font-bold">
+            Showing {(currentPage - 1) * 10 + 1} to {Math.min(currentPage * 10, filteredItems.length)} of {filteredItems.length} entries
+          </p>
+          <div className="flex gap-1">
+            <button 
+              disabled={currentPage === 1}
+              onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+              className="px-3 py-1.5 text-xs font-bold rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Previous
+            </button>
+            <button 
+              disabled={currentPage * 10 >= filteredItems.length}
+              onClick={() => setCurrentPage(prev => prev + 1)}
+              className="px-3 py-1.5 text-xs font-bold rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      )}
+      </>
+      ) : isRole(currentUserRole, 'Superadmin') && (
+        <div className="space-y-6">
           <div>
             <h3 className="text-lg font-bold text-slate-900">System Permissions</h3>
             <p className="text-sm text-slate-500">Enable advanced features for specific user roles.</p>
