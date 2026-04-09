@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Project, Role, ProductLine } from '../types';
-import { formatCurrency, cn } from '../lib/utils';
+import { formatCurrency, formatCompactCurrency, cn } from '../lib/utils';
 import { 
   TrendingUp, 
   Award, 
@@ -318,7 +318,12 @@ export const FinanceDashboard: React.FC<FinanceDashboardProps> = ({ projects, on
                   </div>
                 </div>
                 <div className="text-right">
-                  <p className="text-sm font-black text-slate-900 font-mono">{formatCurrency(project.value, project.currency)}</p>
+                  <p 
+                    className="text-sm font-black text-slate-900 font-mono"
+                    title={formatCurrency(project.value, project.currency)}
+                  >
+                    {formatCompactCurrency(project.value, project.currency)}
+                  </p>
                   <p className="text-[10px] font-bold text-amber-600 uppercase tracking-wider">Ready to Bill</p>
                 </div>
               </div>
@@ -406,7 +411,12 @@ export const FinanceDashboard: React.FC<FinanceDashboardProps> = ({ projects, on
                         </div>
                       </td>
                       <td className="px-6 py-5">
-                        <p className="font-mono font-bold text-slate-900">{formatCurrency(project.value, project.currency)}</p>
+                        <p 
+                          className="font-mono font-bold text-slate-900"
+                          title={formatCurrency(project.value, project.currency)}
+                        >
+                          {formatCompactCurrency(project.value, project.currency)}
+                        </p>
                       </td>
                       <td className="px-6 py-5">
                         <div className="flex items-center gap-2 text-slate-600">
@@ -538,7 +548,12 @@ export const FinanceDashboard: React.FC<FinanceDashboardProps> = ({ projects, on
                       <p className="font-bold text-slate-900">{p.clientName}</p>
                       <p className="text-xs text-slate-500">Billed on {p.billedAt || p.updatedAt}</p>
                     </div>
-                    <p className="font-mono font-bold text-emerald-600">{formatCurrency(p.value, p.currency)}</p>
+                    <p 
+                      className="font-mono font-bold text-emerald-600"
+                      title={formatCurrency(p.value, p.currency)}
+                    >
+                      {formatCompactCurrency(p.value, p.currency)}
+                    </p>
                  </div>
                ))}
                {projects.filter(p => p.state === 'Billed').length === 0 && (
@@ -628,8 +643,12 @@ const FinanceStatCard = ({ label, values, subValue, icon, color = 'theme', theme
       </div>
       <div className="space-y-2">
         {Object.entries(values).map(([code, amount]: any) => (
-          <p key={code} className="text-2xl font-black text-slate-900 leading-none font-mono">
-            {formatCurrency(amount, code)}
+          <p 
+            key={code} 
+            className="text-2xl font-black text-slate-900 leading-none font-mono cursor-help"
+            title={formatCurrency(amount, code)}
+          >
+            {formatCompactCurrency(amount, code)}
           </p>
         ))}
         {Object.keys(values).length === 0 && <p className="text-2xl font-black text-slate-900">-</p>}
