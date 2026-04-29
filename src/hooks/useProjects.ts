@@ -130,16 +130,24 @@ export function useProjects(userRole: Role, config: AppConfig, userName: string 
 
   useEffect(() => {
     if (rawProjects.length === 0) return;
-    if (!hasRole(userRole, ['Superadmin', 'Manager'])) return;
+    if (!hasRole(userRole, ['Superadmin', 'Manager', 'PM'])) return;
+    
+    const today = new Date();
+    const sevenDaysAgo = new Date(today); sevenDaysAgo.setDate(today.getDate() - 7);
     const mondayKey = getMondayKey();
 
-    const today = new Date();
-    const sevenDaysAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
-    const active = rawProjects.filter(p => !['Closed', 'Billed'].includes(p.state));
+    // Filter projects based on role for the digest
+    let projectsToDigest = rawProjects;
+    if (userRole === 'PM') {
+      const normalizedUserName = userName?.trim().toLowerCase();
+      projectsToDigest = rawProjects.filter(p => p.assignedPM?.trim().toLowerCase() === normalizedUserName);
+    }
+
+    const active = projectsToDigest.filter(p => !['Closed', 'Billed', 'Signed Off'].includes(p.state));
 
     // PM activity — worst (most stale) project per PM
     const pmMap: Record<string, { count: number; worstDays: number }> = {};
-    active.filter(p => p.assignedPM?.trim()).forEach(p => {
+    projectsToDigest.filter(p => p.assignedPM?.trim()).forEach(p => {
       const pm = p.assignedPM.trim();
       const last = p.updatedAt ? new Date(p.updatedAt) : new Date(p.createdAt);
       const days = Math.floor((today.getTime() - last.getTime()) / 86400000);
@@ -153,18 +161,18 @@ export function useProjects(userRole: Role, config: AppConfig, userName: string 
       .sort((a, b) => b.lastUpdatedDaysAgo - a.lastUpdatedDaysAgo);
 
     // Completed this week
-    const completedThisWeek = rawProjects.filter(p => {
+    const completedThisWeek = projectsToDigest.filter(p => {
       if (!['Billed', 'Signed Off', 'Closed'].includes(p.state)) return false;
       const d = p.billedAt || p.signedOffAt || p.updatedAt;
       try { return d ? new Date(d) >= sevenDaysAgo : false; } catch { return false; }
     }).length;
 
     // Billing values
-    const awaitingProjects = rawProjects.filter(p => p.state === 'Signed Off' && !p.isInternalInitiative);
+    const awaitingProjects = projectsToDigest.filter(p => p.state === 'Signed Off' && !p.isInternalInitiative);
     const awaitingBillingValue: Record<string, number> = {};
     awaitingProjects.forEach(p => { awaitingBillingValue[p.currency] = (awaitingBillingValue[p.currency] || 0) + p.value; });
 
-    const billedThisWeek = rawProjects.filter(p => {
+    const billedThisWeek = projectsToDigest.filter(p => {
       if (p.state !== 'Billed') return false;
       try { return p.billedAt ? new Date(p.billedAt) >= sevenDaysAgo : false; } catch { return false; }
     });
@@ -172,11 +180,11 @@ export function useProjects(userRole: Role, config: AppConfig, userName: string 
     billedThisWeek.forEach(p => { billedThisWeekValue[p.currency] = (billedThisWeekValue[p.currency] || 0) + p.value; });
 
     // Billing rejections this week
-    const billingRejectionsThisWeek = rawProjects.reduce((acc, p) =>
+    const billingRejectionsThisWeek = projectsToDigest.reduce((acc, p) =>
       acc + (p.billingRejections || []).filter(r => { try { return new Date(r.rejectedAt) >= sevenDaysAgo; } catch { return false; } }).length, 0);
 
     // Rebaseline queue
-    const pendingRebaselines = rawProjects.flatMap(p => (p.rebaselineRequests || []).filter(r => r.status === 'Pending'));
+    const pendingRebaselines = projectsToDigest.flatMap(p => (p.rebaselineRequests || []).filter(r => r.status === 'Pending'));
     const oldestRebaselineDays = pendingRebaselines.length
       ? Math.max(...pendingRebaselines.map(r => { try { return Math.floor((today.getTime() - new Date(r.submittedAt).getTime()) / 86400000); } catch { return 0; } }))
       : 0;

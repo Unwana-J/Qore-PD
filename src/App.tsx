@@ -635,6 +635,7 @@ function AppContent() {
             digest={weeklyDigest}
             historicalDigests={historicalDigests}
             themeColor={config.brand.themeColor}
+            userRole={userRole}
             onClose={() => setIsDigestOpen(false)}
             onNavigate={(view, filter, pmFilter) => {
               setIsDigestOpen(false);
