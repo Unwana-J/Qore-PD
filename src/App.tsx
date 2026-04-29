@@ -15,6 +15,7 @@ import { SettingsView } from './components/SettingsView';
 import { RebaselineRequestsView } from './components/RebaselineRequestsView';
 import { ExecutiveDashboard } from './components/ExecutiveDashboard';
 import { BulkImportView } from './components/BulkImportView';
+import { DigestModal } from './components/DigestModal';
 import { DeactivatedScreen } from './components/DeactivatedScreen';
 import { INITIAL_CONFIG } from './mockData';
 import { Role, AppConfig, SettingsTab, Project, ProjectState } from './types';
@@ -39,6 +40,7 @@ function AppContent() {
   const [activeSettingsTab, setActiveSettingsTab] = useState<SettingsTab>('account');
   const [projectListFilter, setProjectListFilter] = useState<ProjectState | 'All'>('All');
   const [isBulkImportOpen, setIsBulkImportOpen] = useState(false);
+  const [isDigestOpen, setIsDigestOpen] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [config, setConfig] = useState<AppConfig>(INITIAL_CONFIG);
   const [users, setUsers] = useState<any[]>([]);
@@ -71,6 +73,8 @@ function AppContent() {
     dismissNotification,
     markAllRead,
     clearAllNotifications,
+    weeklyDigest,
+    dismissDigest,
     loading: projectsLoading,
     refreshProjects
   } = useProjects(userRole || 'PM', config, profile?.name || 'User');
@@ -333,6 +337,8 @@ function AppContent() {
           clearAllNotifications={clearAllNotifications}
           onSelectProject={setSelectedProject}
           projects={projects}
+          digestData={weeklyDigest}
+          onOpenDigest={() => setIsDigestOpen(true)}
         />
 
         <div className="flex-1 overflow-y-auto bg-slate-50/50">
@@ -609,6 +615,23 @@ function AppContent() {
         </div>
       )}
 
+      {/* Weekly Digest Modal */}
+      <AnimatePresence>
+        {isDigestOpen && weeklyDigest && (
+          <DigestModal
+            digest={weeklyDigest}
+            themeColor={config.brand.themeColor}
+            onClose={() => setIsDigestOpen(false)}
+            onNavigate={(view, filter) => {
+              setIsDigestOpen(false);
+              setCurrentView(view as any);
+              if (view === 'projects' && filter) {
+                setProjectListFilter(filter as any);
+              }
+            }}
+          />
+        )}
+      </AnimatePresence>
 
     </div>
   );

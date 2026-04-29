@@ -7,7 +7,7 @@ import {
   Bell, 
   Plus,
   Upload,
-  Timer
+  BarChart2
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { Project, Role } from '../../types';
@@ -34,6 +34,8 @@ interface HeaderProps {
   clearAllNotifications?: () => void;
   onSelectProject?: (project: any) => void;
   projects?: Project[];
+  digestData?: import('../../types').DigestData | null;
+  onOpenDigest?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -55,7 +57,9 @@ export const Header: React.FC<HeaderProps> = ({
   markAllRead,
   clearAllNotifications,
   onSelectProject,
-  projects = []
+  projects = [],
+  digestData,
+  onOpenDigest
 }) => {
   const [isNotifOpen, setIsNotifOpen] = React.useState(false);
   const theme = getThemeClasses(themeColor);
@@ -223,6 +227,22 @@ export const Header: React.FC<HeaderProps> = ({
                   )}
                 </div>
                 <div className="max-h-[420px] overflow-y-auto divide-y divide-slate-50">
+                  {/* Digest card — pinned at top when available */}
+                  {digestData && (
+                    <button
+                      onClick={() => { onOpenDigest?.(); setIsNotifOpen(false); }}
+                      className="w-full px-5 py-4 text-left hover:bg-indigo-50 transition-colors flex items-center gap-3 border-b border-indigo-100 bg-indigo-50/50"
+                    >
+                      <div className="w-8 h-8 rounded-xl bg-indigo-100 border border-indigo-200 flex items-center justify-center shrink-0">
+                        <BarChart2 className="w-4 h-4 text-indigo-600" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-black text-indigo-900">Weekly Portfolio Digest</p>
+                        <p className="text-[10px] text-indigo-500 font-medium mt-0.5">Week of {digestData.weekOf} · Click to open</p>
+                      </div>
+                      <ChevronRight className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
+                    </button>
+                  )}
                   {notifications.length === 0 ? (
                     <div className="px-5 py-12 text-center">
                       <div className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-3">

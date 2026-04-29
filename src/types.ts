@@ -81,6 +81,30 @@ export interface BillingRejection {
   resolvedAt?: string;     // Set when PM re-submits to Signed Off
 }
 
+export interface PMActivityEntry {
+  pmName: string;
+  projectCount: number;
+  lastUpdatedDaysAgo: number; // worst (most stale) project for this PM
+}
+
+export interface DigestData {
+  weekOf: string;                     // ISO date of Monday e.g. "2026-04-28"
+  generatedAt: Date;
+  totalActive: number;
+  onTrackCount: number;
+  delayedCount: number;
+  suspendedCount: number;
+  completedThisWeek: number;
+  pmActivity: PMActivityEntry[];       // PMs with stale projects, sorted desc
+  awaitingBillingCount: number;
+  awaitingBillingValue: Record<string, number>; // { NGN: 4200000, ... }
+  billedThisWeekCount: number;
+  billedThisWeekValue: Record<string, number>;
+  billingRejectionsThisWeek: number;
+  pendingRebaselineCount: number;
+  oldestRebaselineDays: number;
+}
+
 export interface ExecutionMilestone {
   id: string;
   name: string;

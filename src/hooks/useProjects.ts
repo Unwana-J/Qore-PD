@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { format, differenceInBusinessDays, parseISO } from 'date-fns';
-import { Project, Role, AppConfig, ProjectPriority, ProjectActivity, ActivityType, RebaselineRequest, Phase, ServiceState, ProjectState, BillingRejection } from '../types';
+import { Project, Role, AppConfig, ProjectPriority, ProjectActivity, ActivityType, RebaselineRequest, Phase, ServiceState, ProjectState, BillingRejection, DigestData, PMActivityEntry } from '../types';
 import { api } from '../lib/api';
 import { supabase } from '../lib/supabase';
 import { calculateWorkingDays, getActiveDaysCount, calculateSPI, getAutoProjectState, isRole, hasRole } from '../lib/utils';
@@ -38,6 +38,7 @@ export function useProjects(userRole: Role, config: AppConfig, userName: string 
     notifKeysRef.current.clear();
     setNotifications([]);
   }, []);
+
 
   const validateStateTransition = (project: Project, newState: string): string | null => {
     const current = project.state;
@@ -99,6 +100,95 @@ export function useProjects(userRole: Role, config: AppConfig, userName: string 
     },
     staleTime: 5 * 60 * 1000, // 5 minutes fresh
   });
+
+  // ── Weekly Digest ─────────────────────────────────────────────────────────
+  const [weeklyDigest, setWeeklyDigest] = useState<DigestData | null>(null);
+
+  const dismissDigest = useCallback(() => setWeeklyDigest(null), []);
+
+  const getMondayKey = () => {
+    const d = new Date();
+    const diff = d.getDay() === 0 ? -6 : 1 - d.getDay();
+    const mon = new Date(d); mon.setDate(d.getDate() + diff);
+    return mon.toISOString().split('T')[0];
+  };
+
+  useEffect(() => {
+    if (rawProjects.length === 0) return;
+    if (!hasRole(userRole, ['Superadmin', 'Manager'])) return;
+    const mondayKey = getMondayKey();
+    if (localStorage.getItem('digest_week_key') === mondayKey) return;
+
+    const today = new Date();
+    const sevenDaysAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const active = rawProjects.filter(p => !['Closed', 'Billed'].includes(p.state));
+
+    // PM activity — worst (most stale) project per PM
+    const pmMap: Record<string, { count: number; worstDays: number }> = {};
+    active.filter(p => p.assignedPM?.trim()).forEach(p => {
+      const pm = p.assignedPM.trim();
+      const last = p.updatedAt ? new Date(p.updatedAt) : new Date(p.createdAt);
+      const days = Math.floor((today.getTime() - last.getTime()) / 86400000);
+      if (!pmMap[pm]) pmMap[pm] = { count: 0, worstDays: 0 };
+      pmMap[pm].count++;
+      if (days > pmMap[pm].worstDays) pmMap[pm].worstDays = days;
+    });
+    const pmActivity: PMActivityEntry[] = Object.entries(pmMap)
+      .filter(([, v]) => v.worstDays > 3)
+      .map(([pmName, v]) => ({ pmName, projectCount: v.count, lastUpdatedDaysAgo: v.worstDays }))
+      .sort((a, b) => b.lastUpdatedDaysAgo - a.lastUpdatedDaysAgo);
+
+    // Completed this week
+    const completedThisWeek = rawProjects.filter(p => {
+      if (!['Billed', 'Signed Off', 'Closed'].includes(p.state)) return false;
+      const d = p.billedAt || p.signedOffAt || p.updatedAt;
+      try { return d ? new Date(d) >= sevenDaysAgo : false; } catch { return false; }
+    }).length;
+
+    // Billing values
+    const awaitingProjects = rawProjects.filter(p => p.state === 'Signed Off' && !p.isInternalInitiative);
+    const awaitingBillingValue: Record<string, number> = {};
+    awaitingProjects.forEach(p => { awaitingBillingValue[p.currency] = (awaitingBillingValue[p.currency] || 0) + p.value; });
+
+    const billedThisWeek = rawProjects.filter(p => {
+      if (p.state !== 'Billed') return false;
+      try { return p.billedAt ? new Date(p.billedAt) >= sevenDaysAgo : false; } catch { return false; }
+    });
+    const billedThisWeekValue: Record<string, number> = {};
+    billedThisWeek.forEach(p => { billedThisWeekValue[p.currency] = (billedThisWeekValue[p.currency] || 0) + p.value; });
+
+    // Billing rejections this week
+    const billingRejectionsThisWeek = rawProjects.reduce((acc, p) =>
+      acc + (p.billingRejections || []).filter(r => { try { return new Date(r.rejectedAt) >= sevenDaysAgo; } catch { return false; } }).length, 0);
+
+    // Rebaseline queue
+    const pendingRebaselines = rawProjects.flatMap(p => (p.rebaselineRequests || []).filter(r => r.status === 'Pending'));
+    const oldestRebaselineDays = pendingRebaselines.length
+      ? Math.max(...pendingRebaselines.map(r => { try { return Math.floor((today.getTime() - new Date(r.submittedAt).getTime()) / 86400000); } catch { return 0; } }))
+      : 0;
+
+    const digest: DigestData = {
+      weekOf: mondayKey,
+      generatedAt: today,
+      totalActive: active.length,
+      onTrackCount: active.filter(p => p.state === 'On-Track').length,
+      delayedCount: active.filter(p => p.state === 'Delayed').length,
+      suspendedCount: active.filter(p => p.state === 'Suspended').length,
+      completedThisWeek,
+      pmActivity,
+      awaitingBillingCount: awaitingProjects.length,
+      awaitingBillingValue,
+      billedThisWeekCount: billedThisWeek.length,
+      billedThisWeekValue,
+      billingRejectionsThisWeek,
+      pendingRebaselineCount: pendingRebaselines.length,
+      oldestRebaselineDays,
+    };
+
+    setWeeklyDigest(digest);
+    localStorage.setItem('digest_week_key', mondayKey);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rawProjects.length, userRole]);
 
   // ── Realtime: instant notification when webhook inserts a new project ──────
   useEffect(() => {
@@ -797,6 +887,8 @@ export function useProjects(userRole: Role, config: AppConfig, userName: string 
     dismissNotification,
     markAllRead,
     clearAllNotifications,
+    weeklyDigest,
+    dismissDigest,
     loading,
     refreshProjects
   };
