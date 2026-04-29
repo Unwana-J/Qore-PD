@@ -103,8 +103,23 @@ export function useProjects(userRole: Role, config: AppConfig, userName: string 
 
   // ── Weekly Digest ─────────────────────────────────────────────────────────
   const [weeklyDigest, setWeeklyDigest] = useState<DigestData | null>(null);
+  const [historicalDigests, setHistoricalDigests] = useState<DigestData[]>([]);
 
   const dismissDigest = useCallback(() => setWeeklyDigest(null), []);
+
+  // Fetch historical digests
+  useEffect(() => {
+    if (!hasRole(userRole, ['Superadmin', 'Manager'])) return;
+    const fetchHistory = async () => {
+      try {
+        const history = await api.digests.getHistorical();
+        setHistoricalDigests(history);
+      } catch (err) {
+        console.error("Failed to load historical digests", err);
+      }
+    };
+    fetchHistory();
+  }, [userRole]);
 
   const getMondayKey = () => {
     const d = new Date();
@@ -185,6 +200,10 @@ export function useProjects(userRole: Role, config: AppConfig, userName: string 
     };
 
     setWeeklyDigest(digest);
+    
+    // Asynchronously save to archive (database will ignore if already saved by another admin)
+    api.digests.save(digest).catch(err => console.error("Digest save error:", err));
+
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rawProjects.length, userRole]);
 
@@ -886,6 +905,7 @@ export function useProjects(userRole: Role, config: AppConfig, userName: string 
     markAllRead,
     clearAllNotifications,
     weeklyDigest,
+    historicalDigests,
     dismissDigest,
     loading,
     refreshProjects

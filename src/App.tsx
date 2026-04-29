@@ -74,6 +74,7 @@ function AppContent() {
     markAllRead,
     clearAllNotifications,
     weeklyDigest,
+    historicalDigests,
     dismissDigest,
     loading: projectsLoading,
     refreshProjects
@@ -621,6 +622,7 @@ function AppContent() {
         {isDigestOpen && weeklyDigest && (
           <DigestModal
             digest={weeklyDigest}
+            historicalDigests={historicalDigests}
             themeColor={config.brand.themeColor}
             onClose={() => setIsDigestOpen(false)}
             onNavigate={(view, filter) => {

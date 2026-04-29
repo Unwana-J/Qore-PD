@@ -12,15 +12,24 @@ import { getThemeClasses } from '../lib/theme';
 
 interface DigestModalProps {
   digest: DigestData;
+  historicalDigests?: DigestData[];
   themeColor?: string;
   onClose: () => void;
   onNavigate: (view: string, filter?: string) => void;
 }
 
 export const DigestModal: React.FC<DigestModalProps> = ({
-  digest, themeColor = 'teal', onClose, onNavigate
+  digest, historicalDigests = [], themeColor = 'teal', onClose, onNavigate
 }) => {
   const theme = getThemeClasses(themeColor);
+  const [selectedWeek, setSelectedWeek] = React.useState<string>(digest.weekOf);
+  
+  React.useEffect(() => {
+    setSelectedWeek(digest.weekOf);
+  }, [digest.weekOf]);
+
+  const displayDigest = historicalDigests.find(d => d.weekOf === selectedWeek) || digest;
+
 
   const formatValues = (vals: Record<string, number>) =>
     Object.entries(vals).map(([code, v]) => formatCompactCurrency(v, code)).join(' · ') || '—';
@@ -31,9 +40,21 @@ export const DigestModal: React.FC<DigestModalProps> = ({
     return           { dot: 'bg-emerald-500', badge: 'bg-emerald-50 text-emerald-600', label: `${days}d` };
   };
 
-  const healthPct = digest.totalActive > 0
-    ? Math.round((digest.onTrackCount / digest.totalActive) * 100)
+  const healthPct = displayDigest.totalActive > 0
+    ? Math.round((displayDigest.onTrackCount / displayDigest.totalActive) * 100)
     : 0;
+
+  // Build the list of available weeks (current + history)
+  const availableWeeks = React.useMemo(() => {
+    const weeks = new Map<string, string>();
+    weeks.set(digest.weekOf, 'Current Week');
+    historicalDigests.forEach(d => {
+      if (d.weekOf !== digest.weekOf) {
+        weeks.set(d.weekOf, format(parseISO(d.weekOf), 'dd MMM yyyy'));
+      }
+    });
+    return Array.from(weeks.entries());
+  }, [digest.weekOf, historicalDigests]);
 
   return (
     <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm">
@@ -57,9 +78,18 @@ export const DigestModal: React.FC<DigestModalProps> = ({
             <h2 className="text-2xl font-black text-white tracking-tight">
               Portfolio Snapshot
             </h2>
-            <p className="text-sm text-slate-400 mt-1 font-medium">
-              Week of {format(parseISO(digest.weekOf), 'dd MMMM yyyy')}
-            </p>
+            <div className="mt-2 flex items-center gap-2">
+              <span className="text-xs text-slate-400 font-medium">Week of:</span>
+              <select
+                value={selectedWeek}
+                onChange={e => setSelectedWeek(e.target.value)}
+                className="bg-slate-800 text-white text-xs font-bold px-3 py-1.5 rounded-lg border border-slate-700 outline-none focus:ring-2 focus:ring-teal-500 transition-all cursor-pointer"
+              >
+                {availableWeeks.map(([weekValue, weekLabel]) => (
+                  <option key={weekValue} value={weekValue}>{weekLabel}</option>
+                ))}
+              </select>
+            </div>
           </div>
           <button
             onClick={onClose}
@@ -76,19 +106,19 @@ export const DigestModal: React.FC<DigestModalProps> = ({
           <section className="px-8 py-6">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">Portfolio Health</h3>
-              {digest.completedThisWeek > 0 && (
+              {displayDigest.completedThisWeek > 0 && (
                 <span className="flex items-center gap-1.5 text-[10px] font-bold text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-100">
                   <CheckCircle2 className="w-3 h-3" />
-                  {digest.completedThisWeek} completed this week
+                  {displayDigest.completedThisWeek} completed this week
                 </span>
               )}
             </div>
             <div className="grid grid-cols-4 gap-3">
               {[
-                { label: 'Active', value: digest.totalActive, icon: <TrendingUp className="w-4 h-4" />, colour: 'text-slate-900', bg: 'bg-slate-50 border-slate-200', action: digest.totalActive > 0 ? () => onNavigate('projects', 'All') : undefined },
-                { label: 'On-Track', value: `${digest.onTrackCount} (${healthPct}%)`, icon: <CheckCircle2 className="w-4 h-4" />, colour: 'text-emerald-700', bg: 'bg-emerald-50 border-emerald-200', action: digest.onTrackCount > 0 ? () => onNavigate('projects', 'On-Track') : undefined },
-                { label: 'Delayed', value: digest.delayedCount, icon: <AlertTriangle className="w-4 h-4" />, colour: 'text-red-700', bg: 'bg-red-50 border-red-200', action: digest.delayedCount > 0 ? () => onNavigate('projects', 'Delayed') : undefined },
-                { label: 'Suspended', value: digest.suspendedCount, icon: <Pause className="w-4 h-4" />, colour: 'text-amber-700', bg: 'bg-amber-50 border-amber-200', action: digest.suspendedCount > 0 ? () => onNavigate('projects', 'Suspended') : undefined },
+                { label: 'Active', value: displayDigest.totalActive, icon: <TrendingUp className="w-4 h-4" />, colour: 'text-slate-900', bg: 'bg-slate-50 border-slate-200', action: displayDigest.totalActive > 0 ? () => onNavigate('projects', 'All') : undefined },
+                { label: 'On-Track', value: `${displayDigest.onTrackCount} (${healthPct}%)`, icon: <CheckCircle2 className="w-4 h-4" />, colour: 'text-emerald-700', bg: 'bg-emerald-50 border-emerald-200', action: displayDigest.onTrackCount > 0 ? () => onNavigate('projects', 'On-Track') : undefined },
+                { label: 'Delayed', value: displayDigest.delayedCount, icon: <AlertTriangle className="w-4 h-4" />, colour: 'text-red-700', bg: 'bg-red-50 border-red-200', action: displayDigest.delayedCount > 0 ? () => onNavigate('projects', 'Delayed') : undefined },
+                { label: 'Suspended', value: displayDigest.suspendedCount, icon: <Pause className="w-4 h-4" />, colour: 'text-amber-700', bg: 'bg-amber-50 border-amber-200', action: displayDigest.suspendedCount > 0 ? () => onNavigate('projects', 'Suspended') : undefined },
               ].map(stat => (
                 <button
                   key={stat.label}
@@ -114,14 +144,14 @@ export const DigestModal: React.FC<DigestModalProps> = ({
               <Users className="w-4 h-4 text-slate-400" />
               <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">PM Inactivity</h3>
             </div>
-            {digest.pmActivity.length === 0 ? (
+            {displayDigest.pmActivity.length === 0 ? (
               <div className="flex items-center gap-3 py-3 text-emerald-600">
                 <CheckCircle2 className="w-4 h-4" />
                 <p className="text-sm font-semibold">All PMs have updated their projects recently.</p>
               </div>
             ) : (
               <div className="space-y-2">
-                {digest.pmActivity.slice(0, 8).map(pm => {
+                {displayDigest.pmActivity.slice(0, 8).map(pm => {
                   const c = getPMColour(pm.lastUpdatedDaysAgo);
                   return (
                     <div key={pm.pmName} className="flex items-center gap-3 py-2.5 px-4 bg-slate-50 rounded-2xl border border-slate-100 hover:border-slate-200 transition-all">
@@ -152,23 +182,23 @@ export const DigestModal: React.FC<DigestModalProps> = ({
                 onClick={() => onNavigate('projects', 'Signed Off')}
                 className="p-4 bg-amber-50 border border-amber-200 rounded-2xl text-left hover:scale-105 transition-all active:scale-95 group"
               >
-                <p className="text-2xl font-black text-amber-700 leading-none">{digest.awaitingBillingCount}</p>
+                <p className="text-2xl font-black text-amber-700 leading-none">{displayDigest.awaitingBillingCount}</p>
                 <p className="text-[10px] font-black text-amber-600 uppercase tracking-wider mt-2">Awaiting Finance</p>
-                {Object.keys(digest.awaitingBillingValue).length > 0 && (
-                  <p className="text-xs font-bold text-amber-500 mt-1 font-mono">{formatValues(digest.awaitingBillingValue)}</p>
+                {Object.keys(displayDigest.awaitingBillingValue).length > 0 && (
+                  <p className="text-xs font-bold text-amber-500 mt-1 font-mono">{formatValues(displayDigest.awaitingBillingValue)}</p>
                 )}
                 <ChevronRight className="w-3 h-3 text-amber-400 mt-2 group-hover:translate-x-1 transition-transform" />
               </button>
               <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl">
-                <p className="text-2xl font-black text-emerald-700 leading-none">{digest.billedThisWeekCount}</p>
+                <p className="text-2xl font-black text-emerald-700 leading-none">{displayDigest.billedThisWeekCount}</p>
                 <p className="text-[10px] font-black text-emerald-600 uppercase tracking-wider mt-2">Billed This Week</p>
-                {Object.keys(digest.billedThisWeekValue).length > 0 && (
-                  <p className="text-xs font-bold text-emerald-500 mt-1 font-mono">{formatValues(digest.billedThisWeekValue)}</p>
+                {Object.keys(displayDigest.billedThisWeekValue).length > 0 && (
+                  <p className="text-xs font-bold text-emerald-500 mt-1 font-mono">{formatValues(displayDigest.billedThisWeekValue)}</p>
                 )}
               </div>
-              <div className={cn('p-4 rounded-2xl border', digest.billingRejectionsThisWeek > 0 ? 'bg-red-50 border-red-200' : 'bg-slate-50 border-slate-200')}>
-                <p className={cn('text-2xl font-black leading-none', digest.billingRejectionsThisWeek > 0 ? 'text-red-700' : 'text-slate-400')}>{digest.billingRejectionsThisWeek}</p>
-                <p className={cn('text-[10px] font-black uppercase tracking-wider mt-2', digest.billingRejectionsThisWeek > 0 ? 'text-red-600' : 'text-slate-400')}>Finance Rejections</p>
+              <div className={cn('p-4 rounded-2xl border', displayDigest.billingRejectionsThisWeek > 0 ? 'bg-red-50 border-red-200' : 'bg-slate-50 border-slate-200')}>
+                <p className={cn('text-2xl font-black leading-none', displayDigest.billingRejectionsThisWeek > 0 ? 'text-red-700' : 'text-slate-400')}>{displayDigest.billingRejectionsThisWeek}</p>
+                <p className={cn('text-[10px] font-black uppercase tracking-wider mt-2', displayDigest.billingRejectionsThisWeek > 0 ? 'text-red-600' : 'text-slate-400')}>Finance Rejections</p>
                 <p className="text-[10px] text-slate-400 mt-1">this week</p>
               </div>
             </div>
@@ -180,7 +210,7 @@ export const DigestModal: React.FC<DigestModalProps> = ({
               <RefreshCw className="w-4 h-4 text-slate-400" />
               <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">Rebaseline Queue</h3>
             </div>
-            {digest.pendingRebaselineCount === 0 ? (
+            {displayDigest.pendingRebaselineCount === 0 ? (
               <div className="flex items-center gap-3 py-3 text-emerald-600">
                 <CheckCircle2 className="w-4 h-4" />
                 <p className="text-sm font-semibold">No pending rebaseline requests.</p>
@@ -193,13 +223,13 @@ export const DigestModal: React.FC<DigestModalProps> = ({
                 <div className="flex items-center gap-4">
                   <div className="text-left">
                     <p className="text-sm font-black text-indigo-900">
-                      {digest.pendingRebaselineCount} pending request{digest.pendingRebaselineCount !== 1 ? 's' : ''}
+                      {displayDigest.pendingRebaselineCount} pending request{displayDigest.pendingRebaselineCount !== 1 ? 's' : ''}
                     </p>
-                    {digest.oldestRebaselineDays > 0 && (
-                      <p className="text-xs text-indigo-500 mt-0.5">Oldest: {digest.oldestRebaselineDays} day{digest.oldestRebaselineDays !== 1 ? 's' : ''} waiting</p>
+                    {displayDigest.oldestRebaselineDays > 0 && (
+                      <p className="text-xs text-indigo-500 mt-0.5">Oldest: {displayDigest.oldestRebaselineDays} day{displayDigest.oldestRebaselineDays !== 1 ? 's' : ''} waiting</p>
                     )}
                   </div>
-                  {digest.oldestRebaselineDays >= 5 && (
+                  {displayDigest.oldestRebaselineDays >= 5 && (
                     <span className="flex items-center gap-1 text-[10px] font-black text-amber-600 bg-amber-50 px-2 py-1 rounded-full border border-amber-100">
                       <AlertCircle className="w-3 h-3" /> Overdue
                     </span>
@@ -214,7 +244,8 @@ export const DigestModal: React.FC<DigestModalProps> = ({
         {/* Footer */}
         <div className="bg-slate-50 border-t border-slate-200 px-8 py-4 flex items-center justify-between shrink-0">
           <p className="text-[10px] text-slate-400 font-medium">
-            Generated {format(digest.generatedAt, 'EEE, dd MMM yyyy')} · Refreshes weekly
+            Generated {displayDigest.generatedAt ? format(displayDigest.generatedAt, 'EEE, dd MMM yyyy') : 'Live'}
+            {selectedWeek === digest.weekOf ? ' · Refreshes weekly' : ' · Historical snapshot'}
           </p>
           <button
             onClick={onClose}

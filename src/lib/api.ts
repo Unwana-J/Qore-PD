@@ -1,4 +1,4 @@
-import { Project, User, AuditLog, AppConfig } from '../types';
+import { Project, User, AuditLog, AppConfig, DigestData } from '../types';
 import { MOCK_PROJECTS, MOCK_USERS, MOCK_AUDIT_LOGS, INITIAL_CONFIG } from '../mockData';
 import { supabase } from './supabase';
 
@@ -388,6 +388,44 @@ export const api = {
         timestamp: l.timestamp,
         category: l.category as any
       }));
+    }
+  },
+  digests: {
+    getHistorical: async (): Promise<DigestData[]> => {
+      const { data, error } = await supabase
+        .from('weekly_digests')
+        .select('data')
+        .order('week_of', { ascending: false });
+      
+      if (error) {
+        if (error.code === '42P01') {
+          console.warn("[API] weekly_digests table not found, waiting for migration");
+          return [];
+        }
+        throw error;
+      }
+      return (data || []).map(d => d.data as DigestData);
+    },
+    save: async (digest: DigestData): Promise<void> => {
+      const { error } = await supabase
+        .from('weekly_digests')
+        .insert({
+          week_of: digest.weekOf,
+          data: digest
+        });
+      
+      if (error) {
+        // 23505 is PostgreSQL unique violation code (meaning this week is already saved)
+        if (error.code === '23505') {
+          console.log("[Digests] Digest for week", digest.weekOf, "already exists, skipping save.");
+          return;
+        }
+        if (error.code === '42P01') {
+          console.warn("[Digests] weekly_digests table not found, skipping save.");
+          return;
+        }
+        console.error("[Digests] Failed to save digest:", error);
+      }
     }
   }
 };
