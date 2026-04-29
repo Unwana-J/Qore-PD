@@ -85,10 +85,10 @@ export const DigestModal: React.FC<DigestModalProps> = ({
             </div>
             <div className="grid grid-cols-4 gap-3">
               {[
-                { label: 'Active', value: digest.totalActive, icon: <TrendingUp className="w-4 h-4" />, colour: 'text-slate-900', bg: 'bg-slate-50 border-slate-200' },
-                { label: 'On-Track', value: `${digest.onTrackCount} (${healthPct}%)`, icon: <CheckCircle2 className="w-4 h-4" />, colour: 'text-emerald-700', bg: 'bg-emerald-50 border-emerald-200' },
+                { label: 'Active', value: digest.totalActive, icon: <TrendingUp className="w-4 h-4" />, colour: 'text-slate-900', bg: 'bg-slate-50 border-slate-200', action: digest.totalActive > 0 ? () => onNavigate('projects', 'All') : undefined },
+                { label: 'On-Track', value: `${digest.onTrackCount} (${healthPct}%)`, icon: <CheckCircle2 className="w-4 h-4" />, colour: 'text-emerald-700', bg: 'bg-emerald-50 border-emerald-200', action: digest.onTrackCount > 0 ? () => onNavigate('projects', 'On-Track') : undefined },
                 { label: 'Delayed', value: digest.delayedCount, icon: <AlertTriangle className="w-4 h-4" />, colour: 'text-red-700', bg: 'bg-red-50 border-red-200', action: digest.delayedCount > 0 ? () => onNavigate('projects', 'Delayed') : undefined },
-                { label: 'Suspended', value: digest.suspendedCount, icon: <Pause className="w-4 h-4" />, colour: 'text-amber-700', bg: 'bg-amber-50 border-amber-200' },
+                { label: 'Suspended', value: digest.suspendedCount, icon: <Pause className="w-4 h-4" />, colour: 'text-amber-700', bg: 'bg-amber-50 border-amber-200', action: digest.suspendedCount > 0 ? () => onNavigate('projects', 'Suspended') : undefined },
               ].map(stat => (
                 <button
                   key={stat.label}
