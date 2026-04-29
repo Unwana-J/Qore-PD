@@ -257,6 +257,7 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
         ...formData,
         deliveryTrack: formData.deliveryTrack,
         isInternalInitiative: isInitiative,
+        priority: isInitiative ? 'Initiative' : formData.priority,
         packageName: isCustomization ? 'Custom Engagement' : (isInitiative ? 'Internal Initiative' : formData.packageName),
         value: formData.value ? Number(formData.value) : 0,
         services: isInitiative ? [] : selectedServices,
@@ -411,9 +412,10 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
                     {showPmDropdown && (
                       <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-slate-200 rounded-2xl shadow-xl z-[60] max-h-60 overflow-y-auto">
                         {filteredPMs.length > 0 ? filteredPMs.map(pm => {
+                          const activePriority = isInitiative ? 'Initiative' : formData.priority;
                           const workload = getPMWorkload(pm.name);
-                          const currentLoad = workload[formData.priority] || 0;
-                          const limit = workloadThresholds[formData.priority];
+                          const currentLoad = workload[activePriority as keyof typeof workload] || 0;
+                          const limit = workloadThresholds[activePriority as keyof typeof workloadThresholds] || 20;
                           const isAtLimit = currentLoad >= limit;
                           return (
                             <button key={pm.id} type="button"
@@ -435,9 +437,10 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
                                 {isAtLimit && <span className="text-[10px] font-black bg-amber-100 text-amber-700 px-2 py-0.5 rounded uppercase tracking-wider">At Limit</span>}
                               </div>
                               <div className="flex gap-3 text-[10px] font-bold text-slate-400">
-                                <span className={cn(formData.priority === 'P1' && "text-slate-600")}>Tier 1: {workload.P1}/{workloadThresholds.P1}</span>
-                                <span className={cn(formData.priority === 'P2' && "text-slate-600")}>Tier 2: {workload.P2}/{workloadThresholds.P2}</span>
-                                <span className={cn(formData.priority === 'P3' && "text-slate-600")}>Tier 3: {workload.P3}/{workloadThresholds.P3}</span>
+                                <span className={cn(activePriority === 'P1' && "text-slate-600")}>Tier 1: {workload.P1}/{workloadThresholds.P1}</span>
+                                <span className={cn(activePriority === 'P2' && "text-slate-600")}>Tier 2: {workload.P2}/{workloadThresholds.P2}</span>
+                                <span className={cn(activePriority === 'P3' && "text-slate-600")}>Tier 3: {workload.P3}/{workloadThresholds.P3}</span>
+                                {isInitiative && <span className="text-slate-600">Initiative: {workload.Initiative}/{workloadThresholds.Initiative}</span>}
                               </div>
                             </button>
                           );
@@ -449,17 +452,19 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
                 )}
               </div>
 
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-500 uppercase">Priority</label>
-                <select required
-                  className={cn("w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 outline-none transition-all", theme.ring, theme.focusBorder)}
-                  value={formData.priority}
-                  onChange={e => setFormData({ ...formData, priority: e.target.value as any })}>
-                  <option value="P1">Tier 1 - Enterprise</option>
-                  <option value="P2">Tier 2 - Pro</option>
-                  <option value="P3">Tier 3 - Basic</option>
-                </select>
-              </div>
+              {!isInitiative && (
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-slate-500 uppercase">Priority</label>
+                  <select required
+                    className={cn("w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 outline-none transition-all", theme.ring, theme.focusBorder)}
+                    value={formData.priority}
+                    onChange={e => setFormData({ ...formData, priority: e.target.value as any })}>
+                    <option value="P1">Tier 1 - Enterprise</option>
+                    <option value="P2">Tier 2 - Pro</option>
+                    <option value="P3">Tier 3 - Basic</option>
+                  </select>
+                </div>
+              )}
             </div>
 
             {/* Custom Tags Section */}

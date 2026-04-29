@@ -902,10 +902,10 @@ const PrioritySettings = ({ config, setConfig, weightHistory, setWeightHistory, 
         <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100">
           <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4">Max Workload (Per PM)</h4>
           <div className="space-y-3">
-            {['P1', 'P2', 'P3'].map((p) => (
+            {['P1', 'P2', 'P3', 'Initiative'].map((p) => (
               <div key={p} className="flex items-center justify-between gap-4">
                 <span className="text-xs font-black text-slate-600">
-                  {p === 'P1' ? 'Tier 1 - Enterprise' : p === 'P2' ? 'Tier 2 - Pro' : 'Tier 3 - Basic'} Projects
+                  {p === 'P1' ? 'Tier 1 - Enterprise' : p === 'P2' ? 'Tier 2 - Pro' : p === 'P3' ? 'Tier 3 - Basic' : 'Internal Initiative'} Projects
                 </span>
                 <NumberInput 
                   className={cn(

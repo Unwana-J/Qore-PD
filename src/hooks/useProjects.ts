@@ -359,6 +359,7 @@ export function useProjects(userRole: Role, config: AppConfig, userName: string 
       P1: pmProjects.filter(p => p.priority === 'P1').length,
       P2: pmProjects.filter(p => p.priority === 'P2').length,
       P3: pmProjects.filter(p => p.priority === 'P3').length,
+      Initiative: pmProjects.filter(p => p.priority === 'Initiative').length,
     };
   }, [projects]);
 

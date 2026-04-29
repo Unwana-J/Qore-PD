@@ -22,7 +22,7 @@ export interface ProjectLifecycleWeights {
   closure: number;
 }
 
-export type ProjectPriority = 'P1' | 'P2' | 'P3';
+export type ProjectPriority = 'P1' | 'P2' | 'P3' | 'Initiative';
 
 export interface Phase {
   id: PhaseName;

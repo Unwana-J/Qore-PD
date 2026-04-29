@@ -495,7 +495,8 @@ export const INITIAL_CONFIG: AppConfig = {
     workloadThresholds: {
         P1: 3,
         P2: 5,
-        P3: 8
+        P3: 8,
+        Initiative: 20
     },
     maxImportRows: 500,
     hideImportGuide: false,
