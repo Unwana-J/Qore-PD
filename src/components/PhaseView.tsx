@@ -422,7 +422,7 @@ export const PhaseView: React.FC<PhaseViewProps> = ({
 
     const comment: Comment = {
       id: Math.random().toString(36).substr(2, 9),
-      author: isRole(userRole, 'PM') ? 'Sarah Jenkins' : 'Admin User',
+      author: userName || 'User',
       text: commentText,
       timestamp: new Date().toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })
     };

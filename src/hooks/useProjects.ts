@@ -437,7 +437,10 @@ export function useProjects(userRole: Role, config: AppConfig, userName: string 
         deliveryTrack: newProjectData.deliveryTrack || 'Standard',
         isInternalInitiative,
         rebaselineRequests: [],
-        suspensionCycles: []
+        suspensionCycles: [],
+        comments: [],
+        risks: [],
+        activities: []
       });
       queryClient.setQueryData<Project[]>(['projects'], (old = []) => [newProject, ...old]);
       return newProject;

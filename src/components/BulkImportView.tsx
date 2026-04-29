@@ -586,7 +586,10 @@ export const BulkImportView: React.FC<BulkImportViewProps> = ({ users, invites, 
           planning: 10,
           execution: 60,
           closure: 20
-        }
+        },
+        comments: [],
+        risks: [],
+        activities: []
       };
 
       if (row.status === 'duplicate' && row.duplicateAction === 'overwrite') {
