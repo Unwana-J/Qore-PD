@@ -259,6 +259,12 @@ export const api = {
         .eq('id', userId);
       if (error) throw error;
     },
+    resetPassword: async (email: string): Promise<void> => {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/auth?reset=true`,
+      });
+      if (error) throw error;
+    },
     delete: async (userId: string, email: string): Promise<void> => {
       // 1. Delete pending invites first (Cleanup)
       if (email) {
@@ -340,6 +346,10 @@ export const api = {
       console.log("[Invites] Invite process complete.");
 
       return invite;
+    },
+    resend: async (email: string): Promise<void> => {
+      console.log("[Invites] Resending invitation to:", email);
+      // This will be linked to the same Edge Function that handles initial invites.
     },
     delete: async (id: string) => {
       const { error } = await supabase.from('invites').delete().eq('id', id);
