@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
-import { Project, Role, AppConfig, ProjectPriority, ProjectActivity, ActivityType, RebaselineRequest, Phase, ServiceState, ProjectState } from '../types';
+import { Project, Role, AppConfig, ProjectPriority, ProjectActivity, ActivityType, RebaselineRequest, Phase, ServiceState, ProjectState, BillingRejection } from '../types';
 import { api } from '../lib/api';
 import { supabase } from '../lib/supabase';
 import { calculateWorkingDays, getActiveDaysCount, calculateSPI, getAutoProjectState, isRole, hasRole } from '../lib/utils';
@@ -503,6 +503,56 @@ export function useProjects(userRole: Role, config: AppConfig, userName: string 
     return result;
   };
 
+  const rejectBilling = async (projectId: string, reason: string, category?: string) => {
+    const project = projects.find(p => p.id === projectId);
+    if (!project) return;
+
+    const now = new Date();
+    const formattedNow = format(now, 'yyyy-MM-dd HH:mm');
+
+    const rejection: BillingRejection = {
+      id: Math.random().toString(36).substr(2, 9),
+      rejectedBy: userName,
+      rejectedAt: now.toISOString(),
+      reason,
+      category,
+    };
+
+    const updatedProject: Project = {
+      ...project,
+      // Keep state as Signed Off — PM re-submits to re-enter the queue
+      billingRejections: [rejection, ...(project.billingRejections || [])],
+      activities: [
+        {
+          id: Math.random().toString(36).substr(2, 9),
+          type: 'StateChange' as const,
+          user: userName,
+          description: `Finance declined billing${category ? ` (${category})` : ''}: "${reason}"`,
+          timestamp: formattedNow,
+        },
+        ...(project.activities || []),
+      ],
+    };
+
+    const result = await updateProject(updatedProject);
+
+    // Notify assigned PM
+    addNotification(
+      `Finance declined billing for "${project.clientName}": "${reason}". Please review and resubmit.`,
+      projectId,
+      `billing-rejected-${rejection.id}`
+    );
+
+    // Notify leadership (Manager / Superadmin will see it via their role-based notification)
+    addNotification(
+      `Finance declined billing for "${project.clientName}" · PM: ${project.assignedPM}`,
+      projectId,
+      `billing-rejected-mgr-${rejection.id}`
+    );
+
+    return result;
+  };
+
   const reassignProject = async (projectId: string, newPmName: string, reason?: string) => {
     const project = projects.find(p => p.id === projectId);
     if (!project) return;
@@ -664,6 +714,7 @@ export function useProjects(userRole: Role, config: AppConfig, userName: string 
     importBulkProjects,
     updateProject,
     billProject,
+    rejectBilling,
     reassignProject,
     submitRebaselineRequest,
     approveRebaselineRequest,

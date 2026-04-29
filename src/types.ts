@@ -72,6 +72,15 @@ export interface SuspensionCycle {
   frozenActiveDays: number;
 }
 
+export interface BillingRejection {
+  id: string;
+  rejectedBy: string;      // Finance user name
+  rejectedAt: string;      // ISO timestamp
+  reason: string;          // Required free text from Finance
+  category?: string;       // Optional: 'Missing documentation' | 'Invoice not raised' | 'Client dispute' | 'Awaiting sign-off' | 'Other'
+  resolvedAt?: string;     // Set when PM re-submits to Signed Off
+}
+
 export interface ExecutionMilestone {
   id: string;
   name: string;
@@ -121,6 +130,7 @@ export interface Project {
   actualCompletionDate?: string;
   externalId?: string;
   tags?: string[];
+  billingRejections?: BillingRejection[];
 }
 
 export interface PackageConfig {

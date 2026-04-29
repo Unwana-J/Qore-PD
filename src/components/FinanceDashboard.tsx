@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Project, Role, ProductLine } from '../types';
+import { Project, Role, ProductLine, BillingRejection } from '../types';
 import { formatCurrency, formatCompactCurrency, cn } from '../lib/utils';
 import { 
   TrendingUp, 
@@ -16,6 +16,7 @@ import {
   ChevronRight,
   RefreshCw,
   Filter,
+  XCircle,
   X
 } from 'lucide-react';
 import { 
@@ -32,6 +33,7 @@ import { motion, AnimatePresence } from 'motion/react';
 interface FinanceDashboardProps {
   projects: Project[];
   onBillProject: (projectId: string) => Promise<any>;
+  onRejectBilling: (projectId: string, reason: string, category?: string) => Promise<any>;
   themeColor?: string;
   currencies: any[];
   loading?: boolean;
@@ -40,15 +42,26 @@ interface FinanceDashboardProps {
 type SortField = 'clientName' | 'signedOffAt' | 'value' | 'assignedPM';
 type SortOrder = 'asc' | 'desc';
 
-export const FinanceDashboard: React.FC<FinanceDashboardProps> = ({ projects, onBillProject, themeColor = 'teal', currencies, loading = false }) => {
+export const FinanceDashboard: React.FC<FinanceDashboardProps> = ({ projects, onBillProject, onRejectBilling, themeColor = 'teal', currencies, loading = false }) => {
   const theme = getThemeClasses(themeColor);
   const [currencyFilter, setCurrencyFilter] = useState<'All' | string>('All');
   const [sortField, setSortField] = useState<SortField>('signedOffAt');
   const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
   const [billingConfirmation, setBillingConfirmation] = useState<Project | null>(null);
+  const [rejectionTarget, setRejectionTarget] = useState<Project | null>(null);
+  const [rejectionReason, setRejectionReason] = useState('');
+  const [rejectionCategory, setRejectionCategory] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const ITEMS_PER_PAGE = 10;
+
+  const DECLINE_CATEGORIES = [
+    'Missing documentation',
+    'Invoice not raised',
+    'Client dispute',
+    'Awaiting client sign-off',
+    'Other',
+  ];
 
   const now = new Date();
 
@@ -138,6 +151,21 @@ export const FinanceDashboard: React.FC<FinanceDashboardProps> = ({ projects, on
       setBillingConfirmation(null);
     } catch (error) {
       console.error('Billing failed', error);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleRejectBilling = async () => {
+    if (!rejectionTarget || !rejectionReason.trim()) return;
+    setIsProcessing(true);
+    try {
+      await onRejectBilling(rejectionTarget.id, rejectionReason.trim(), rejectionCategory || undefined);
+      setRejectionTarget(null);
+      setRejectionReason('');
+      setRejectionCategory('');
+    } catch (error) {
+      console.error('Rejection failed', error);
     } finally {
       setIsProcessing(false);
     }
@@ -396,8 +424,24 @@ export const FinanceDashboard: React.FC<FinanceDashboardProps> = ({ projects, on
                         <div className="flex items-center gap-3">
                           <div className={cn("w-1 h-8 rounded-full", getPriorityColor(project.priority))} />
                           <div>
-                            <p className="font-bold text-slate-900 group-hover:text-teal-600 transition-colors">{project.clientName}</p>
+                            <div className="flex items-center gap-2">
+                              <p className="font-bold text-slate-900 group-hover:text-teal-600 transition-colors">{project.clientName}</p>
+                              {(project.billingRejections?.length ?? 0) > 0 && (
+                                <span
+                                  className="inline-flex items-center gap-1 px-2 py-0.5 bg-red-50 text-red-600 text-[9px] font-black rounded-full border border-red-100 uppercase tracking-widest"
+                                  title={`Last declined: ${project.billingRejections![0].reason}`}
+                                >
+                                  <XCircle className="w-2.5 h-2.5" />
+                                  Previously Declined
+                                </span>
+                              )}
+                            </div>
                             <p className="text-xs text-slate-500">{project.packageName}</p>
+                            {(project.billingRejections?.length ?? 0) > 0 && (
+                              <p className="text-[10px] text-red-500 font-medium mt-0.5 max-w-[200px] truncate" title={project.billingRejections![0].reason}>
+                                ↳ {project.billingRejections![0].reason}
+                              </p>
+                            )}
                           </div>
                         </div>
                       </td>
@@ -441,15 +485,23 @@ export const FinanceDashboard: React.FC<FinanceDashboardProps> = ({ projects, on
                         </div>
                       </td>
                       <td className="px-6 py-5 text-right">
-                        <button 
-                          onClick={() => setBillingConfirmation(project)}
-                          className={cn(
-                            "px-4 py-2 text-white text-xs font-bold rounded-xl transition-all shadow-md group-hover:scale-105 active:scale-95",
-                            theme.bg, theme.hoverBg
-                          )}
-                        >
-                          Mark as Billed
-                        </button>
+                        <div className="flex items-center justify-end gap-2">
+                          <button 
+                            onClick={() => setRejectionTarget(project)}
+                            className="px-3 py-2 text-red-500 bg-red-50 border border-red-100 text-xs font-bold rounded-xl hover:bg-red-100 transition-all active:scale-95"
+                          >
+                            Decline
+                          </button>
+                          <button 
+                            onClick={() => setBillingConfirmation(project)}
+                            className={cn(
+                              "px-4 py-2 text-white text-xs font-bold rounded-xl transition-all shadow-md group-hover:scale-105 active:scale-95",
+                              theme.bg, theme.hoverBg
+                            )}
+                          >
+                            Mark as Billed
+                          </button>
+                        </div>
                       </td>
                     </motion.tr>
                   );
@@ -615,6 +667,92 @@ export const FinanceDashboard: React.FC<FinanceDashboardProps> = ({ projects, on
                 >
                   {isProcessing ? 'Processing...' : 'Confirm'}
                   {!isProcessing && <ChevronRight className="w-5 h-5" />}
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Billing Rejection Modal */}
+      <AnimatePresence>
+        {rejectionTarget && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="bg-white w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden relative"
+            >
+              <button
+                onClick={() => { setRejectionTarget(null); setRejectionReason(''); setRejectionCategory(''); }}
+                className="absolute top-4 right-4 p-2 text-slate-400 hover:bg-slate-50 hover:text-slate-600 rounded-full transition-colors z-10"
+              >
+                <X className="w-5 h-5" />
+              </button>
+              <div className="p-8">
+                <div className="flex items-center gap-4 mb-6">
+                  <div className="w-14 h-14 rounded-2xl bg-red-50 border border-red-100 flex items-center justify-center shrink-0">
+                    <XCircle className="w-7 h-7 text-red-500" />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-black text-slate-900">Decline Billing</h2>
+                    <p className="text-sm text-slate-500 mt-0.5">{rejectionTarget.clientName} &middot; <span className="font-semibold text-slate-700">{new Intl.NumberFormat().format(rejectionTarget.value)} {rejectionTarget.currency}</span></p>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-xs font-black text-slate-700 uppercase tracking-widest mb-2">
+                      Category <span className="text-slate-400 font-medium normal-case tracking-normal">(optional)</span>
+                    </label>
+                    <div className="flex flex-wrap gap-2">
+                      {DECLINE_CATEGORIES.map(cat => (
+                        <button
+                          key={cat}
+                          onClick={() => setRejectionCategory(cat === rejectionCategory ? '' : cat)}
+                          className={cn(
+                            "px-3 py-1.5 rounded-xl text-xs font-bold border transition-all",
+                            rejectionCategory === cat
+                              ? "bg-red-500 text-white border-red-500"
+                              : "bg-slate-50 text-slate-600 border-slate-200 hover:border-red-300 hover:text-red-600"
+                          )}
+                        >
+                          {cat}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-black text-slate-700 uppercase tracking-widest mb-2">
+                      Reason <span className="text-red-500">*</span>
+                    </label>
+                    <textarea
+                      value={rejectionReason}
+                      onChange={e => setRejectionReason(e.target.value)}
+                      placeholder="e.g. Invoice not yet raised. Missing signed delivery note from client."
+                      rows={3}
+                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-red-400 resize-none transition-all"
+                    />
+                    <p className="text-[10px] text-slate-400 mt-1.5 font-medium">This reason will be sent to the assigned PM and logged on the project activity feed.</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="px-8 pb-8 flex gap-3">
+                <button
+                  onClick={() => { setRejectionTarget(null); setRejectionReason(''); setRejectionCategory(''); }}
+                  className="flex-1 py-4 bg-slate-100 text-slate-600 font-black rounded-2xl hover:bg-slate-200 transition-all active:scale-95"
+                >
+                  Cancel
+                </button>
+                <button
+                  disabled={isProcessing || !rejectionReason.trim()}
+                  onClick={handleRejectBilling}
+                  className="flex-1 py-4 bg-red-500 hover:bg-red-600 text-white font-black rounded-2xl transition-all shadow-lg shadow-red-500/25 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                  {isProcessing ? 'Processing...' : 'Decline & Notify PM'}
                 </button>
               </div>
             </motion.div>

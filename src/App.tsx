@@ -59,6 +59,7 @@ function AppContent() {
     importBulkProjects,
     updateProject,
     billProject,
+    rejectBilling,
     reassignProject: originalReassignProject,
     submitRebaselineRequest,
     approveRebaselineRequest,
@@ -392,6 +393,7 @@ function AppContent() {
                         <FinanceDashboard 
                           projects={filteredProjects}
                           onBillProject={billProject}
+                          onRejectBilling={rejectBilling}
                           currencies={config.currencies}
                           themeColor={config.brand.themeColor}
                           loading={projectsLoading}
