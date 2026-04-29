@@ -5,7 +5,7 @@ import { motion } from 'motion/react';
 import { PROJECT_STATES } from '../constants';
 import { PROJECT_STATE_COLORS, PRIORITY_COLORS, getThemeClasses } from '../lib/theme';
 import { differenceInDays, parseISO, subDays, format } from 'date-fns';
-import { AlertCircle, AlertTriangle, DollarSign, Search, Filter, MoreHorizontal, Calendar, User, ChevronRight, TrendingUp, TrendingDown, Minus, ChevronDown, Check, X, RefreshCw } from 'lucide-react';
+import { AlertCircle, AlertTriangle, BarChart2, DollarSign, Search, Filter, MoreHorizontal, Calendar, User, ChevronRight, TrendingUp, TrendingDown, Minus, ChevronDown, Check, X, RefreshCw } from 'lucide-react';
 import { Role, PackageConfig, ServiceBaseline } from '../types';
 
 interface ProjectListProps {
@@ -22,20 +22,23 @@ interface ProjectListProps {
   spiThresholds: { onTrack: number, atRisk: number };
   initialSearch?: string;
   initialStateFilter?: ProjectState | 'All';
+  initialPMFilter?: string;
+  onBackToDigest?: () => void;
   loading?: boolean;
   customTags?: { id: string; name: string; color: string }[];
 }
 
 export const ProjectList: React.FC<ProjectListProps> = ({ 
   projects, onSelectProject, userRole, users, packages = [], serviceBaselines = [], allPMNames = [], onReassignProject, 
-  themeColor = 'teal', staleThresholdDays, spiThresholds, initialSearch = '', initialStateFilter = 'All', loading = false, customTags = []
+  themeColor = 'teal', staleThresholdDays, spiThresholds, initialSearch = '', initialStateFilter = 'All', 
+  initialPMFilter, onBackToDigest, loading = false, customTags = []
 }) => {
   const [search, setSearch] = useState(initialSearch);
   const [stateFilter, setStateFilter] = useState<ProjectState | 'All'>(initialStateFilter);
   const [periodFilter, setPeriodFilter] = useState<string>('All Time');
   const [customDateRange, setCustomDateRange] = useState<{ from: string; to: string }>({ from: '', to: '' });
   const [selectedPackages, setSelectedPackages] = useState<string[]>([]);
-  const [selectedPMs, setSelectedPMs] = useState<string[]>([]);
+  const [selectedPMs, setSelectedPMs] = useState<string[]>(initialPMFilter ? [initialPMFilter] : []);
   const [portfolioFilter, setPortfolioFilter] = useState<'All' | 'Enterprise' | 'Initiative'>('All');
   
   const [isPackageDropdownOpen, setIsPackageDropdownOpen] = useState(false);
@@ -103,6 +106,17 @@ export const ProjectList: React.FC<ProjectListProps> = ({
     <div className="p-6 space-y-6">
       <div className="flex flex-col gap-4">
         <div className="flex flex-col md:flex-row gap-4 justify-between items-start md:items-center">
+          {onBackToDigest && (
+            <button
+              onClick={onBackToDigest}
+              className={cn(
+                "flex items-center gap-2 px-4 py-2 bg-slate-900 text-white rounded-xl text-xs font-black shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all active:scale-95 shrink-0"
+              )}
+            >
+              <BarChart2 className="w-4 h-4" />
+              Back to Digest
+            </button>
+          )}
           <div className="relative flex-1 group w-full">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-slate-600 transition-colors" />
             <input 

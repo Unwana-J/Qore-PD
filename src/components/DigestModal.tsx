@@ -15,7 +15,7 @@ interface DigestModalProps {
   historicalDigests?: DigestData[];
   themeColor?: string;
   onClose: () => void;
-  onNavigate: (view: string, filter?: string) => void;
+  onNavigate: (view: string, filter?: string, pmFilter?: string) => void;
 }
 
 export const DigestModal: React.FC<DigestModalProps> = ({
@@ -154,17 +154,21 @@ export const DigestModal: React.FC<DigestModalProps> = ({
                 {displayDigest.pmActivity.slice(0, 8).map(pm => {
                   const c = getPMColour(pm.lastUpdatedDaysAgo);
                   return (
-                    <div key={pm.pmName} className="flex items-center gap-3 py-2.5 px-4 bg-slate-50 rounded-2xl border border-slate-100 hover:border-slate-200 transition-all">
+                    <button 
+                      key={pm.pmName} 
+                      onClick={() => onNavigate('projects', 'All', pm.pmName)}
+                      className="w-full flex items-center gap-3 py-2.5 px-4 bg-slate-50 rounded-2xl border border-slate-100 hover:border-slate-300 hover:bg-white hover:shadow-sm transition-all group active:scale-[0.98]"
+                    >
                       <div className={cn('w-2 h-2 rounded-full shrink-0', c.dot)} />
-                      <div className="w-7 h-7 rounded-full bg-slate-200 flex items-center justify-center text-[10px] font-black text-slate-600 shrink-0">
+                      <div className="w-7 h-7 rounded-full bg-slate-200 flex items-center justify-center text-[10px] font-black text-slate-600 shrink-0 group-hover:bg-slate-300 transition-colors">
                         {pm.pmName.split(' ').map(n => n[0]).join('').slice(0, 2)}
                       </div>
-                      <p className="flex-1 text-sm font-semibold text-slate-900">{pm.pmName}</p>
+                      <p className="flex-1 text-sm font-semibold text-slate-900 text-left">{pm.pmName}</p>
                       <span className="text-[10px] font-bold text-slate-400">{pm.projectCount} project{pm.projectCount !== 1 ? 's' : ''}</span>
                       <span className={cn('px-2 py-1 rounded-lg text-[10px] font-black', c.badge)}>
                         {c.label} ago
                       </span>
-                    </div>
+                    </button>
                   );
                 })}
               </div>

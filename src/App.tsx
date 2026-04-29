@@ -39,6 +39,8 @@ function AppContent() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [activeSettingsTab, setActiveSettingsTab] = useState<SettingsTab>('account');
   const [projectListFilter, setProjectListFilter] = useState<ProjectState | 'All'>('All');
+  const [projectListPMFilter, setProjectListPMFilter] = useState<string | null>(null);
+  const [openedFromDigest, setOpenedFromDigest] = useState(false);
   const [isBulkImportOpen, setIsBulkImportOpen] = useState(false);
   const [isDigestOpen, setIsDigestOpen] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
@@ -442,6 +444,8 @@ function AppContent() {
                       <ProjectList 
                         projects={filteredProjects} 
                         initialStateFilter={projectListFilter}
+                        initialPMFilter={projectListPMFilter || undefined}
+                        onBackToDigest={openedFromDigest ? () => setIsDigestOpen(true) : undefined}
                         onSelectProject={setSelectedProject} 
                         themeColor={config.brand.themeColor}
                         staleThresholdDays={config.staleThresholdDays}
@@ -625,11 +629,13 @@ function AppContent() {
             historicalDigests={historicalDigests}
             themeColor={config.brand.themeColor}
             onClose={() => setIsDigestOpen(false)}
-            onNavigate={(view, filter) => {
+            onNavigate={(view, filter, pmFilter) => {
               setIsDigestOpen(false);
+              setOpenedFromDigest(true);
               setCurrentView(view as any);
-              if (view === 'projects' && filter) {
-                setProjectListFilter(filter as any);
+              if (view === 'projects') {
+                if (filter) setProjectListFilter(filter as any);
+                if (pmFilter) setProjectListPMFilter(pmFilter);
               }
             }}
           />
