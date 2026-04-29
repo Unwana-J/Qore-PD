@@ -517,6 +517,7 @@ function AppContent() {
         packages={config.packages}
         productLines={config.productLines}
         customTags={config.customTags}
+        userName={profile?.name}
       />
 
       {projectToReassign && (

@@ -21,6 +21,7 @@ interface ProjectModalProps {
   packages: PackageConfig[];
   productLines: ProductLineConfig[];
   customTags?: { id: string; name: string; color: string }[];
+  userName?: string;
 }
 
 const DELIVERY_TRACKS: { id: DeliveryTrack; label: string; desc: string; color: string }[] = [
@@ -32,9 +33,10 @@ const DELIVERY_TRACKS: { id: DeliveryTrack; label: string; desc: string; color: 
 export const ProjectModal: React.FC<ProjectModalProps> = ({ 
   isOpen, onClose, onSubmit, userRole, getPMWorkload, workloadThresholds, 
   themeColor = 'teal', currencies = [], users = [], importedPMs = [],
-  serviceBaselines = [], packages = [], productLines = [], customTags = []
+  serviceBaselines = [], packages = [], productLines = [], customTags = [],
+  userName
 }) => {
-  const currentUserName = userRole === 'PM' ? 'Sarah Jenkins' : 'Admin User';
+  const currentUserName = userRole === 'PM' ? (userName || 'Unknown PM') : 'Admin User';
   
   const [formData, setFormData] = useState({
     clientName: '',
