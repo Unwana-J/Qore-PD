@@ -117,7 +117,6 @@ export function useProjects(userRole: Role, config: AppConfig, userName: string 
     if (rawProjects.length === 0) return;
     if (!hasRole(userRole, ['Superadmin', 'Manager'])) return;
     const mondayKey = getMondayKey();
-    if (localStorage.getItem('digest_week_key') === mondayKey) return;
 
     const today = new Date();
     const sevenDaysAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
@@ -186,7 +185,6 @@ export function useProjects(userRole: Role, config: AppConfig, userName: string 
     };
 
     setWeeklyDigest(digest);
-    localStorage.setItem('digest_week_key', mondayKey);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rawProjects.length, userRole]);
 
