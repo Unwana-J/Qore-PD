@@ -76,7 +76,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   setInvites
 }) => {
   const { user, profile, refreshProfile } = useAuth();
-  const [auditLogs, setAuditLogs] = useState<AuditLog[]>(MOCK_AUDIT_LOGS);
+  const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
   const [weightHistory, setWeightHistory] = useState<WeightHistory[]>(MOCK_WEIGHT_HISTORY);
   const [showUserRemoveConfirm, setShowUserRemoveConfirm] = useState<any | null>(null);
 
@@ -95,6 +95,18 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       setDraftConfig(config);
     }
   }, [config, isDirty]);
+
+  // Fetch audit logs when active tab is 'audit'
+  useEffect(() => {
+    if (activeTab === 'audit') {
+      api.audit.getLogs()
+        .then(setAuditLogs)
+        .catch(err => {
+          console.error("Failed to fetch audit logs", err);
+          showToast("Failed to fetch audit logs", "error");
+        });
+    }
+  }, [activeTab, showToast]);
 
   const handleSave = async () => {
     setIsSaving(true);
