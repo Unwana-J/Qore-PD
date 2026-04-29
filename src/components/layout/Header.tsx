@@ -3,7 +3,6 @@ import {
   Menu, 
   X, 
   ChevronRight, 
-  Search, 
   Bell, 
   Plus,
   Upload,
@@ -184,17 +183,6 @@ export const Header: React.FC<HeaderProps> = ({
       </div>
 
       <div className="flex items-center gap-4">
-        <div className="hidden md:flex items-center gap-2 pl-3 pr-1 py-1.5 bg-slate-100 border border-slate-200 rounded-xl text-slate-500 group focus-within:ring-2 focus-within:ring-slate-200 focus-within:bg-white transition-all">
-          <Search className="w-4 h-4 text-slate-400 group-focus-within:text-slate-600" />
-          <input 
-            type="text" 
-            placeholder="Search everything..." 
-            className="bg-transparent text-[13px] font-medium outline-none w-40 focus:w-60 transition-all" 
-          />
-          <div className="px-1.5 py-0.5 bg-white border border-slate-200 rounded text-[10px] font-bold text-slate-400">
-            ⌘K
-          </div>
-        </div>
         <div className="relative">
           <button 
             onClick={() => {
