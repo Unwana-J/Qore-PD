@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { format } from 'date-fns';
+import { format, differenceInBusinessDays, parseISO } from 'date-fns';
 import { Project, Role, AppConfig, ProjectPriority, ProjectActivity, ActivityType, RebaselineRequest, Phase, ServiceState, ProjectState, BillingRejection } from '../types';
 import { api } from '../lib/api';
 import { supabase } from '../lib/supabase';
@@ -166,6 +166,78 @@ export function useProjects(userRole: Role, config: AppConfig, userName: string 
       }
     });
   }, [rawProjects, userRole, userName, config.staleThresholdDays]);
+
+  // ── Approaching Completion Date — PM alert (≤5 working days to deadline) ───
+  useMemo(() => {
+    if (userRole !== 'PM') return;
+    const WARN_DAYS = 5;
+    const today = new Date();
+
+    rawProjects.forEach(p => {
+      const isOwner = p.assignedPM?.trim().toLowerCase() === userName?.trim().toLowerCase();
+      if (!isOwner) return;
+      if (['Closed', 'Billed', 'Signed Off', 'Suspended'].includes(p.state)) return;
+      if (!p.currentCompletionDate) return;
+
+      const daysLeft = differenceInBusinessDays(parseISO(p.currentCompletionDate), today);
+      if (daysLeft > WARN_DAYS || daysLeft < 0) return; // past due handled separately
+
+      const key = `due-soon-${p.id}-${p.currentCompletionDate}`;
+      if (!notifKeysRef.current.has(key)) {
+        notifKeysRef.current.add(key);
+        const label = daysLeft === 0 ? 'due today' : daysLeft === 1 ? '1 working day left' : `${daysLeft} working days left`;
+        addNotification(
+          `"${p.clientName}" is ${label} — ensure closure phase is on track.`,
+          p.id,
+          key
+        );
+      }
+    });
+  }, [rawProjects, userRole, userName]);
+
+  // ── Auto-flip to Delayed — notify the PM when system downgrades state ────────
+  // We compare rawProjects (with auto-state applied on load) against a stable
+  // reference of what the DB had before: any project that is now 'Delayed' and
+  // was previously something other than 'Delayed' fires a notification.
+  useMemo(() => {
+    if (userRole !== 'PM') return;
+
+    rawProjects.forEach(p => {
+      const isOwner = p.assignedPM?.trim().toLowerCase() === userName?.trim().toLowerCase();
+      if (!isOwner || p.state !== 'Delayed') return;
+
+      const key = `auto-delayed-${p.id}`;
+      if (!notifKeysRef.current.has(key)) {
+        notifKeysRef.current.add(key);
+        addNotification(
+          `"${p.clientName}" was automatically marked Delayed based on schedule performance. Review and update progress.`,
+          p.id,
+          key
+        );
+      }
+    });
+  }, [rawProjects, userRole, userName]);
+
+  // ── No PM Assigned — Manager / Superadmin alert ───────────────────────────
+  useMemo(() => {
+    if (!hasRole(userRole, ['Superadmin', 'Manager'])) return;
+
+    rawProjects.forEach(p => {
+      const noPM = !p.assignedPM || p.assignedPM.trim() === '';
+      if (!noPM) return;
+      if (['Closed', 'Billed'].includes(p.state)) return;
+
+      const key = `no-pm-${p.id}`;
+      if (!notifKeysRef.current.has(key)) {
+        notifKeysRef.current.add(key);
+        addNotification(
+          `"${p.clientName}" has no assigned PM — assign one before delivery starts.`,
+          p.id,
+          key
+        );
+      }
+    });
+  }, [rawProjects, userRole]);
 
   // Alias for compatibility
   const projects = rawProjects;

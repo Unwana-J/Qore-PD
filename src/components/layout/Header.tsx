@@ -6,7 +6,8 @@ import {
   Search, 
   Bell, 
   Plus,
-  Upload
+  Upload,
+  Timer
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { Project, Role } from '../../types';
@@ -234,7 +235,17 @@ export const Header: React.FC<HeaderProps> = ({
                     notifications.map(n => {
                       const isRebaseline = n.message.includes('rebaseline');
                       const isStale = n.message.includes("hasn't been updated");
-                      const isBilled = n.message.includes('Billed');
+                      const isBilled = n.message.includes('Billed') || n.message.includes('Billed by Finance');
+                      const isDueSoon = n.message.includes('working day') || n.message.includes('due today');
+                      const isDelayed = n.message.includes('automatically marked Delayed');
+                      const isNoPM = n.message.includes('no assigned PM');
+
+                      const dotColor = isRebaseline ? 'bg-amber-500'
+                        : isDueSoon ? 'bg-orange-500'
+                        : isDelayed || isStale ? 'bg-rose-500'
+                        : isBilled ? 'bg-emerald-500'
+                        : isNoPM ? 'bg-purple-500'
+                        : 'bg-blue-500';
                       return (
                         <div 
                           key={n.id} 
@@ -248,10 +259,7 @@ export const Header: React.FC<HeaderProps> = ({
                             setIsNotifOpen(false);
                           }}
                         >
-                          <div className={cn(
-                            "mt-0.5 w-2 h-2 rounded-full shrink-0 mt-2",
-                            isRebaseline ? 'bg-amber-500' : isStale ? 'bg-rose-500' : isBilled ? 'bg-emerald-500' : 'bg-blue-500'
-                          )} />
+                          <div className={cn("mt-2 w-2 h-2 rounded-full shrink-0", dotColor)} />
                           <div className="flex-1 min-w-0">
                             <p className="text-xs font-semibold text-slate-900 leading-snug">{n.message}</p>
                             <p className="text-[10px] font-medium text-slate-400 mt-1">{getRelativeTime(n.createdAt)}</p>
