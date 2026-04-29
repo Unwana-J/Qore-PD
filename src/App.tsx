@@ -302,7 +302,14 @@ function AppContent() {
       </AnimatePresence>
       <Sidebar 
         currentView={currentView}
-        setCurrentView={setCurrentView}
+        setCurrentView={(view) => {
+          setCurrentView(view);
+          if (view === 'projects') {
+            setProjectListFilter('All');
+            setProjectListPMFilter(null);
+          }
+          setOpenedFromDigest(false);
+        }}
         selectedProject={selectedProject}
         setSelectedProject={setSelectedProject}
         userRole={userRole as Role}
