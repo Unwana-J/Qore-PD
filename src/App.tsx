@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Loader2, AlertCircle, RefreshCw, UserCircle, ChevronRight, Clock, AlertTriangle, CheckCircle2, X, Settings } from 'lucide-react';
+import { Loader2, AlertCircle, RefreshCw, UserCircle, ChevronRight, X, Settings } from 'lucide-react';
 import { cn, isRole, hasRole, resolveServiceIds } from './lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
 import { Sidebar } from './components/layout/Sidebar';
@@ -68,6 +68,8 @@ function AppContent() {
     validateStateTransition,
     notifications,
     dismissNotification,
+    markAllRead,
+    clearAllNotifications,
     loading: projectsLoading,
     refreshProjects
   } = useProjects(userRole || 'PM', config, profile?.name || 'User');
@@ -326,7 +328,10 @@ function AppContent() {
           userName={profile?.name}
           notifications={notifications}
           dismissNotification={dismissNotification}
+          markAllRead={markAllRead}
+          clearAllNotifications={clearAllNotifications}
           onSelectProject={setSelectedProject}
+          projects={projects}
         />
 
         <div className="flex-1 overflow-y-auto bg-slate-50/50">
@@ -602,33 +607,7 @@ function AppContent() {
         </div>
       )}
 
-      {/* Project-Specific Alerts list (Rebaseline, Stale data, etc) */}
-      <div className="fixed bottom-6 right-6 z-[100] pointer-events-none flex flex-col gap-2 items-end">
-        <AnimatePresence>
-          {notifications.map(n => (
-            <motion.div 
-              key={n.id}
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: 20 }}
-              className="pointer-events-auto bg-slate-900/90 backdrop-blur-md text-white rounded-2xl shadow-xl px-5 py-3 flex items-center gap-3 max-w-sm border border-white/10"
-            >
-              <div className="bg-white/10 p-1.5 rounded-lg">
-                {n.message.includes('rebaseline') ? <Clock className="w-4 h-4 text-amber-400" /> : 
-                 n.message.includes('stale') ? <AlertTriangle className="w-4 h-4 text-rose-400" /> :
-                 <CheckCircle2 className="w-4 h-4 text-emerald-400" />}
-              </div>
-              <span className="text-[11px] font-bold flex-1 leading-tight">{n.message}</span>
-              <button 
-                onClick={() => dismissNotification(n.id)} 
-                className="p-1 hover:bg-white/10 rounded-lg transition-colors text-white/40 hover:text-white"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
-            </motion.div>
-          ))}
-        </AnimatePresence>
-      </div>
+
     </div>
   );
 }

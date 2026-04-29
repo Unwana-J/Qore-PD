@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useEffect } from 'react';
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import { Project, Role, AppConfig, ProjectPriority, ProjectActivity, ActivityType, RebaselineRequest, Phase, ServiceState, ProjectState } from '../types';
@@ -9,16 +9,35 @@ import { calculateWorkingDays, getActiveDaysCount, calculateSPI, getAutoProjectS
 export function useProjects(userRole: Role, config: AppConfig, userName: string = 'User') {
   const queryClient = useQueryClient();
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
-  const [notifications, setNotifications] = useState<Array<{ id: string; message: string; projectId: string }>>([]);
+  // Ref-based dedup: tracks keys of notifications already added this session
+  const notifKeysRef = useRef<Set<string>>(new Set());
+  const [notifications, setNotifications] = useState<Array<{
+    id: string; message: string; projectId: string;
+    createdAt: Date; isRead: boolean; key: string;
+  }>>([]);
 
-  const addNotification = (message: string, projectId: string) => {
+  const addNotification = useCallback((message: string, projectId: string, key?: string) => {
     const id = Math.random().toString(36).substr(2, 9);
-    setNotifications(prev => [...prev, { id, message, projectId }]);
-  };
+    const notifKey = key || id;
+    setNotifications(prev => [...prev, { id, message, projectId, createdAt: new Date(), isRead: false, key: notifKey }]);
+  }, []);
 
-  const dismissNotification = (id: string) => {
-    setNotifications(prev => prev.filter(n => n.id !== id));
-  };
+  const dismissNotification = useCallback((id: string) => {
+    setNotifications(prev => {
+      const target = prev.find(n => n.id === id);
+      if (target?.key) notifKeysRef.current.delete(target.key);
+      return prev.filter(n => n.id !== id);
+    });
+  }, []);
+
+  const markAllRead = useCallback(() => {
+    setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
+  }, []);
+
+  const clearAllNotifications = useCallback(() => {
+    notifKeysRef.current.clear();
+    setNotifications([]);
+  }, []);
 
   const validateStateTransition = (project: Project, newState: string): string | null => {
     const current = project.state;
@@ -96,14 +115,14 @@ export function useProjects(userRole: Role, config: AppConfig, userName: string 
           const clientName = (payload.new as any).client_name || 'Unknown project';
           const projectId  = (payload.new as any).id || '';
           const notifId    = Math.random().toString(36).substr(2, 9);
-          setNotifications(prev => [
-            ...prev,
-            {
-              id: notifId,
-              message: `New project received from data warehouse: "${clientName}"`,
-              projectId,
-            },
-          ]);
+          const webhookKey = `webhook-${projectId}`;
+          if (!notifKeysRef.current.has(webhookKey)) {
+            notifKeysRef.current.add(webhookKey);
+            setNotifications(prev => [
+              ...prev,
+              { id: notifId, message: `New project received: "${clientName}"`, projectId, createdAt: new Date(), isRead: false, key: webhookKey },
+            ]);
+          }
         }
       )
       .subscribe();
@@ -116,17 +135,15 @@ export function useProjects(userRole: Role, config: AppConfig, userName: string 
   // Rebaseline Notifications for leadership
   useMemo(() => {
     if (!hasRole(userRole, ['Superadmin', 'Manager', 'Team Lead'])) return;
-    
-    // Clear old rebaseline notifications (simple logic for demo/dashboard purposes)
     const pending = rawProjects.flatMap(p => (p.rebaselineRequests || [])
       .filter(r => r.status === 'Pending')
       .map(r => ({ projectId: p.id, projectName: p.clientName, requestId: r.id }))
     );
-
     pending.forEach(r => {
-      const exists = notifications.some(n => n.projectId === r.projectId && n.message.includes('rebaseline'));
-      if (!exists) {
-        addNotification(`New rebaseline request for "${r.projectName}"`, r.projectId);
+      const key = `rebaseline-${r.projectId}`;
+      if (!notifKeysRef.current.has(key)) {
+        notifKeysRef.current.add(key);
+        addNotification(`New rebaseline request for "${r.projectName}"`, r.projectId, key);
       }
     });
   }, [rawProjects, userRole]);
@@ -134,20 +151,18 @@ export function useProjects(userRole: Role, config: AppConfig, userName: string 
   // Stale Data Notifications for assigned PM
   useMemo(() => {
     if (userRole !== 'PM') return;
-    
     const staleProjects = rawProjects.filter(p => {
       const isOwner = p.assignedPM?.trim().toLowerCase() === userName?.trim().toLowerCase();
       if (!isOwner || p.state === 'Closed' || p.state === 'Billed' || p.state === 'Suspended') return false;
-      
       const lastUpdate = p.updatedAt ? new Date(p.updatedAt) : new Date(p.createdAt);
       const diffDays = (new Date().getTime() - lastUpdate.getTime()) / (1000 * 60 * 60 * 24);
       return diffDays > (config.staleThresholdDays || 7);
     });
-
     staleProjects.forEach(p => {
-      const exists = notifications.some(n => n.projectId === p.id && n.message.includes('stale'));
-      if (!exists) {
-        addNotification(`Project "${p.clientName}" hasn't been updated in over ${config.staleThresholdDays || 7} days.`, p.id);
+      const key = `stale-${p.id}`;
+      if (!notifKeysRef.current.has(key)) {
+        notifKeysRef.current.add(key);
+        addNotification(`Project "${p.clientName}" hasn't been updated in over ${config.staleThresholdDays || 7} days.`, p.id, key);
       }
     });
   }, [rawProjects, userRole, userName, config.staleThresholdDays]);
@@ -482,7 +497,8 @@ export function useProjects(userRole: Role, config: AppConfig, userName: string 
     // Notify the assigned PM
     addNotification(
       `Project "${project.clientName}" has been marked as Billed by Finance`,
-      projectId
+      projectId,
+      `billed-${projectId}`
     );
     return result;
   };
@@ -656,6 +672,8 @@ export function useProjects(userRole: Role, config: AppConfig, userName: string 
     validateStateTransition,
     notifications,
     dismissNotification,
+    markAllRead,
+    clearAllNotifications,
     loading,
     refreshProjects
   };
