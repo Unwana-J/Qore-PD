@@ -518,9 +518,15 @@ export const ImplementationsView: React.FC<ImplementationsViewProps> = ({
         <NewImplementationModal
           isOpen={isNewModalOpen}
           onClose={() => setIsNewModalOpen(false)}
-          onSuccess={() => { setIsNewModalOpen(false); loadExtensions(); }}
+          onSuccess={() => {
+            setIsNewModalOpen(false);
+            loadExtensions();
+            onShowToast('New implementation created successfully.');
+          }}
           config={config}
           userName={userName}
+          userRole={userRole}
+          users={users}
         />
       )}
 

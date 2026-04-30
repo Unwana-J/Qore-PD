@@ -12,10 +12,12 @@ interface NewImplementationModalProps {
   onSuccess: () => void;
   config: AppConfig;
   userName: string;
+  userRole: string;
+  users: any[];
 }
 
 export const NewImplementationModal: React.FC<NewImplementationModalProps> = ({
-  isOpen, onClose, onSuccess, config, userName
+  isOpen, onClose, onSuccess, config, userName, userRole, users
 }) => {
   const [step, setStep] = useState<1 | 2>(1);
   const [loading, setLoading] = useState(false);
@@ -26,6 +28,15 @@ export const NewImplementationModal: React.FC<NewImplementationModalProps> = ({
   const [clientName, setClientName] = useState('');
   const [selectedService, setSelectedService] = useState<ServiceBaseline | null>(null);
   const [selectedSubService, setSelectedSubService] = useState<ServiceSubService | null>(null);
+  const [implementationManager, setImplementationManager] = useState(userName);
+
+  const isLead = userRole === 'IM Lead' || userRole === 'Superadmin' || userRole === 'Manager';
+  const availableIMs = React.useMemo(() => {
+    return Array.from(new Set([
+      ...users.filter(u => u.role === 'IM' || u.role === 'IM Lead').map(u => u.name),
+      userName
+    ])).sort();
+  }, [users, userName]);
 
   // Step 2
   const [targetDate, setTargetDate] = useState<string>('');
@@ -96,7 +107,7 @@ export const NewImplementationModal: React.FC<NewImplementationModalProps> = ({
         serviceVariant: selectedSubService?.name ?? 'Standard',
         subServiceId: selectedSubService?.id ?? null,
         baselineDays: effectiveBaseline,
-        implementationManager: userName,
+        implementationManager: implementationManager,
         startDate: new Date().toISOString().split('T')[0],
         targetClosureDate: targetDate,
         status: 'Not Started',
@@ -248,6 +259,22 @@ export const NewImplementationModal: React.FC<NewImplementationModalProps> = ({
                     {effectiveMilestones.length > 0
                       ? `${effectiveMilestones.length} milestones: ${effectiveMilestones.slice(0, 3).join(', ')}${effectiveMilestones.length > 3 ? '…' : ''}`
                       : 'No milestones configured.'}
+                  </div>
+                )}
+
+                {/* IM Selection for Leads/Managers */}
+                {isLead && (
+                  <div className="space-y-2 animate-in fade-in">
+                    <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Assign Implementation Manager</label>
+                    <select
+                      value={implementationManager}
+                      onChange={e => setImplementationManager(e.target.value)}
+                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-900 outline-none focus:bg-white focus:ring-4 focus:ring-teal-500/10 focus:border-teal-500 transition-all cursor-pointer"
+                    >
+                      {availableIMs.map(im => (
+                        <option key={im} value={im}>{im === userName ? `${im} (Me)` : im}</option>
+                      ))}
+                    </select>
                   </div>
                 )}
               </>
