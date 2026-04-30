@@ -137,7 +137,7 @@ export function useProjects(userRole: Role, config: AppConfig, userName: string 
 
   useEffect(() => {
     if (rawProjects.length === 0) return;
-    if (!hasRole(userRole, ['Superadmin', 'Manager', 'PM'])) return;
+    if (!hasRole(userRole, ['Superadmin', 'Manager', 'PM', 'Team Lead', 'IM Lead'])) return;
     
     const today = new Date();
     const sevenDaysAgo = new Date(today); sevenDaysAgo.setDate(today.getDate() - 7);
@@ -224,7 +224,7 @@ export function useProjects(userRole: Role, config: AppConfig, userName: string 
 
   // ── Implementation Weekly Digest ──────────────────────────────────────────
   useEffect(() => {
-    if (!hasRole(userRole, ['Superadmin', 'Manager', 'IM Lead'])) return;
+    if (!hasRole(userRole, ['Superadmin', 'Manager', 'IM Lead', 'IM', 'Team Lead'])) return;
     
     const calculateImplDigest = async () => {
       try {
