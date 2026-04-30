@@ -108,6 +108,9 @@ export const NewImplementationModal: React.FC<NewImplementationModalProps> = ({
         mappingRejectionComment: null,
         mappingNotes: null,
         unmapComment: null,
+        extensionRequest: null,
+        extensionHistory: [],
+        assignmentHistory: [],
       });
       onSuccess();
     } catch (err: any) {

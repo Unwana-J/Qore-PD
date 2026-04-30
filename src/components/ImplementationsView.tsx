@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Wrench } from 'lucide-react';
+import { Plus, Wrench, Clock } from 'lucide-react';
 import { cn, isRole } from '../lib/utils';
 import { ServiceExtension, Role, AppConfig } from '../types';
 import { api } from '../lib/api';
@@ -163,7 +163,14 @@ export const ImplementationsView: React.FC<ImplementationsViewProps> = ({
                       )}
                     </td>
                     <td className="px-6 py-4">
-                      <span className="text-sm font-bold text-slate-600">{ext.targetClosureDate}</span>
+                      <div className="flex flex-col gap-0.5">
+                        <span className="text-sm font-bold text-slate-600">{ext.targetClosureDate}</span>
+                        {ext.extensionRequest && (
+                          <span className="px-1.5 py-0.5 bg-amber-100 text-amber-700 text-[9px] font-black uppercase tracking-widest rounded w-fit flex items-center gap-1">
+                            <Clock className="w-2.5 h-2.5" /> Pending Extension
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className="px-6 py-4">
                       <span className={cn(

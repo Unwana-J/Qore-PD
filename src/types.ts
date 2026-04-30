@@ -198,6 +198,30 @@ export interface IMilestone {
   completedBy: string | null;
 }
 
+export interface ExtensionRequest {
+  newTargetDate: string;
+  reason: string;
+  requestedAt: string;
+  requestedBy: string;
+  status: 'Pending' | 'Approved' | 'Rejected';
+  rejectionComment?: string;
+}
+
+export interface ExtensionHistoryEntry {
+  oldTargetDate: string;
+  newTargetDate: string;
+  reason: string;
+  approvedAt: string;
+  approvedBy: string;
+}
+
+export interface AssignmentHistoryEntry {
+  from: string;
+  to: string;
+  reassignedBy: string;
+  timestamp: string;
+}
+
 export interface ServiceExtension {
   id: string;
   clientName: string;
@@ -219,6 +243,9 @@ export interface ServiceExtension {
   mappingRejectionComment: string | null;
   mappingNotes: string | null;
   unmapComment: string | null;
+  extensionRequest: ExtensionRequest | null;
+  extensionHistory: ExtensionHistoryEntry[];
+  assignmentHistory: AssignmentHistoryEntry[];
   // Metadata
   createdAt: string;
   updatedAt: string;

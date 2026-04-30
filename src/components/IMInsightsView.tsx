@@ -64,6 +64,8 @@ export const IMInsightsView: React.FC<IMInsightsViewProps> = ({ extensions=[], u
       suspensionRate: total>0 ? (suspended/total)*100 : 0,
       avgPerIM: ims.length>0 ? total/ims.length : 0,
       mappingRatio: total>0 ? (mapped/total)*100 : 0,
+      pendingMappings: fd.filter(e => e.mappingStatus === 'Pending').length,
+      pendingExtensions: fd.filter(e => e.extensionRequest !== null).length,
     };
   }, [fd, ims]);
 
@@ -162,7 +164,7 @@ export const IMInsightsView: React.FC<IMInsightsViewProps> = ({ extensions=[], u
         <KPI label="Completion Rate" value={`${kpis.completionRate.toFixed(1)}%`} rate={kpis.completionRate} icon={<CheckCircle2/>} color="emerald"/>
         <KPI label="Active Rate" value={`${kpis.activeRate.toFixed(1)}%`} sub={`${kpis.active} active`} rate={kpis.activeRate} icon={<Activity/>} color="blue"/>
         <KPI label="Suspension Rate" value={`${kpis.suspensionRate.toFixed(1)}%`} sub={`${kpis.suspended} frozen`} rate={kpis.suspensionRate} inv icon={<AlertTriangle/>} color="amber"/>
-        <KPI label="Avg Projects / IM" value={kpis.avgPerIM.toFixed(1)} sub={`${ims.length} managers`} icon={<Users/>} color="slate"/>
+        <KPI label="Pending Requests" value={kpis.pendingMappings + kpis.pendingExtensions} sub="Mappings & Extensions" icon={<Clock/>} color="indigo"/>
       </div>
 
       {/* KPI Row 2 */}
@@ -218,22 +220,49 @@ export const IMInsightsView: React.FC<IMInsightsViewProps> = ({ extensions=[], u
         </div>
       </div>
 
-      {/* Overdue panel */}
-      {overdue.length > 0 && (
-        <div className="bg-red-50 border border-red-200 rounded-3xl p-6">
-          <div className="flex items-center gap-2 mb-4"><Clock className="w-4 h-4 text-red-600"/><h3 className="text-xs font-black text-red-900 uppercase tracking-widest">At-Risk / Overdue Implementations ({overdue.length})</h3></div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {overdue.slice(0,6).map(ext=>{
-              const days = Math.floor((today.getTime()-new Date(ext.targetClosureDate).getTime())/(1000*60*60*24));
-              return (
-                <div key={ext.id} className="bg-white rounded-2xl p-4 border border-red-100 shadow-sm">
-                  <p className="text-sm font-black text-slate-900 truncate">{ext.clientName}</p>
-                  <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-0.5">{ext.serviceName} · {ext.implementationManager}</p>
-                  <span className="mt-2 inline-block px-2 py-0.5 bg-red-100 text-red-700 text-[10px] font-black rounded-md">{days}d overdue</span>
-                </div>
-              );
-            })}
-          </div>
+      {/* Action Center & Overdue panel */}
+      {(overdue.length > 0 || kpis.pendingMappings > 0 || kpis.pendingExtensions > 0) && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {overdue.length > 0 && (
+            <div className="bg-red-50 border border-red-200 rounded-3xl p-6">
+              <div className="flex items-center gap-2 mb-4"><Clock className="w-4 h-4 text-red-600"/><h3 className="text-xs font-black text-red-900 uppercase tracking-widest">At-Risk / Overdue ({overdue.length})</h3></div>
+              <div className="space-y-3">
+                {overdue.slice(0,3).map(ext=>{
+                  const days = Math.floor((today.getTime()-new Date(ext.targetClosureDate).getTime())/(1000*60*60*24));
+                  return (
+                    <div key={ext.id} className="bg-white rounded-2xl p-4 border border-red-100 shadow-sm flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-black text-slate-900 truncate">{ext.clientName}</p>
+                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-0.5">{ext.serviceName} · {ext.implementationManager}</p>
+                      </div>
+                      <span className="px-2 py-0.5 bg-red-100 text-red-700 text-[10px] font-black rounded-md">{days}d</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {(kpis.pendingMappings > 0 || kpis.pendingExtensions > 0) && (
+            <div className="bg-indigo-50 border border-indigo-200 rounded-3xl p-6">
+              <div className="flex items-center gap-2 mb-4"><Activity className="w-4 h-4 text-indigo-600"/><h3 className="text-xs font-black text-indigo-900 uppercase tracking-widest">Action Required</h3></div>
+              <div className="grid grid-cols-2 gap-4">
+                {kpis.pendingMappings > 0 && (
+                  <div className="bg-white rounded-2xl p-4 border border-indigo-100 shadow-sm">
+                    <p className="text-2xl font-black text-indigo-600">{kpis.pendingMappings}</p>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Pending Mappings</p>
+                  </div>
+                )}
+                {kpis.pendingExtensions > 0 && (
+                  <div className="bg-white rounded-2xl p-4 border border-indigo-100 shadow-sm">
+                    <p className="text-2xl font-black text-indigo-600">{kpis.pendingExtensions}</p>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Date Extensions</p>
+                  </div>
+                )}
+              </div>
+              <p className="text-[10px] text-indigo-400 mt-4 italic font-medium uppercase tracking-widest">Review these in the Implementations table</p>
+            </div>
+          )}
         </div>
       )}
 

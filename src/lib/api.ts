@@ -1,4 +1,4 @@
-import { Project, User, AuditLog, AppConfig, DigestData, ServiceExtension, IMilestone, MappingStatus, ServiceSubService } from '../types';
+import { Project, User, AuditLog, AppConfig, DigestData, ServiceExtension, IMilestone, MappingStatus, ServiceSubService, ExtensionRequest, ExtensionHistoryEntry, AssignmentHistoryEntry } from '../types';
 import { MOCK_PROJECTS, MOCK_USERS, MOCK_AUDIT_LOGS, INITIAL_CONFIG } from '../mockData';
 import { supabase } from './supabase';
 
@@ -463,6 +463,9 @@ export const api = {
       mappingRejectionComment: r.mapping_rejection_comment,
       mappingNotes: r.mapping_notes,
       unmapComment: r.unmap_comment,
+      extensionRequest: r.extension_request || null,
+      extensionHistory: r.extension_history || [],
+      assignmentHistory: r.assignment_history || [],
       createdAt: r.created_at,
       updatedAt: r.updated_at,
     }),
@@ -558,10 +561,76 @@ export const api = {
       return api.serviceExtensions._fromDb(data);
     },
 
-    reassign: async (id: string, newIM: string): Promise<void> => {
+    reassign: async (id: string, newIM: string, currentIM: string, reassignedBy: string): Promise<void> => {
+      const { data: current } = await supabase
+        .from('service_extensions')
+        .select('assignment_history')
+        .eq('id', id)
+        .single();
+      
+      const history = [...(current?.assignment_history || []), {
+        from: currentIM,
+        to: newIM,
+        reassignedBy,
+        timestamp: new Date().toISOString()
+      }];
+
       const { error } = await supabase
         .from('service_extensions')
-        .update({ implementation_manager: newIM })
+        .update({ 
+          implementation_manager: newIM,
+          assignment_history: history
+        })
+        .eq('id', id);
+      if (error) throw error;
+    },
+
+    requestExtension: async (id: string, request: Omit<ExtensionRequest, 'status' | 'requestedAt'>): Promise<void> => {
+      const pendingRequest: ExtensionRequest = {
+        ...request,
+        status: 'Pending',
+        requestedAt: new Date().toISOString()
+      };
+      const { error } = await supabase
+        .from('service_extensions')
+        .update({ extension_request: pendingRequest })
+        .eq('id', id);
+      if (error) throw error;
+    },
+
+    approveExtension: async (id: string, approvedBy: string): Promise<void> => {
+      const { data: current, error: fetchErr } = await supabase
+        .from('service_extensions')
+        .select('extension_request, extension_history, target_closure_date')
+        .eq('id', id)
+        .single();
+      
+      if (fetchErr || !current?.extension_request) throw new Error('No pending extension request found.');
+
+      const req = current.extension_request;
+      const historyEntry: ExtensionHistoryEntry = {
+        oldTargetDate: current.target_closure_date,
+        newTargetDate: req.newTargetDate,
+        reason: req.reason,
+        approvedAt: new Date().toISOString(),
+        approvedBy
+      };
+
+      const { error } = await supabase
+        .from('service_extensions')
+        .update({
+          target_closure_date: req.newTargetDate,
+          extension_request: null,
+          extension_history: [...(current.extension_history || []), historyEntry]
+        })
+        .eq('id', id);
+      if (error) throw error;
+    },
+
+    rejectExtension: async (id: string, comment: string): Promise<void> => {
+      const { error } = await supabase
+        .from('service_extensions')
+        .update({ extension_request: null }) // We just clear it for now, can add rejection history later if needed
         .eq('id', id);
       if (error) throw error;
     },

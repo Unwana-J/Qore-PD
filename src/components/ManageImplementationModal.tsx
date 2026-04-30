@@ -2,12 +2,13 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   X, CheckCircle2, Circle, MapPin, Unlink, AlertCircle,
-  ExternalLink, Loader2, Lock
+  ExternalLink, Loader2, Lock, Clock, Calendar, UserPlus
 } from 'lucide-react';
-import { ServiceExtension, IMilestone, AppConfig } from '../types';
+import { ServiceExtension, IMilestone, AppConfig, User } from '../types';
 import { api } from '../lib/api';
 import { cn, isRole } from '../lib/utils';
 import { MapToProjectModal } from './MapToProjectModal';
+import { ReassignModal, ExtensionRequestModal } from './IMWorkflowModals';
 
 interface ManageImplementationModalProps {
   extension: ServiceExtension;
@@ -26,12 +27,33 @@ export const ManageImplementationModal: React.FC<ManageImplementationModalProps>
   const [milestones, setMilestones] = useState<IMilestone[]>(extension.milestones);
   const [saving, setSaving] = useState(false);
   const [showMapModal, setShowMapModal] = useState(false);
+  const [unmapping, setUnmapping] = useState(false);
+  const [showReassignModal, setShowReassignModal] = useState(false);
+  const [showExtensionModal, setShowExtensionModal] = useState(false);
+  const [processingExtension, setProcessingExtension] = useState(false);
+  const [users, setUsers] = useState<User[]>([]);
+  const [loadingUsers, setLoadingUsers] = useState(false);
+
+  const isLead = isRole(userRole, 'IM Lead') || isRole(userRole, 'Superadmin');
+  const isFrozen = extension.status === 'Frozen';
+
   const [unmapComment, setUnmapComment] = useState('');
   const [showUnmapDialog, setShowUnmapDialog] = useState(false);
-  const [unmapping, setUnmapping] = useState(false);
 
-  const isFrozen = extension.status === 'Frozen';
-  const isLead = isRole(userRole, 'IM Lead') || isRole(userRole, 'Superadmin');
+  React.useEffect(() => {
+    const loadUsers = async () => {
+      setLoadingUsers(true);
+      try {
+        const data = await api.users.getAll();
+        setUsers(data);
+      } catch (err) {
+        console.error('Failed to load users for reassignment', err);
+      } finally {
+        setLoadingUsers(false);
+      }
+    };
+    if (isLead && isOpen) loadUsers();
+  }, [isLead, isOpen]);
 
   const toggleMilestone = async (idx: number) => {
     if (isFrozen) {
@@ -93,6 +115,60 @@ export const ManageImplementationModal: React.FC<ManageImplementationModalProps>
       onShowToast(err.message, 'error');
     } finally {
       setUnmapping(false);
+    }
+  };
+
+  const handleReassign = async (newIM: string) => {
+    setSaving(true);
+    try {
+      await api.serviceExtensions.reassign(extension.id, newIM, extension.implementationManager, userName);
+      onShowToast(`Implementation reassigned to ${newIM}`);
+      onClose(); // Close and let parent refresh
+    } catch (err: any) {
+      onShowToast(err.message, 'error');
+    } finally {
+      setSaving(false);
+      setShowReassignModal(false);
+    }
+  };
+
+  const handleRequestExtension = async (newDate: string, reason: string) => {
+    setProcessingExtension(true);
+    try {
+      await api.serviceExtensions.requestExtension(extension.id, { newTargetDate: newDate, reason, requestedBy: userName });
+      onShowToast('Extension request submitted to IM Lead.');
+      setShowExtensionModal(false);
+      onClose();
+    } catch (err: any) {
+      onShowToast(err.message, 'error');
+    } finally {
+      setProcessingExtension(false);
+    }
+  };
+
+  const handleApproveExtension = async () => {
+    setProcessingExtension(true);
+    try {
+      await api.serviceExtensions.approveExtension(extension.id, userName);
+      onShowToast('Extension approved successfully.');
+      onClose();
+    } catch (err: any) {
+      onShowToast(err.message, 'error');
+    } finally {
+      setProcessingExtension(false);
+    }
+  };
+
+  const handleRejectExtension = async () => {
+    setProcessingExtension(true);
+    try {
+      await api.serviceExtensions.rejectExtension(extension.id, 'Rejected by IM Lead');
+      onShowToast('Extension request rejected.');
+      onClose();
+    } catch (err: any) {
+      onShowToast(err.message, 'error');
+    } finally {
+      setProcessingExtension(false);
     }
   };
 
@@ -164,6 +240,46 @@ export const ManageImplementationModal: React.FC<ManageImplementationModalProps>
                   />
                 </div>
               </div>
+
+              {/* Extension Request Section */}
+              {extension.extensionRequest ? (
+                <div className="mx-8 mb-6 p-5 bg-amber-50 border border-amber-200 rounded-2xl animate-in zoom-in-95">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <Clock className="w-4 h-4 text-amber-600" />
+                      <span className="text-[10px] font-black uppercase text-amber-600 tracking-widest">Pending Extension Request</span>
+                    </div>
+                    <span className="text-[10px] font-bold text-amber-500">Requested {new Date(extension.extensionRequest.requestedAt).toLocaleDateString()}</span>
+                  </div>
+                  <div className="space-y-3">
+                    <p className="text-sm font-bold text-amber-900">
+                      New Target: {new Date(extension.extensionRequest.newTargetDate).toLocaleDateString()}
+                    </p>
+                    <p className="text-xs text-amber-700 bg-white/50 p-3 rounded-xl border border-amber-100 italic">
+                      "{extension.extensionRequest.reason}"
+                    </p>
+                    {isLead ? (
+                      <div className="flex gap-2">
+                        <button onClick={handleApproveExtension} disabled={processingExtension} className="flex-1 py-2 bg-emerald-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-emerald-700 shadow-lg shadow-emerald-600/10">Approve</button>
+                        <button onClick={handleRejectExtension} disabled={processingExtension} className="flex-1 py-2 bg-red-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-red-700 shadow-lg shadow-red-600/10">Reject</button>
+                      </div>
+                    ) : (
+                      <p className="text-[10px] font-bold text-amber-500 text-center uppercase tracking-widest">Awaiting IM Lead Approval</p>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                !isFrozen && extension.status !== 'Completed' && (
+                  <div className="px-8 mb-6">
+                    <button 
+                      onClick={() => setShowExtensionModal(true)}
+                      className="w-full py-3 bg-slate-50 border border-slate-200 rounded-2xl text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-amber-600 hover:border-amber-200 hover:bg-amber-50/30 transition-all flex items-center justify-center gap-2"
+                    >
+                      <Calendar className="w-3.5 h-3.5" /> Request Date Extension
+                    </button>
+                  </div>
+                )
+              )}
 
               {/* Milestones */}
               <div className="px-8 pb-6 space-y-2">
@@ -322,10 +438,67 @@ export const ManageImplementationModal: React.FC<ManageImplementationModalProps>
                   </div>
                 )}
               </div>
+
+              {/* IM Lead Actions */}
+              {isLead && (
+                <div className="mx-8 mb-8 p-6 bg-indigo-50 border border-indigo-100 rounded-2xl space-y-4">
+                   <div className="flex items-center justify-between">
+                    <h3 className="text-xs font-black uppercase text-indigo-400 tracking-widest">IM Lead Controls</h3>
+                    <UserPlus className="w-4 h-4 text-indigo-400" />
+                  </div>
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="min-w-0">
+                      <p className="text-sm font-bold text-indigo-900 truncate">Current: {extension.implementationManager}</p>
+                      <p className="text-xs text-indigo-700 mt-0.5">Assigned since {new Date(extension.createdAt).toLocaleDateString()}</p>
+                    </div>
+                    <button 
+                      onClick={() => setShowReassignModal(true)}
+                      className="px-4 py-2 bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-600/10"
+                    >
+                      Reassign IM
+                    </button>
+                  </div>
+                  
+                  {/* History Tooltips or Small Logs can go here */}
+                  {(extension.assignmentHistory?.length ?? 0) > 0 && (
+                    <div className="pt-3 border-t border-indigo-200/50">
+                      <p className="text-[9px] font-black text-indigo-400 uppercase tracking-widest mb-1.5">Assignment History</p>
+                      <div className="space-y-1">
+                        {extension.assignmentHistory.slice(-2).map((h, i) => (
+                          <p key={i} className="text-[10px] text-indigo-700 font-medium">
+                            {h.from} → {h.to} ({new Date(h.timestamp).toLocaleDateString()})
+                          </p>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </motion.div>
         </div>
       </AnimatePresence>
+
+      {showReassignModal && (
+        <ReassignModal 
+          isOpen={showReassignModal}
+          onClose={() => setShowReassignModal(false)}
+          onConfirm={handleReassign}
+          extension={extension}
+          users={users}
+          loading={saving}
+        />
+      )}
+
+      {showExtensionModal && (
+        <ExtensionRequestModal 
+          isOpen={showExtensionModal}
+          onClose={() => setShowExtensionModal(false)}
+          onConfirm={handleRequestExtension}
+          extension={extension}
+          loading={processingExtension}
+        />
+      )}
 
       {showMapModal && (
         <MapToProjectModal
