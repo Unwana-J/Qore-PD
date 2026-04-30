@@ -26,7 +26,7 @@ const PRODUCT_WEIGHTS: Record<string, number> = {
   'API Projects': 3,
 };
 
-export const IMInsightsView: React.FC<IMInsightsViewProps> = ({ extensions, users, config }) => {
+export const IMInsightsView: React.FC<IMInsightsViewProps> = ({ extensions = [], users = [], config }) => {
   const [selectedQuarter, setSelectedQuarter] = useState<number | 'All'>('All');
   const [selectedMonth, setSelectedMonth] = useState<number | 'All'>('All');
   const theme = getThemeClasses(config.brand.themeColor);

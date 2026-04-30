@@ -522,6 +522,8 @@ function AppContent() {
                         userRole={userRole}
                         userName={profile?.name || ''}
                         config={config}
+                        projects={projects}
+                        users={users}
                         onShowToast={(msg, type) => type === 'error' ? notifyError(msg) : success(msg)}
                       />
                     )}
