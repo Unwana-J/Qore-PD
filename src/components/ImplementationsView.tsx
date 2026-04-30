@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Plus, Layers, Clock, Search, Users, Filter, X } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Plus, Layers, Clock, Search, Users, Filter, X, CheckCircle2, AlertTriangle, TrendingUp, MapPin } from 'lucide-react';
 import { cn, isRole } from '../lib/utils';
 import { ServiceExtension, Role, AppConfig } from '../types';
 import { api } from '../lib/api';
@@ -17,14 +17,165 @@ interface ImplementationsViewProps {
   onShowToast: (msg: string, type?: 'success' | 'error') => void;
 }
 
-export const ImplementationsView: React.FC<ImplementationsViewProps> = ({ 
-  userRole, userName, config, projects, users, onShowToast 
+// ── IM Personal Dashboard Analytics ──────────────────────────────────────────
+const IMPersonalDashboard: React.FC<{ extensions: ServiceExtension[]; userName: string; onManage: (ext: ServiceExtension) => void }> = ({ extensions, userName, onManage }) => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const stats = useMemo(() => {
+    const total = extensions.length;
+    const completed = extensions.filter(e => e.status === 'Completed').length;
+    const inProgress = extensions.filter(e => e.status === 'In Progress').length;
+    const notStarted = extensions.filter(e => e.status === 'Not Started').length;
+    const frozen = extensions.filter(e => e.status === 'Frozen').length;
+    const overdue = extensions.filter(e => e.status !== 'Completed' && new Date(e.targetClosureDate) < today).length;
+    const mapped = extensions.filter(e => e.mappingStatus === 'Approved').length;
+    const completionRate = total > 0 ? Math.round((completed / total) * 100) : 0;
+    return { total, completed, inProgress, notStarted, frozen, overdue, mapped, completionRate };
+  }, [extensions]);
+
+  const upcoming = useMemo(() =>
+    extensions
+      .filter(e => e.status !== 'Completed')
+      .sort((a, b) => new Date(a.targetClosureDate).getTime() - new Date(b.targetClosureDate).getTime())
+      .slice(0, 5),
+    [extensions]);
+
+  const getDaysLabel = (dateStr: string) => {
+    const diff = Math.ceil((new Date(dateStr).getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+    if (diff < 0) return { label: `${Math.abs(diff)}d overdue`, color: 'text-red-600 bg-red-50 border-red-200' };
+    if (diff === 0) return { label: 'Due today', color: 'text-orange-600 bg-orange-50 border-orange-200' };
+    if (diff <= 7) return { label: `${diff}d left`, color: 'text-amber-600 bg-amber-50 border-amber-200' };
+    return { label: `${diff}d left`, color: 'text-emerald-600 bg-emerald-50 border-emerald-200' };
+  };
+
+  const overduelist = extensions.filter(e => e.status !== 'Completed' && new Date(e.targetClosureDate) < today);
+
+  return (
+    <div className="space-y-6">
+      {/* Overdue Alert */}
+      {overduelist.length > 0 && (
+        <div className="flex items-start gap-4 p-5 bg-red-50 border border-red-200 rounded-2xl">
+          <AlertTriangle className="w-5 h-5 text-red-600 mt-0.5 flex-shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-black text-red-800">
+              {overduelist.length} overdue implementation{overduelist.length > 1 ? 's' : ''} need attention
+            </p>
+            <div className="flex flex-wrap gap-2 mt-2">
+              {overduelist.map(e => (
+                <button
+                  key={e.id}
+                  onClick={() => onManage(e)}
+                  className="px-2.5 py-1 bg-white border border-red-200 rounded-lg text-xs font-bold text-red-700 hover:bg-red-100 transition-colors"
+                >
+                  {e.clientName} · {e.serviceName}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* KPI Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Total Assigned</p>
+          <p className="text-4xl font-black text-slate-900">{stats.total}</p>
+        </div>
+        <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Completion Rate</p>
+          <p className="text-4xl font-black text-emerald-600">{stats.completionRate}%</p>
+          <p className="text-[10px] font-bold text-slate-400 mt-1">{stats.completed} of {stats.total} done</p>
+        </div>
+        <div className={cn("rounded-2xl border p-5 shadow-sm", stats.overdue > 0 ? "bg-red-50 border-red-200" : "bg-white border-slate-200")}>
+          <p className={cn("text-[10px] font-black uppercase tracking-widest mb-2", stats.overdue > 0 ? "text-red-500" : "text-slate-400")}>Overdue</p>
+          <p className={cn("text-4xl font-black", stats.overdue > 0 ? "text-red-600" : "text-slate-300")}>{stats.overdue}</p>
+        </div>
+        <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Mapped to Projects</p>
+          <p className="text-4xl font-black text-indigo-600">{stats.mapped}</p>
+        </div>
+      </div>
+
+      {/* Status Strip + Upcoming Deadlines */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+        {/* Status Breakdown */}
+        <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+          <div className="flex items-center gap-2 mb-4">
+            <TrendingUp className="w-4 h-4 text-teal-600" />
+            <h3 className="text-xs font-black text-slate-900 uppercase tracking-widest">Status Breakdown</h3>
+          </div>
+          <div className="space-y-3">
+            {[
+              { label: 'In Progress', count: stats.inProgress, color: 'bg-blue-500', textColor: 'text-blue-600' },
+              { label: 'Not Started', count: stats.notStarted, color: 'bg-slate-300', textColor: 'text-slate-500' },
+              { label: 'Completed', count: stats.completed, color: 'bg-emerald-500', textColor: 'text-emerald-600' },
+              { label: 'Frozen', count: stats.frozen, color: 'bg-amber-400', textColor: 'text-amber-600' },
+            ].map(({ label, count, color, textColor }) => (
+              <div key={label}>
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-xs font-bold text-slate-600">{label}</span>
+                  <span className={cn("text-xs font-black", textColor)}>{count}</span>
+                </div>
+                <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+                  <div
+                    className={cn("h-full rounded-full transition-all duration-700", color)}
+                    style={{ width: stats.total > 0 ? `${(count / stats.total) * 100}%` : '0%' }}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Upcoming Deadlines */}
+        <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+          <div className="flex items-center gap-2 mb-4">
+            <Clock className="w-4 h-4 text-amber-500" />
+            <h3 className="text-xs font-black text-slate-900 uppercase tracking-widest">Upcoming Deadlines</h3>
+          </div>
+          {upcoming.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-24 text-slate-400">
+              <CheckCircle2 className="w-8 h-8 mb-2 text-emerald-400" />
+              <p className="text-xs font-bold">All caught up!</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {upcoming.map(ext => {
+                const { label, color } = getDaysLabel(ext.targetClosureDate);
+                return (
+                  <button
+                    key={ext.id}
+                    onClick={() => onManage(ext)}
+                    className="w-full flex items-center justify-between p-3 rounded-xl hover:bg-slate-50 transition-colors group text-left"
+                  >
+                    <div className="min-w-0">
+                      <p className="text-sm font-black text-slate-800 truncate group-hover:text-teal-700 transition-colors">{ext.clientName}</p>
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{ext.serviceName}</p>
+                    </div>
+                    <span className={cn("ml-3 px-2.5 py-1 text-[10px] font-black rounded-lg border flex-shrink-0", color)}>
+                      {label}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ── Main View ─────────────────────────────────────────────────────────────────
+export const ImplementationsView: React.FC<ImplementationsViewProps> = ({
+  userRole, userName, config, projects, users, onShowToast
 }) => {
   const [extensions, setExtensions] = useState<ServiceExtension[]>([]);
   const [loading, setLoading] = useState(true);
   const [isNewModalOpen, setIsNewModalOpen] = useState(false);
   const [managingExtension, setManagingExtension] = useState<ServiceExtension | null>(null);
-  
+
   const isLead = isRole(userRole, 'IM Lead') || isRole(userRole, 'Superadmin');
   const [activeTab, setActiveTab] = useState<'mine' | 'all' | 'insights'>(isLead ? 'insights' : 'mine');
 
@@ -53,24 +204,17 @@ export const ImplementationsView: React.FC<ImplementationsViewProps> = ({
   useEffect(() => {
     loadExtensions();
 
-    // Set up Realtime listener for cross-user updates
     const channel = api.supabase
       .channel('service_extensions_changes')
-      .on('postgres_changes', { 
-        event: '*', 
-        schema: 'public', 
-        table: 'service_extensions' 
-      }, () => {
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'service_extensions' }, () => {
         loadExtensions();
       })
       .subscribe();
 
-    return () => {
-      api.supabase.removeChannel(channel);
-    };
+    return () => { api.supabase.removeChannel(channel); };
   }, [activeTab, userName, userRole]);
 
-  const filteredExtensions = React.useMemo(() => {
+  const filteredExtensions = useMemo(() => {
     return extensions.filter(ext => {
       const matchesSearch = ext.clientName.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesStatus = statusFilter === 'All' || ext.status === statusFilter;
@@ -79,139 +223,76 @@ export const ImplementationsView: React.FC<ImplementationsViewProps> = ({
     });
   }, [extensions, searchTerm, statusFilter, managerFilter]);
 
-  const managers = React.useMemo(() => {
+  const managers = useMemo(() => {
     const ims = users.filter(u => u.role === 'IM' || u.role === 'IM Lead' || u.role === 'Superadmin');
     return Array.from(new Set(ims.map(u => u.name))).sort();
   }, [users]);
 
-  return (
-    <div className="p-8 space-y-8 animate-in fade-in duration-300">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-3xl font-black text-slate-900 tracking-tight flex items-center gap-3">
-            <Layers className="w-8 h-8 text-teal-600" />
-            Ancillary Implementations
-          </h2>
-          <p className="text-slate-500 font-medium mt-1">Manage standalone and project-linked ancillary services.</p>
-        </div>
-        <button 
-          onClick={() => setIsNewModalOpen(true)}
-          className="px-6 py-2.5 bg-teal-600 text-white font-bold rounded-xl shadow-lg shadow-teal-600/20 hover:bg-teal-700 hover:shadow-teal-700/30 transition-all flex items-center gap-2"
-        >
-          <Plus className="w-5 h-5" />
-          New Implementation
-        </button>
-      </div>
-
-      {isLead && (
-        <div className="flex gap-2 p-1 bg-slate-100 rounded-xl w-fit">
-          <button 
-            onClick={() => setActiveTab('insights')}
-            className={cn("px-4 py-2 text-sm font-bold rounded-lg transition-all", activeTab === 'insights' ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700")}
-          >
-            Team Insights
-          </button>
-          <button 
-            onClick={() => setActiveTab('all')}
-            className={cn("px-4 py-2 text-sm font-bold rounded-lg transition-all", activeTab === 'all' ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700")}
-          >
-            Team Dashboard
-          </button>
-          <button 
-            onClick={() => setActiveTab('mine')}
-            className={cn("px-4 py-2 text-sm font-bold rounded-lg transition-all", activeTab === 'mine' ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700")}
-          >
-            My Implementations
-          </button>
-        </div>
-      )}
-
+  // The table (shared for both IM and Lead "mine"/"all" tabs)
+  const renderTable = () => (
+    <>
       {/* Filter Bar */}
-      {activeTab !== 'insights' && (
-        <div className="flex flex-col md:flex-row gap-4 mb-6">
-          <div className="relative flex-1 group">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-teal-500 transition-colors" />
-            <input 
-              type="text"
-              placeholder="Search by client name..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-11 pr-4 py-3 bg-white border border-slate-200 rounded-2xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all shadow-sm"
-            />
-          </div>
-
-          <div className="flex items-center gap-3">
+      <div className="flex flex-col md:flex-row gap-4 mb-4">
+        <div className="relative flex-1 group">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-teal-500 transition-colors" />
+          <input
+            type="text"
+            placeholder="Search by client name..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-11 pr-4 py-3 bg-white border border-slate-200 rounded-2xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all shadow-sm"
+          />
+        </div>
+        <div className="flex items-center gap-3">
+          {isLead && (
             <div className="relative group">
-              <Users className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-teal-500 transition-colors pointer-events-none" />
+              <Users className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
               <select
                 value={managerFilter}
                 onChange={(e) => setManagerFilter(e.target.value)}
-                className="pl-11 pr-10 py-3 bg-white border border-slate-200 rounded-2xl text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 appearance-none transition-all shadow-sm cursor-pointer"
+                className="pl-11 pr-10 py-3 bg-white border border-slate-200 rounded-2xl text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 appearance-none shadow-sm cursor-pointer"
               >
                 <option value="All">All Managers</option>
-                {managers.map(m => (
-                  <option key={m} value={m}>{m}</option>
-                ))}
+                {managers.map(m => <option key={m} value={m}>{m}</option>)}
               </select>
             </div>
-
-            <div className="relative group">
-              <Filter className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-teal-500 transition-colors pointer-events-none" />
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="pl-11 pr-10 py-3 bg-white border border-slate-200 rounded-2xl text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 appearance-none transition-all shadow-sm cursor-pointer"
-              >
-                <option value="All">All Statuses</option>
-                <option value="Not Started">Not Started</option>
-                <option value="In Progress">In Progress</option>
-                <option value="Completed">Completed</option>
-                <option value="Frozen">Frozen</option>
-              </select>
-            </div>
-
-            {(searchTerm || managerFilter !== 'All' || statusFilter !== 'All') && (
-              <button 
-                onClick={() => {
-                  setSearchTerm('');
-                  setManagerFilter('All');
-                  setStatusFilter('All');
-                }}
-                className="p-3 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-2xl transition-all"
-                title="Clear Filters"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            )}
+          )}
+          <div className="relative group">
+            <Filter className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="pl-11 pr-10 py-3 bg-white border border-slate-200 rounded-2xl text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 appearance-none shadow-sm cursor-pointer"
+            >
+              <option value="All">All Statuses</option>
+              <option value="Not Started">Not Started</option>
+              <option value="In Progress">In Progress</option>
+              <option value="Completed">Completed</option>
+              <option value="Frozen">Frozen</option>
+            </select>
           </div>
+          {(searchTerm || managerFilter !== 'All' || statusFilter !== 'All') && (
+            <button
+              onClick={() => { setSearchTerm(''); setManagerFilter('All'); setStatusFilter('All'); }}
+              className="p-3 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-2xl transition-all"
+              title="Clear Filters"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          )}
         </div>
-      )}
+      </div>
 
-      <div className={cn("bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden min-h-[500px]", activeTab === 'insights' && "bg-transparent border-none shadow-none min-h-0")}>
-        {activeTab === 'insights' ? (
-          <IMInsightsView 
-            extensions={extensions}
-            users={users}
-            config={config}
-          />
-        ) : loading ? (
+      <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+        {loading ? (
           <div className="flex justify-center items-center h-64">
-             <div className="w-8 h-8 border-4 border-teal-500 border-t-transparent rounded-full animate-spin"></div>
+            <div className="w-8 h-8 border-4 border-teal-500 border-t-transparent rounded-full animate-spin" />
           </div>
         ) : filteredExtensions.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-64 text-slate-400">
             <Search className="w-12 h-12 mb-4 opacity-20" />
-            <p className="font-bold text-slate-500">No matching ancillary implementations found.</p>
-            <button 
-              onClick={() => {
-                setSearchTerm('');
-                setManagerFilter('All');
-                setStatusFilter('All');
-              }}
-              className="mt-4 text-teal-600 font-bold hover:underline"
-            >
-              Clear all filters
-            </button>
+            <p className="font-bold text-slate-500">No matching implementations found.</p>
+            <button onClick={() => { setSearchTerm(''); setManagerFilter('All'); setStatusFilter('All'); }} className="mt-4 text-teal-600 font-bold hover:underline">Clear all filters</button>
           </div>
         ) : (
           <table className="w-full text-left border-collapse">
@@ -231,14 +312,11 @@ export const ImplementationsView: React.FC<ImplementationsViewProps> = ({
                 const completedMilestones = ext.milestones.filter(m => m.completed).length;
                 const totalMilestones = ext.milestones.length;
                 const progress = totalMilestones > 0 ? (completedMilestones / totalMilestones) * 100 : 0;
-                
                 return (
                   <tr key={ext.id} className="group hover:bg-slate-50/50 transition-colors">
                     <td className="px-6 py-4">
                       <div className="font-black text-slate-900">{ext.clientName}</div>
-                      <div className="text-[10px] font-bold text-slate-500 mt-1 uppercase tracking-widest">
-                        {ext.serviceName} ({ext.serviceVariant || 'Standard'})
-                      </div>
+                      <div className="text-[10px] font-bold text-slate-500 mt-1 uppercase tracking-widest">{ext.serviceName} ({ext.serviceVariant || 'Standard'})</div>
                     </td>
                     {isLead && (
                       <td className="px-6 py-4">
@@ -259,10 +337,10 @@ export const ImplementationsView: React.FC<ImplementationsViewProps> = ({
                     <td className="px-6 py-4 text-center">
                       {totalMilestones > 0 ? (
                         <div className="flex flex-col items-center gap-1.5">
-                           <div className="w-24 h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                             <div className="h-full bg-teal-500 rounded-full transition-all duration-500" style={{ width: `${progress}%` }} />
-                           </div>
-                           <span className="text-[10px] font-bold text-slate-400">{completedMilestones} of {totalMilestones}</span>
+                          <div className="w-24 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                            <div className="h-full bg-teal-500 rounded-full transition-all duration-500" style={{ width: `${progress}%` }} />
+                          </div>
+                          <span className="text-[10px] font-bold text-slate-400">{completedMilestones} of {totalMilestones}</span>
                         </div>
                       ) : (
                         <span className="text-[10px] font-bold text-slate-400">No milestones</span>
@@ -304,15 +382,66 @@ export const ImplementationsView: React.FC<ImplementationsViewProps> = ({
           </table>
         )}
       </div>
+    </>
+  );
+
+  return (
+    <div className="p-8 space-y-6 animate-in fade-in duration-300">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-3xl font-black text-slate-900 tracking-tight flex items-center gap-3">
+            <Layers className="w-8 h-8 text-teal-600" />
+            Ancillary Implementations
+          </h2>
+          <p className="text-slate-500 font-medium mt-1">
+            {isLead ? 'Manage and monitor your team\'s ancillary service portfolio.' : 'Your ancillary service implementations at a glance.'}
+          </p>
+        </div>
+        <button
+          onClick={() => setIsNewModalOpen(true)}
+          className="px-6 py-2.5 bg-teal-600 text-white font-bold rounded-xl shadow-lg shadow-teal-600/20 hover:bg-teal-700 hover:shadow-teal-700/30 transition-all flex items-center gap-2"
+        >
+          <Plus className="w-5 h-5" />
+          New Implementation
+        </button>
+      </div>
+
+      {/* Leads: Tabbed interface */}
+      {isLead ? (
+        <>
+          <div className="flex gap-2 p-1 bg-slate-100 rounded-xl w-fit">
+            <button onClick={() => setActiveTab('insights')} className={cn("px-4 py-2 text-sm font-bold rounded-lg transition-all", activeTab === 'insights' ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700")}>Team Insights</button>
+            <button onClick={() => setActiveTab('all')} className={cn("px-4 py-2 text-sm font-bold rounded-lg transition-all", activeTab === 'all' ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700")}>Team Dashboard</button>
+            <button onClick={() => setActiveTab('mine')} className={cn("px-4 py-2 text-sm font-bold rounded-lg transition-all", activeTab === 'mine' ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700")}>My Implementations</button>
+          </div>
+
+          {activeTab === 'insights' ? (
+            <IMInsightsView extensions={extensions} users={users} config={config} />
+          ) : renderTable()}
+        </>
+      ) : (
+        /* IMs: unified dashboard + table */
+        <>
+          {!loading && extensions.length > 0 && (
+            <IMPersonalDashboard
+              extensions={extensions}
+              userName={userName}
+              onManage={setManagingExtension}
+            />
+          )}
+          <div>
+            <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-3">All My Implementations</h3>
+            {renderTable()}
+          </div>
+        </>
+      )}
 
       {isNewModalOpen && (
         <NewImplementationModal
           isOpen={isNewModalOpen}
           onClose={() => setIsNewModalOpen(false)}
-          onSuccess={() => {
-            setIsNewModalOpen(false);
-            loadExtensions();
-          }}
+          onSuccess={() => { setIsNewModalOpen(false); loadExtensions(); }}
           config={config}
           userName={userName}
         />
