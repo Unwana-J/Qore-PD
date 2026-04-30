@@ -1,452 +1,347 @@
 import React, { useState, useMemo } from 'react';
-import { 
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
-  LineChart, Line, Legend, Cell, PieChart, Pie
-} from 'recharts';
-import { 
-  TrendingUp, Activity, Clock, Users, Package, 
-  ChevronDown, Calendar, Filter, Award, AlertTriangle, CheckCircle2, Layers
-} from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ComposedChart, Line } from 'recharts';
+import { TrendingUp, Activity, Users, Package, Filter, Award, AlertTriangle, CheckCircle2, Layers, Clock, Link } from 'lucide-react';
 import { ServiceExtension, User, AppConfig } from '../types';
 import { cn } from '../lib/utils';
 import { getThemeClasses } from '../lib/theme';
 
-interface IMInsightsViewProps {
-  extensions: ServiceExtension[];
-  users: User[];
-  config: AppConfig;
-}
+interface IMInsightsViewProps { extensions: ServiceExtension[]; users: User[]; config: AppConfig; }
 
-const PRODUCT_WEIGHTS: Record<string, number> = {
-  'USSD': 2,
-  'Transfers': 3,
-  'Mobile/Internet Banking': 4,
-  'Commercial Bank Cards': 4,
-  'ASPFEP Suite': 5,
-  'API Projects': 3,
+const PW: Record<string,number> = { USSD:2, Transfers:3, Mobile:4, Cards:4, ASPFEP:5, API:3 };
+const MN = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+const rating = (r: number, inv=false) => {
+  const v = inv ? 100-r : r;
+  if(v>=85) return {l:'Excellent', c:'text-emerald-700 bg-emerald-50 border-emerald-200'};
+  if(v>=70) return {l:'Good', c:'text-blue-700 bg-blue-50 border-blue-200'};
+  if(v>=50) return {l:'Fair', c:'text-amber-700 bg-amber-50 border-amber-200'};
+  return {l:'Under', c:'text-red-700 bg-red-50 border-red-200'};
 };
 
-export const IMInsightsView: React.FC<IMInsightsViewProps> = ({ extensions = [], users = [], config }) => {
-  const [selectedQuarter, setSelectedQuarter] = useState<number | 'All'>('All');
-  const [selectedMonth, setSelectedMonth] = useState<number | 'All'>('All');
+const KPI = ({label,value,sub,rate,inv,icon,color}:any) => {
+  const r = rate!=null ? rating(rate,inv) : null;
+  const cs:any = {emerald:'text-emerald-600 bg-emerald-50',blue:'text-blue-600 bg-blue-50',amber:'text-amber-600 bg-amber-50',slate:'text-slate-600 bg-slate-50',red:'text-red-600 bg-red-50',teal:'text-teal-600 bg-teal-50'};
+  return (
+    <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
+      <div className="flex justify-between items-start mb-3">
+        <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">{label}</p>
+        <div className={cn("p-2 rounded-xl",cs[color]||cs.slate)}>{React.cloneElement(icon,{className:'w-4 h-4'})}</div>
+      </div>
+      <div className="flex items-baseline gap-2 flex-wrap">
+        <h4 className="text-2xl font-black text-slate-900 tracking-tight">{value}</h4>
+        {r && <span className={cn("px-2 py-0.5 text-[10px] font-black rounded-md border uppercase tracking-wider",r.c)}>{r.l}</span>}
+      </div>
+      {sub && <p className="text-[10px] font-bold text-slate-400 mt-1 uppercase tracking-widest">{sub}</p>}
+    </div>
+  );
+};
+
+export const IMInsightsView: React.FC<IMInsightsViewProps> = ({ extensions=[], users=[], config }) => {
+  const [q, setQ] = useState<number|'All'>('All');
+  const [mo, setMo] = useState<number|'All'>('All');
+  const [expandedIM, setExpandedIM] = useState<string|null>(null);
   const theme = getThemeClasses(config.brand.themeColor);
+  const today = new Date();
 
-  const quarters = [
-    { label: 'All Quarters', value: 'All' },
-    { label: 'Q1 (Jan-Mar)', value: 1 },
-    { label: 'Q2 (Apr-Jun)', value: 2 },
-    { label: 'Q3 (Jul-Sep)', value: 3 },
-    { label: 'Q4 (Oct-Dec)', value: 4 },
-  ];
+  const fd = useMemo(() => extensions.filter(ext => {
+    const d = new Date(ext.startDate), m = d.getMonth(), qr = Math.floor(m/3)+1;
+    if(q!=='All' && qr!==q) return false;
+    if(mo!=='All' && m!==mo) return false;
+    return true;
+  }), [extensions, q, mo]);
 
-  const months = [
-    { label: 'All Months', value: 'All' },
-    { label: 'January', value: 0 },
-    { label: 'February', value: 1 },
-    { label: 'March', value: 2 },
-    { label: 'April', value: 3 },
-    { label: 'May', value: 4 },
-    { label: 'June', value: 5 },
-    { label: 'July', value: 6 },
-    { label: 'August', value: 7 },
-    { label: 'September', value: 8 },
-    { label: 'October', value: 9 },
-    { label: 'November', value: 10 },
-    { label: 'December', value: 11 },
-  ];
+  const ims = useMemo(() => users.filter(u=>u.role==='IM'||u.role==='IM Lead'), [users]);
 
-  // 1. Filter Data
-  const filteredData = useMemo(() => {
-    return extensions.filter(ext => {
-      const date = new Date(ext.startDate);
-      const month = date.getMonth();
-      const quarter = Math.floor(month / 3) + 1;
-
-      if (selectedQuarter !== 'All' && quarter !== selectedQuarter) return false;
-      if (selectedMonth !== 'All' && month !== selectedMonth) return false;
-      return true;
-    });
-  }, [extensions, selectedQuarter, selectedMonth]);
-
-  // 2. Product Metrics
-  const productMetrics = useMemo(() => {
-    const metrics: Record<string, { total: number, active: number, suspended: number, completed: number }> = {};
-    
-    filteredData.forEach(ext => {
-      const name = ext.serviceName;
-      if (!metrics[name]) metrics[name] = { total: 0, active: 0, suspended: 0, completed: 0 };
-      
-      metrics[name].total++;
-      if (ext.status === 'Completed') metrics[name].completed++;
-      else if (ext.status === 'Frozen') metrics[name].suspended++;
-      else metrics[name].active++;
-    });
-
-    return metrics;
-  }, [filteredData]);
-
-  // 3. Team Metrics
-  const ims = useMemo(() => users.filter(u => u.role === 'IM' || u.role === 'IM Lead'), [users]);
-  
-  const teamMetrics = useMemo(() => {
-    const metrics: Record<string, { total: number, active: number, suspended: number, completed: number }> = {};
-    
-    ims.forEach(im => {
-      metrics[im.name] = { total: 0, active: 0, suspended: 0, completed: 0 };
-    });
-
-    filteredData.forEach(ext => {
-      if (metrics[ext.implementationManager]) {
-        metrics[ext.implementationManager].total++;
-        if (ext.status === 'Completed') metrics[ext.implementationManager].completed++;
-        else if (ext.status === 'Frozen') metrics[ext.implementationManager].suspended++;
-        else metrics[ext.implementationManager].active++;
-      }
-    });
-
-    return metrics;
-  }, [filteredData, ims]);
-
-  // 4. KPI Calculations
   const kpis = useMemo(() => {
-    const total = filteredData.length;
-    const completed = filteredData.filter(e => e.status === 'Completed').length;
-    const suspended = filteredData.filter(e => e.status === 'Frozen').length;
-    const active = total - completed - suspended;
-
-    const completionRate = total - suspended > 0 ? (completed / (total - suspended)) * 100 : 0;
-    const activeRate = total > 0 ? (active / total) * 100 : 0;
-    const suspensionRate = total > 0 ? (suspended / total) * 100 : 0;
-    const avgPerIM = ims.length > 0 ? total / ims.length : 0;
-
-    const getRating = (rate: number) => {
-      if (rate >= 85) return { label: 'Excellent', color: 'text-emerald-600 bg-emerald-50' };
-      if (rate >= 70) return { label: 'Good', color: 'text-blue-600 bg-blue-50' };
-      if (rate >= 50) return { label: 'Fair', color: 'text-amber-600 bg-amber-50' };
-      return { label: 'Underperforming', color: 'text-red-600 bg-red-50' };
-    };
-
+    const total=fd.length, completed=fd.filter(e=>e.status==='Completed').length;
+    const suspended=fd.filter(e=>e.status==='Frozen').length, active=total-completed-suspended;
+    const overdue=fd.filter(e=>e.status!=='Completed'&&new Date(e.targetClosureDate)<today).length;
+    const mapped=fd.filter(e=>e.mappingStatus==='Approved').length;
     return {
-      total,
-      completed,
-      suspended,
-      active,
-      completionRate,
-      activeRate,
-      suspensionRate,
-      avgPerIM,
-      rating: getRating(completionRate)
+      total, completed, suspended, active, overdue, mapped,
+      completionRate: total-suspended>0 ? (completed/(total-suspended))*100 : 0,
+      activeRate: total>0 ? (active/total)*100 : 0,
+      suspensionRate: total>0 ? (suspended/total)*100 : 0,
+      avgPerIM: ims.length>0 ? total/ims.length : 0,
+      mappingRatio: total>0 ? (mapped/total)*100 : 0,
     };
-  }, [filteredData, ims]);
+  }, [fd, ims]);
 
-  // 5. Monthly Trends
-  const monthlyTrends = useMemo(() => {
-    const data: any[] = months.slice(1).map(m => ({
-      name: m.label.substring(0, 3),
-      started: 0,
-      completed: 0,
-      suspended: 0,
-    }));
-
-    extensions.forEach(ext => {
-      const startMonth = new Date(ext.startDate).getMonth();
-      data[startMonth].started++;
-      
-      if (ext.status === 'Completed') {
-        // Assume completed in the same month if no completion date, or check milestones
-        // For simplicity, we use the updatedAt month if completed
-        const compMonth = new Date(ext.updatedAt || ext.startDate).getMonth();
-        data[compMonth].completed++;
-      }
-      if (ext.status === 'Frozen') {
-        const suspMonth = new Date(ext.updatedAt || ext.startDate).getMonth();
-        data[suspMonth].suspended++;
-      }
+  const pm = useMemo(() => {
+    const m: Record<string,{total:number;active:number;suspended:number;completed:number}> = {};
+    fd.forEach(ext => {
+      if(!m[ext.serviceName]) m[ext.serviceName]={total:0,active:0,suspended:0,completed:0};
+      m[ext.serviceName].total++;
+      if(ext.status==='Completed') m[ext.serviceName].completed++;
+      else if(ext.status==='Frozen') m[ext.serviceName].suspended++;
+      else m[ext.serviceName].active++;
     });
+    return m;
+  }, [fd]);
 
-    return data.map(d => ({
-      ...d,
-      rate: d.started > 0 ? (d.completed / d.started) * 100 : 0
-    }));
+  const tm = useMemo(() => {
+    const m: Record<string,{total:number;active:number;suspended:number;completed:number;overdue:number}> = {};
+    ims.forEach(im => { m[im.name]={total:0,active:0,suspended:0,completed:0,overdue:0}; });
+    fd.forEach(ext => {
+      if(!m[ext.implementationManager]) m[ext.implementationManager]={total:0,active:0,suspended:0,completed:0,overdue:0};
+      const t=m[ext.implementationManager];
+      t.total++;
+      if(ext.status==='Completed') t.completed++;
+      else if(ext.status==='Frozen') t.suspended++;
+      else t.active++;
+      if(ext.status!=='Completed'&&new Date(ext.targetClosureDate)<today) t.overdue++;
+    });
+    return m;
+  }, [fd, ims]);
+
+  const trends = useMemo(() => {
+    const d = MN.map(n=>({name:n,started:0,completed:0,suspended:0,rate:0}));
+    extensions.forEach(ext => {
+      d[new Date(ext.startDate).getMonth()].started++;
+      if(ext.status==='Completed') d[new Date(ext.updatedAt||ext.startDate).getMonth()].completed++;
+      if(ext.status==='Frozen') d[new Date(ext.updatedAt||ext.startDate).getMonth()].suspended++;
+    });
+    return d.map(r=>({...r, rate: r.started>0 ? Math.round((r.completed/r.started)*100) : 0}));
   }, [extensions]);
 
-  // 6. Weighted Performance
-  const weightedPerformance = useMemo(() => {
-    return ims.map(im => {
-      const imExtensions = filteredData.filter(e => e.implementationManager === im.name);
-      let totalWeight = 0;
-      let weightedCompletion = 0;
+  const ytd = useMemo(() => {
+    const s=trends.reduce((a,m)=>a+m.started,0);
+    const c=trends.reduce((a,m)=>a+m.completed,0);
+    const su=trends.reduce((a,m)=>a+m.suspended,0);
+    return {started:s, completed:c, suspended:su, rate: s>0?Math.round((c/s)*100):0};
+  }, [trends]);
 
-      Object.entries(PRODUCT_WEIGHTS).forEach(([product, weight]) => {
-        const productExtensions = imExtensions.filter(e => e.serviceName.includes(product));
-        if (productExtensions.length > 0) {
-          const completed = productExtensions.filter(e => e.status === 'Completed').length;
-          const compRate = completed / productExtensions.length;
-          weightedCompletion += compRate * weight;
-          totalWeight += weight;
-        }
+  const wp = useMemo(() => {
+    const rows = ims.map(im => {
+      const exts = fd.filter(e=>e.implementationManager===im.name);
+      let tw=0, ws=0;
+      const bd: Record<string,number|null> = {};
+      Object.entries(PW).forEach(([prod,w])=>{
+        const pe=exts.filter(e=>e.serviceName.includes(prod));
+        if(pe.length>0){ const r=pe.filter(e=>e.status==='Completed').length/pe.length; bd[prod]=Math.round(r*100); ws+=r*w; tw+=w; }
+        else bd[prod]=null;
       });
+      return {name:im.name, score:tw>0?ws/tw:0, total:exts.length, bd};
+    }).sort((a,b)=>b.score-a.score);
+    const avg = rows.length>0 ? rows.reduce((s,r)=>s+r.score,0)/rows.length : 0;
+    return {rows, avg};
+  }, [fd, ims]);
 
-      const score = totalWeight > 0 ? weightedCompletion / totalWeight : 0;
-      return {
-        name: im.name,
-        score,
-        totalAssigned: imExtensions.length
-      };
-    }).sort((a, b) => b.score - a.score);
-  }, [filteredData, ims]);
+  const overdue = useMemo(() =>
+    fd.filter(e=>e.status!=='Completed'&&new Date(e.targetClosureDate)<today)
+      .sort((a,b)=>new Date(a.targetClosureDate).getTime()-new Date(b.targetClosureDate).getTime()),
+  [fd]);
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
-      {/* Filters Header */}
+
+      {/* Filters */}
       <div className="flex flex-wrap items-center justify-between gap-4 bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
         <div className="flex items-center gap-3">
-          <div className={cn("p-3 rounded-2xl", theme.lightBg)}>
-            <Filter className={cn("w-6 h-6", theme.text)} />
-          </div>
-          <div>
-            <h3 className="text-lg font-black text-slate-900 uppercase tracking-tight">Operational Filters</h3>
-            <p className="text-xs font-bold text-slate-500">Slice performance data by reporting period.</p>
-          </div>
+          <div className={cn("p-3 rounded-2xl",theme.lightBg)}><Filter className={cn("w-5 h-5",theme.text)}/></div>
+          <div><h3 className="text-base font-black text-slate-900 uppercase tracking-tight">Operational Filters</h3><p className="text-xs font-bold text-slate-500">Slice data by reporting period</p></div>
         </div>
-        
         <div className="flex items-center gap-3">
           <div className="flex flex-col gap-1">
             <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Quarter</label>
-            <select 
-              value={selectedQuarter}
-              onChange={e => setSelectedQuarter(e.target.value === 'All' ? 'All' : Number(e.target.value))}
-              className="px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 outline-none focus:ring-4 focus:ring-teal-500/10 transition-all"
-            >
-              {quarters.map(q => <option key={q.value} value={q.value}>{q.label}</option>)}
+            <select value={q} onChange={e=>setQ(e.target.value==='All'?'All':Number(e.target.value))} className="px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold outline-none">
+              <option value="All">All Quarters</option>{[1,2,3,4].map(n=><option key={n} value={n}>Q{n}</option>)}
             </select>
           </div>
           <div className="flex flex-col gap-1">
             <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Month</label>
-            <select 
-              value={selectedMonth}
-              onChange={e => setSelectedMonth(e.target.value === 'All' ? 'All' : Number(e.target.value))}
-              className="px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 outline-none focus:ring-4 focus:ring-teal-500/10 transition-all"
-            >
-              {months.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
+            <select value={mo} onChange={e=>setMo(e.target.value==='All'?'All':Number(e.target.value))} className="px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold outline-none">
+              <option value="All">All Months</option>{MN.map((n,i)=><option key={i} value={i}>{n}</option>)}
             </select>
           </div>
         </div>
       </div>
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <KPICard label="Completion Rate" value={`${kpis.completionRate.toFixed(1)}%`} rating={kpis.rating} icon={<CheckCircle2 />} color="emerald" />
-        <KPICard label="Active Rate" value={`${kpis.activeRate.toFixed(1)}%`} subtext={`${kpis.active} projects active`} icon={<Activity />} color="blue" />
-        <KPICard label="Suspension Rate" value={`${kpis.suspensionRate.toFixed(1)}%`} subtext={`${kpis.suspended} projects frozen`} icon={<AlertTriangle />} color="amber" />
-        <KPICard label="Avg Projects / IM" value={kpis.avgPerIM.toFixed(1)} subtext={`Across ${ims.length} managers`} icon={<Users />} color="slate" />
+      {/* KPI Row 1 */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <KPI label="Completion Rate" value={`${kpis.completionRate.toFixed(1)}%`} rate={kpis.completionRate} icon={<CheckCircle2/>} color="emerald"/>
+        <KPI label="Active Rate" value={`${kpis.activeRate.toFixed(1)}%`} sub={`${kpis.active} active`} rate={kpis.activeRate} icon={<Activity/>} color="blue"/>
+        <KPI label="Suspension Rate" value={`${kpis.suspensionRate.toFixed(1)}%`} sub={`${kpis.suspended} frozen`} rate={kpis.suspensionRate} inv icon={<AlertTriangle/>} color="amber"/>
+        <KPI label="Avg Projects / IM" value={kpis.avgPerIM.toFixed(1)} sub={`${ims.length} managers`} icon={<Users/>} color="slate"/>
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
-        {/* Product Metrics Table */}
-        <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm flex flex-col">
-          <div className="flex items-center gap-3 mb-6">
-            <Package className="w-5 h-5 text-teal-600" />
-            <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest">Product Performance</h3>
-          </div>
-          <div className="flex-1 overflow-x-auto">
-            <table className="w-full text-left">
-              <thead>
-                <tr className="border-b border-slate-100">
-                  <th className="pb-3 text-[10px] font-black text-slate-400 uppercase tracking-widest">Product Line</th>
-                  <th className="pb-3 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Total</th>
-                  <th className="pb-3 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Active</th>
-                  <th className="pb-3 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Susp.</th>
-                  <th className="pb-3 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Comp.</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-50">
-                {(Object.entries(productMetrics) as [string, any][]).map(([name, m]) => (
-                  <tr key={name} className="group">
-                    <td className="py-3 text-sm font-bold text-slate-700">{name}</td>
-                    <td className="py-3 text-sm font-black text-slate-900 text-center">{m.total}</td>
-                    <td className="py-3 text-sm font-bold text-blue-600 text-center">{m.active}</td>
-                    <td className="py-3 text-sm font-bold text-amber-600 text-center">{m.suspended}</td>
-                    <td className="py-3 text-sm font-bold text-emerald-600 text-center">{m.completed}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        {/* Team Workload Table */}
-        <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm flex flex-col">
-          <div className="flex items-center gap-3 mb-6">
-            <Users className="w-5 h-5 text-indigo-600" />
-            <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest">IM Workload Breakdown</h3>
-          </div>
-          <div className="flex-1 overflow-x-auto">
-            <table className="w-full text-left">
-              <thead>
-                <tr className="border-b border-slate-100">
-                  <th className="pb-3 text-[10px] font-black text-slate-400 uppercase tracking-widest">Implementation Manager</th>
-                  <th className="pb-3 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Total</th>
-                  <th className="pb-3 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Active</th>
-                  <th className="pb-3 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Susp.</th>
-                  <th className="pb-3 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Comp.</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-50">
-                {(Object.entries(teamMetrics) as [string, any][]).map(([name, m]) => (
-                  <tr key={name} className="group">
-                    <td className="py-3 text-sm font-bold text-slate-700">{name}</td>
-                    <td className="py-3 text-sm font-black text-slate-900 text-center">{m.total}</td>
-                    <td className="py-3 text-sm font-bold text-blue-600 text-center">{m.active}</td>
-                    <td className="py-3 text-sm font-bold text-amber-600 text-center">{m.suspended}</td>
-                    <td className="py-3 text-sm font-bold text-emerald-600 text-center">{m.completed}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
+      {/* KPI Row 2 */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <KPI label="Started (Period)" value={fd.length} sub="Total in window" icon={<TrendingUp/>} color="teal"/>
+        <KPI label="Completed (Period)" value={kpis.completed} sub={`of ${fd.length} total`} rate={kpis.completionRate} icon={<CheckCircle2/>} color="emerald"/>
+        <KPI label="Overdue / At-Risk" value={kpis.overdue} sub="Past target date" icon={<Clock/>} color="red"/>
+        <KPI label="Mapping Ratio" value={`${kpis.mappingRatio.toFixed(0)}%`} sub={`${kpis.mapped} linked to projects`} icon={<Link/>} color="teal"/>
       </div>
 
-      {/* Volume Distribution Grid */}
-      <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="flex items-center gap-3 mb-6">
-          <Layers className="w-5 h-5 text-sky-600" />
-          <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest">IM Volume Distribution by Product</h3>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-left min-w-[800px]">
-            <thead>
-              <tr className="border-b border-slate-100">
-                <th className="pb-3 text-[10px] font-black text-slate-400 uppercase tracking-widest">Implementation Manager</th>
-                {Object.keys(PRODUCT_WEIGHTS).map(prod => (
-                  <th key={prod} className="pb-3 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">{prod}</th>
-                ))}
-                <th className="pb-3 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center bg-slate-50/50">Total</th>
-              </tr>
-            </thead>
+      {/* Product + Team tables */}
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+        <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
+          <div className="flex items-center gap-2 mb-5"><Package className="w-4 h-4 text-teal-600"/><h3 className="text-xs font-black text-slate-900 uppercase tracking-widest">Product Performance</h3></div>
+          <table className="w-full text-left">
+            <thead><tr className="border-b border-slate-100">{['Product','Total','Active','Susp.','Comp.','Susp%'].map(h=><th key={h} className="pb-2 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center first:text-left">{h}</th>)}</tr></thead>
             <tbody className="divide-y divide-slate-50">
-              {ims.map(im => {
-                const imExtensions = filteredData.filter(e => e.implementationManager === im.name);
+              {(Object.entries(pm) as [string,any][]).map(([name,m])=>{
+                const susp_rate = m.total>0?Math.round((m.suspended/m.total)*100):0;
+                const hotspot = susp_rate > 40;
                 return (
-                  <tr key={im.id} className="group hover:bg-slate-50/30 transition-colors">
-                    <td className="py-3 text-sm font-bold text-slate-700">{im.name}</td>
-                    {Object.keys(PRODUCT_WEIGHTS).map(prod => {
-                      const count = imExtensions.filter(e => e.serviceName.includes(prod)).length;
-                      return (
-                        <td key={prod} className={cn("py-3 text-sm font-bold text-center", count > 0 ? "text-slate-900" : "text-slate-300")}>
-                          {count}
-                        </td>
-                      );
-                    })}
-                    <td className="py-3 text-sm font-black text-slate-900 text-center bg-slate-50/50">
-                      {imExtensions.length}
-                    </td>
+                  <tr key={name} className={cn("group",hotspot&&"bg-red-50/40")}>
+                    <td className="py-2.5 text-sm font-bold text-slate-700 flex items-center gap-1.5">{name}{hotspot&&<AlertTriangle className="w-3 h-3 text-red-500" title="Suspension hotspot"/>}</td>
+                    <td className="py-2.5 text-sm font-black text-slate-900 text-center">{m.total}</td>
+                    <td className="py-2.5 text-sm font-bold text-blue-600 text-center">{m.active}</td>
+                    <td className="py-2.5 text-sm font-bold text-amber-600 text-center">{m.suspended}</td>
+                    <td className="py-2.5 text-sm font-bold text-emerald-600 text-center">{m.completed}</td>
+                    <td className="py-2.5 text-center"><span className={cn("px-1.5 py-0.5 text-[10px] font-black rounded",hotspot?"bg-red-100 text-red-700":"bg-slate-100 text-slate-500")}>{susp_rate}%</span></td>
                   </tr>
                 );
               })}
             </tbody>
           </table>
         </div>
-      </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Monthly Trend Chart */}
-        <div className="lg:col-span-2 bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
-          <div className="flex items-center justify-between mb-8">
-            <div className="flex items-center gap-3">
-              <TrendingUp className="w-5 h-5 text-teal-600" />
-              <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest">Execution Trends</h3>
-            </div>
-            <div className="flex gap-4">
-              <div className="flex items-center gap-1.5">
-                <div className="w-2 h-2 rounded-full bg-slate-200" />
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Started</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <div className="w-2 h-2 rounded-full bg-emerald-500" />
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Completed</span>
-              </div>
-            </div>
-          </div>
-          <div className="h-[300px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={monthlyTrends}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 10, fontWeight: 700}} />
-                <YAxis axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 10, fontWeight: 700}} />
-                <Tooltip 
-                  cursor={{fill: '#f8fafc'}}
-                  contentStyle={{borderRadius: '16px', border: 'none', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)'}}
-                />
-                <Bar dataKey="started" fill="#e2e8f0" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="completed" fill="#10b981" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        {/* Weighted Score Leaderboard */}
         <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
-          <div className="flex items-center gap-3 mb-6">
-            <Award className="w-5 h-5 text-amber-500" />
-            <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest">Performance Score</h3>
+          <div className="flex items-center gap-2 mb-5"><Users className="w-4 h-4 text-indigo-600"/><h3 className="text-xs font-black text-slate-900 uppercase tracking-widest">IM Workload</h3></div>
+          <table className="w-full text-left">
+            <thead><tr className="border-b border-slate-100">{['Manager','Total','Active','Susp.','Comp.','Overdue'].map(h=><th key={h} className="pb-2 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center first:text-left">{h}</th>)}</tr></thead>
+            <tbody className="divide-y divide-slate-50">
+              {(Object.entries(tm) as [string,any][]).map(([name,m])=>(
+                <tr key={name} className="group">
+                  <td className="py-2.5 text-sm font-bold text-slate-700">{name}</td>
+                  <td className="py-2.5 text-sm font-black text-slate-900 text-center">{m.total}</td>
+                  <td className="py-2.5 text-sm font-bold text-blue-600 text-center">{m.active}</td>
+                  <td className="py-2.5 text-sm font-bold text-amber-600 text-center">{m.suspended}</td>
+                  <td className="py-2.5 text-sm font-bold text-emerald-600 text-center">{m.completed}</td>
+                  <td className="py-2.5 text-center"><span className={cn("px-1.5 py-0.5 text-[10px] font-black rounded",m.overdue>0?"bg-red-100 text-red-700":"bg-slate-100 text-slate-400")}>{m.overdue}</span></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Overdue panel */}
+      {overdue.length > 0 && (
+        <div className="bg-red-50 border border-red-200 rounded-3xl p-6">
+          <div className="flex items-center gap-2 mb-4"><Clock className="w-4 h-4 text-red-600"/><h3 className="text-xs font-black text-red-900 uppercase tracking-widest">At-Risk / Overdue Implementations ({overdue.length})</h3></div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {overdue.slice(0,6).map(ext=>{
+              const days = Math.floor((today.getTime()-new Date(ext.targetClosureDate).getTime())/(1000*60*60*24));
+              return (
+                <div key={ext.id} className="bg-white rounded-2xl p-4 border border-red-100 shadow-sm">
+                  <p className="text-sm font-black text-slate-900 truncate">{ext.clientName}</p>
+                  <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-0.5">{ext.serviceName} · {ext.implementationManager}</p>
+                  <span className="mt-2 inline-block px-2 py-0.5 bg-red-100 text-red-700 text-[10px] font-black rounded-md">{days}d overdue</span>
+                </div>
+              );
+            })}
           </div>
-          <div className="space-y-4">
-            {weightedPerformance.map((entry, idx) => (
-              <div key={entry.name} className="p-4 bg-slate-50 rounded-2xl border border-slate-100 flex items-center justify-between">
+        </div>
+      )}
+
+      {/* Volume Distribution */}
+      <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+        <div className="flex items-center gap-2 mb-5"><Layers className="w-4 h-4 text-sky-600"/><h3 className="text-xs font-black text-slate-900 uppercase tracking-widest">IM Volume Distribution by Product</h3></div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left min-w-[700px]">
+            <thead><tr className="border-b border-slate-100">
+              <th className="pb-2 text-[10px] font-black text-slate-400 uppercase tracking-widest">Manager</th>
+              {Object.keys(PW).map(p=><th key={p} className="pb-2 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">{p}</th>)}
+              <th className="pb-2 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center bg-slate-50/50">Total</th>
+            </tr></thead>
+            <tbody className="divide-y divide-slate-50">
+              {ims.map(im=>{
+                const exts=fd.filter(e=>e.implementationManager===im.name);
+                return <tr key={im.id} className="hover:bg-slate-50/30 transition-colors">
+                  <td className="py-2.5 text-sm font-bold text-slate-700">{im.name}</td>
+                  {Object.keys(PW).map(prod=>{
+                    const cnt=exts.filter(e=>e.serviceName.includes(prod)).length;
+                    return <td key={prod} className={cn("py-2.5 text-sm font-bold text-center",cnt>0?"text-slate-900":"text-slate-200")}>{cnt||'—'}</td>;
+                  })}
+                  <td className="py-2.5 text-sm font-black text-slate-900 text-center bg-slate-50/50">{exts.length}</td>
+                </tr>;
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Monthly Trends */}
+      <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-2"><TrendingUp className="w-4 h-4 text-teal-600"/><h3 className="text-xs font-black text-slate-900 uppercase tracking-widest">Monthly Execution Trends</h3></div>
+          <div className="flex gap-4 text-[10px] font-black uppercase tracking-widest text-slate-400">
+            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-slate-200 inline-block"/>Started</span>
+            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-500 inline-block"/>Completed</span>
+            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-amber-400 inline-block"/>Suspended</span>
+            <span className="flex items-center gap-1"><span className="w-2 h-1 border-t-2 border-dashed border-teal-500 inline-block"/>Rate %</span>
+          </div>
+        </div>
+        <div className="h-[280px] mb-6">
+          <ResponsiveContainer width="100%" height="100%">
+            <ComposedChart data={trends}>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9"/>
+              <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill:'#94a3b8',fontSize:10,fontWeight:700}}/>
+              <YAxis yAxisId="left" axisLine={false} tickLine={false} tick={{fill:'#94a3b8',fontSize:10}}/>
+              <YAxis yAxisId="right" orientation="right" domain={[0,100]} axisLine={false} tickLine={false} tick={{fill:'#94a3b8',fontSize:10}} tickFormatter={(v)=>`${v}%`}/>
+              <Tooltip contentStyle={{borderRadius:'16px',border:'none',boxShadow:'0 20px 25px -5px rgb(0 0 0 / 0.1)'}}/>
+              <Bar yAxisId="left" dataKey="started" fill="#e2e8f0" radius={[4,4,0,0]} name="Started"/>
+              <Bar yAxisId="left" dataKey="completed" fill="#10b981" radius={[4,4,0,0]} name="Completed"/>
+              <Bar yAxisId="left" dataKey="suspended" fill="#fbbf24" radius={[4,4,0,0]} name="Suspended"/>
+              <Line yAxisId="right" type="monotone" dataKey="rate" stroke="#14b8a6" strokeWidth={2} strokeDasharray="5 3" dot={false} name="Rate %"/>
+            </ComposedChart>
+          </ResponsiveContainer>
+        </div>
+        {/* YTD Summary Row */}
+        <div className="grid grid-cols-4 gap-3 pt-4 border-t border-slate-100">
+          {[{l:'YTD Started',v:ytd.started,c:'text-slate-900'},{l:'YTD Completed',v:ytd.completed,c:'text-emerald-600'},{l:'YTD Suspended',v:ytd.suspended,c:'text-amber-600'},{l:'Overall Rate',v:`${ytd.rate}%`,c:'text-teal-600'}].map(x=>(
+            <div key={x.l} className="text-center p-3 bg-slate-50 rounded-2xl">
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{x.l}</p>
+              <p className={cn("text-xl font-black mt-1",x.c)}>{x.v}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Weighted Performance Leaderboard */}
+      <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
+        <div className="flex items-center justify-between mb-5">
+          <div className="flex items-center gap-2"><Award className="w-4 h-4 text-amber-500"/><h3 className="text-xs font-black text-slate-900 uppercase tracking-widest">Complexity-Weighted Performance</h3></div>
+          <div className="px-3 py-1 bg-slate-100 rounded-xl text-[10px] font-black text-slate-500 uppercase tracking-widest">Team Avg: {(wp.avg*100).toFixed(1)}%</div>
+        </div>
+        <div className="space-y-3">
+          {wp.rows.map((entry,idx)=>(
+            <div key={entry.name} className="border border-slate-100 rounded-2xl overflow-hidden">
+              <button onClick={()=>setExpandedIM(expandedIM===entry.name?null:entry.name)} className="w-full flex items-center justify-between p-4 hover:bg-slate-50 transition-colors">
                 <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-white border border-slate-200 flex items-center justify-center text-xs font-black text-slate-400">
-                    {idx + 1}
-                  </div>
-                  <div>
+                  <div className={cn("w-7 h-7 rounded-full flex items-center justify-center text-xs font-black",idx===0?"bg-amber-100 text-amber-700":idx===1?"bg-slate-100 text-slate-600":"bg-slate-50 text-slate-400")}>{idx+1}</div>
+                  <div className="text-left">
                     <p className="text-sm font-black text-slate-900">{entry.name}</p>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{entry.totalAssigned} Projects</p>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{entry.total} implementations</p>
                   </div>
                 </div>
-                <div className="text-right">
-                  <p className="text-lg font-black text-slate-900 leading-none">{(entry.score * 100).toFixed(1)}%</p>
-                  <p className="text-[10px] font-bold text-teal-600 uppercase tracking-widest mt-1">Weighted Score</p>
+                <div className="flex items-center gap-3">
+                  <div className="w-32 h-2 bg-slate-100 rounded-full overflow-hidden">
+                    <div className="h-full bg-teal-500 rounded-full" style={{width:`${entry.score*100}%`}}/>
+                  </div>
+                  <span className="text-base font-black text-slate-900 w-14 text-right">{(entry.score*100).toFixed(1)}%</span>
                 </div>
-              </div>
-            ))}
-          </div>
-          <div className="mt-6 p-4 bg-amber-50 rounded-2xl border border-amber-100">
-            <p className="text-[10px] font-bold text-amber-700 leading-relaxed italic">
-              * Score is weighted by product complexity: USSD(2), API(3), Transfers(3), Mobile(4), Cards(4), ASPFEP(5).
-            </p>
-          </div>
+              </button>
+              {expandedIM===entry.name && (
+                <div className="px-4 pb-4 pt-1 border-t border-slate-50 grid grid-cols-3 sm:grid-cols-6 gap-2">
+                  {Object.entries(PW).map(([prod])=>{
+                    const val=entry.bd[prod];
+                    return <div key={prod} className="text-center p-2 bg-slate-50 rounded-xl">
+                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{prod}</p>
+                      <p className={cn("text-sm font-black mt-0.5",val==null?"text-slate-300":val>=70?"text-emerald-600":val>=50?"text-amber-600":"text-red-600")}>{val!=null?`${val}%`:'—'}</p>
+                    </div>;
+                  })}
+                </div>
+              )}
+            </div>
+          ))}
         </div>
+        <p className="text-[10px] text-slate-400 mt-4 italic">* Weights: USSD(2) Transfers(3) Mobile(4) Cards(4) ASPFEP(5) API(3). Click a row to see per-product breakdown.</p>
       </div>
-    </div>
-  );
-};
 
-const KPICard = ({ label, value, subtext, rating, icon, color }: any) => {
-  const colors: any = {
-    emerald: 'text-emerald-600 bg-emerald-50 border-emerald-100',
-    blue: 'text-blue-600 bg-blue-50 border-blue-100',
-    amber: 'text-amber-600 bg-amber-50 border-amber-100',
-    slate: 'text-slate-600 bg-slate-50 border-slate-100',
-  };
-
-  return (
-    <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
-      <div className="flex justify-between items-start mb-4">
-        <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">{label}</p>
-        <div className={cn("p-2 rounded-xl border", colors[color])}>
-          {React.cloneElement(icon, { className: 'w-4 h-4' })}
-        </div>
-      </div>
-      <div className="flex items-baseline gap-2">
-        <h4 className="text-2xl font-black text-slate-900 tracking-tight">{value}</h4>
-        {rating && (
-          <span className={cn("px-2 py-0.5 text-[10px] font-black rounded-md uppercase tracking-wider", rating.color)}>
-            {rating.label}
-          </span>
-        )}
-      </div>
-      {subtext && <p className="text-[10px] font-bold text-slate-500 mt-1 uppercase tracking-widest">{subtext}</p>}
     </div>
   );
 };
