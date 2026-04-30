@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   X, CheckCircle2, Circle, MapPin, Unlink, AlertCircle,
-  ExternalLink, Loader2, Lock, Clock, Calendar, UserPlus
+  ExternalLink, Loader2, Lock, Clock, Calendar, UserPlus,
+  RefreshCw, Briefcase, Check
 } from 'lucide-react';
 import { ServiceExtension, IMilestone, AppConfig, User } from '../types';
 import { api } from '../lib/api';
