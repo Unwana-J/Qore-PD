@@ -155,7 +155,8 @@ export interface Project {
   externalId?: string;
   tags?: string[];
   billingRejections?: BillingRejection[];
-  implementationManager?: string;
+  implementationManager?: string;   // @deprecated – use implementationManagers
+  implementationManagers?: string[]; // all approved IMs derived from service_extensions
 }
 
 export interface PackageConfig {

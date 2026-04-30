@@ -38,6 +38,7 @@ const mapProjectFromDb = (p: any): Project => ({
   phaseComments: p.phase_comments || {},
   externalId: p.external_id,
   implementationManager: p.implementation_manager,
+  implementationManagers: p.implementation_managers || (p.implementation_manager ? [p.implementation_manager] : []),
 });
 
 // Helper to map Frontend camelCase to DB snake_case
@@ -74,6 +75,7 @@ const mapProjectToDb = (p: Partial<Project>) => {
   if (p.phaseComments !== undefined) mapped.phase_comments = p.phaseComments;
   if (p.externalId !== undefined) mapped.external_id = p.externalId;
   if (p.implementationManager !== undefined) mapped.implementation_manager = p.implementationManager;
+  if (p.implementationManagers !== undefined) mapped.implementation_managers = p.implementationManagers;
   return mapped;
 };
 
@@ -683,14 +685,32 @@ export const api = {
     },
 
     approveMapping: async (id: string): Promise<void> => {
-      const { error } = await supabase
+      // 1. Approve the extension
+      const { data: ext, error: extErr } = await supabase
         .from('service_extensions')
         .update({
           mapping_status: 'Approved',
           mapping_approved_at: new Date().toISOString(),
         })
-        .eq('id', id);
-      if (error) throw error;
+        .eq('id', id)
+        .select('linked_project_id, implementation_manager')
+        .single();
+      if (extErr) throw extErr;
+
+      // 2. Re-aggregate all approved IMs for this project
+      if (ext?.linked_project_id) {
+        const { data: allApproved } = await supabase
+          .from('service_extensions')
+          .select('implementation_manager')
+          .eq('linked_project_id', ext.linked_project_id)
+          .eq('mapping_status', 'Approved');
+
+        const ims = Array.from(new Set((allApproved || []).map((e: any) => e.implementation_manager).filter(Boolean)));
+        await supabase
+          .from('projects')
+          .update({ implementation_managers: ims })
+          .eq('id', ext.linked_project_id);
+      }
     },
 
     rejectMapping: async (id: string, comment: string): Promise<void> => {
@@ -722,6 +742,7 @@ export const api = {
           .update({ service_states: updatedStates })
           .eq('id', linkedProjectId);
       }
+      // Mark the extension as unmapped
       const { error } = await supabase
         .from('service_extensions')
         .update({
@@ -731,6 +752,19 @@ export const api = {
         })
         .eq('id', id);
       if (error) throw error;
+
+      // Re-aggregate remaining approved IMs for this project
+      const { data: allApproved } = await supabase
+        .from('service_extensions')
+        .select('implementation_manager')
+        .eq('linked_project_id', linkedProjectId)
+        .eq('mapping_status', 'Approved');
+
+      const ims = Array.from(new Set((allApproved || []).map((e: any) => e.implementation_manager).filter(Boolean)));
+      await supabase
+        .from('projects')
+        .update({ implementation_managers: ims })
+        .eq('id', linkedProjectId);
     },
 
     // Freeze/unfreeze all extensions linked to a project

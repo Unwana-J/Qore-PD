@@ -5,7 +5,7 @@ import { motion } from 'motion/react';
 import { PROJECT_STATES } from '../constants';
 import { PROJECT_STATE_COLORS, PRIORITY_COLORS, getThemeClasses } from '../lib/theme';
 import { differenceInDays, parseISO, subDays, format } from 'date-fns';
-import { AlertCircle, AlertTriangle, BarChart2, DollarSign, Search, Filter, MoreHorizontal, Calendar, User, ChevronRight, TrendingUp, TrendingDown, Minus, ChevronDown, Check, X, RefreshCw } from 'lucide-react';
+import { AlertCircle, AlertTriangle, BarChart2, DollarSign, Search, Filter, MoreHorizontal, Calendar, User, ChevronRight, TrendingUp, TrendingDown, Minus, ChevronDown, Check, X, RefreshCw, Layers } from 'lucide-react';
 import { Role, PackageConfig, ServiceBaseline } from '../types';
 
 interface ProjectListProps {
@@ -441,7 +441,8 @@ export const ProjectList: React.FC<ProjectListProps> = ({
                 <p className="text-[13px] text-slate-500 font-bold uppercase tracking-wider">{project.packageName}</p>
               </div>
 
-              <div className="flex flex-wrap items-center gap-y-4 gap-x-8">
+                <div className="flex flex-wrap items-center gap-y-4 gap-x-8">
+                {/* PM */}
                 <div className="flex items-center gap-3 min-w-[140px]">
                   <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-[10px] font-extrabold text-slate-500">
                     {project.assignedPM.split(' ').map(n => n[0]).join('')}
@@ -451,6 +452,30 @@ export const ProjectList: React.FC<ProjectListProps> = ({
                     <p className="text-sm font-bold text-slate-700">{project.assignedPM}</p>
                   </div>
                 </div>
+
+                {/* Implementation Managers */}
+                {(project.implementationManagers || []).length > 0 && (
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-teal-50 flex items-center justify-center text-teal-600 flex-shrink-0">
+                      <Layers className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Impl. Managers</p>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        {(project.implementationManagers || []).slice(0, 2).map(im => (
+                          <span key={im} className="px-2 py-0.5 bg-teal-50 border border-teal-200 text-teal-700 text-[10px] font-black rounded-lg">
+                            {im}
+                          </span>
+                        ))}
+                        {(project.implementationManagers || []).length > 2 && (
+                          <span className="px-2 py-0.5 bg-slate-100 text-slate-500 text-[10px] font-black rounded-lg">
+                            +{(project.implementationManagers || []).length - 2} more
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
                 <div className="flex items-center gap-3 min-w-[120px]">
                   <div className="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-600">
                     <Calendar className="w-4 h-4" />
