@@ -38,6 +38,7 @@ interface HeaderProps {
   onOpenDigest?: () => void;
   implementationDigestData?: import('../../types').ImplementationDigestData | null;
   onOpenImplementationDigest?: () => void;
+  openedImplementationsFromDigest?: boolean;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -63,7 +64,8 @@ export const Header: React.FC<HeaderProps> = ({
   digestData,
   onOpenDigest,
   implementationDigestData,
-  onOpenImplementationDigest
+  onOpenImplementationDigest,
+  openedImplementationsFromDigest
 }) => {
   const [isNotifOpen, setIsNotifOpen] = React.useState(false);
   const theme = getThemeClasses(themeColor);
@@ -156,8 +158,25 @@ export const Header: React.FC<HeaderProps> = ({
     const titles: Record<string, string> = {
       projects: 'Projects',
       settings: 'Settings',
-      risks: 'Risks & Issues'
+      risks: 'Risks & Issues',
+      implementations: 'Ancillary Implementations'
     };
+
+    if (currentView === 'implementations' && openedImplementationsFromDigest) {
+      return (
+        <div className="flex items-center gap-2">
+          <button 
+            onClick={onOpenImplementationDigest}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-teal-50 text-teal-700 text-[10px] font-black uppercase tracking-wider rounded-lg border border-teal-100 hover:bg-teal-100 transition-all"
+          >
+            <ChevronRight className="w-3 h-3 rotate-180" />
+            Back to Review
+          </button>
+          <ChevronRight className="w-3 h-3 text-slate-300" />
+          <h1 className="text-lg font-bold text-slate-900">{titles[currentView]}</h1>
+        </div>
+      );
+    }
 
     return (
       <h1 className="text-lg font-bold text-slate-900">{titles[currentView] || currentView}</h1>

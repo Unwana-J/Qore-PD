@@ -45,6 +45,7 @@ function AppContent() {
   const [implementationsFilter, setImplementationsFilter] = useState<string | 'All'>('All');
   const [implementationsIMFilter, setImplementationsIMFilter] = useState<string | 'All'>('All');
   const [openedFromDigest, setOpenedFromDigest] = useState(false);
+  const [openedImplementationsFromDigest, setOpenedImplementationsFromDigest] = useState(false);
   const [isBulkImportOpen, setIsBulkImportOpen] = useState(false);
   const [isDigestOpen, setIsDigestOpen] = useState(false);
   const [isImplementationDigestOpen, setIsImplementationDigestOpen] = useState(false);
@@ -330,7 +331,12 @@ function AppContent() {
             setProjectListFilter('All');
             setProjectListPMFilter(null);
           }
+          if (view === 'implementations') {
+            setImplementationsFilter('All');
+            setImplementationsIMFilter('All');
+          }
           setOpenedFromDigest(false);
+          setOpenedImplementationsFromDigest(false);
         }}
         selectedProject={selectedProject}
         setSelectedProject={setSelectedProject}
@@ -373,6 +379,7 @@ function AppContent() {
           onOpenDigest={() => setIsDigestOpen(true)}
           implementationDigestData={implementationDigest}
           onOpenImplementationDigest={() => setIsImplementationDigestOpen(true)}
+          openedImplementationsFromDigest={openedImplementationsFromDigest}
         />
 
         <div className="flex-1 overflow-y-auto bg-slate-50/50">
@@ -711,6 +718,7 @@ function AppContent() {
             onNavigate={(view, filter, imFilter) => {
               setIsImplementationDigestOpen(false);
               setCurrentView(view as any);
+              setOpenedImplementationsFromDigest(true);
               if (filter) setImplementationsFilter(filter);
               if (imFilter) setImplementationsIMFilter(imFilter);
             }}
