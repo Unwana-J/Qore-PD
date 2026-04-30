@@ -413,10 +413,7 @@ export const api = {
         .order('week_of', { ascending: false });
       
       if (error) {
-        if (error.code === '42P01') {
-          console.warn("[API] weekly_digests table not found, waiting for migration");
-          return [];
-        }
+        if (error.code === '42P01') return [];
         throw error;
       }
       return (data || []).map(d => d.data as DigestData);
@@ -424,22 +421,43 @@ export const api = {
     save: async (digest: DigestData): Promise<void> => {
       const { error } = await supabase
         .from('weekly_digests')
-        .insert({
+        .upsert({
           week_of: digest.weekOf,
           data: digest
-        });
+        }, { onConflict: 'week_of' });
       
       if (error) {
-        // 23505 is PostgreSQL unique violation code (meaning this week is already saved)
-        if (error.code === '23505') {
-          console.log("[Digests] Digest for week", digest.weekOf, "already exists, skipping save.");
-          return;
+        if (error.code !== '23505' && error.code !== '42P01') {
+          console.error("[Digests] Failed to save project digest:", error);
         }
-        if (error.code === '42P01') {
-          console.warn("[Digests] weekly_digests table not found, skipping save.");
-          return;
+      }
+    }
+  },
+  implementationDigests: {
+    getHistorical: async (): Promise<ImplementationDigestData[]> => {
+      const { data, error } = await supabase
+        .from('implementation_digests')
+        .select('data')
+        .order('week_of', { ascending: false });
+      
+      if (error) {
+        if (error.code === '42P01') return [];
+        throw error;
+      }
+      return (data || []).map(d => d.data as ImplementationDigestData);
+    },
+    save: async (digest: ImplementationDigestData): Promise<void> => {
+      const { error } = await supabase
+        .from('implementation_digests')
+        .upsert({
+          week_of: digest.weekOf,
+          data: digest
+        }, { onConflict: 'week_of' });
+      
+      if (error) {
+        if (error.code !== '23505' && error.code !== '42P01') {
+          console.error("[Digests] Failed to save implementation digest:", error);
         }
-        console.error("[Digests] Failed to save digest:", error);
       }
     }
   },

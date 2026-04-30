@@ -6,7 +6,8 @@ import {
   Bell, 
   Plus,
   Upload,
-  BarChart2
+  BarChart2,
+  Layers
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { Project, Role } from '../../types';
@@ -35,6 +36,8 @@ interface HeaderProps {
   projects?: Project[];
   digestData?: import('../../types').DigestData | null;
   onOpenDigest?: () => void;
+  implementationDigestData?: import('../../types').ImplementationDigestData | null;
+  onOpenImplementationDigest?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -58,7 +61,9 @@ export const Header: React.FC<HeaderProps> = ({
   onSelectProject,
   projects = [],
   digestData,
-  onOpenDigest
+  onOpenDigest,
+  implementationDigestData,
+  onOpenImplementationDigest
 }) => {
   const [isNotifOpen, setIsNotifOpen] = React.useState(false);
   const theme = getThemeClasses(themeColor);
@@ -229,6 +234,21 @@ export const Header: React.FC<HeaderProps> = ({
                         <p className="text-[10px] text-indigo-500 font-medium mt-0.5">Week of {digestData.weekOf} · Click to open</p>
                       </div>
                       <ChevronRight className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
+                    </button>
+                  )}
+                  {implementationDigestData && (
+                    <button
+                      onClick={() => { onOpenImplementationDigest?.(); setIsNotifOpen(false); }}
+                      className="w-full px-5 py-4 text-left hover:bg-teal-50 transition-colors flex items-center gap-3 border-b border-teal-100 bg-teal-50/50"
+                    >
+                      <div className="w-8 h-8 rounded-xl bg-teal-100 border border-teal-200 flex items-center justify-center shrink-0">
+                        <Layers className="w-4 h-4 text-teal-600" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-black text-teal-900">Implementation Review Digest</p>
+                        <p className="text-[10px] text-teal-500 font-medium mt-0.5">Week of {implementationDigestData.weekOf} · Click to open</p>
+                      </div>
+                      <ChevronRight className="w-3.5 h-3.5 text-teal-400 shrink-0" />
                     </button>
                   )}
                   {notifications.length === 0 ? (

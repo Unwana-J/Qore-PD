@@ -105,6 +105,33 @@ export interface DigestData {
   oldestRebaselineDays: number;
 }
 
+export interface IMDigestActivityEntry {
+  imName: string;
+  totalActive: number;
+  completedThisWeek: number;
+  overdueCount: number;
+  lastUpdatedDaysAgo: number; // based on updatedAt of their extensions
+}
+
+export interface ImplementationDigestData {
+  weekOf: string;                     // ISO date of Monday
+  generatedAt: Date;
+  totalActive: number;
+  completedThisWeek: number;
+  mappingRequestsPending: number;
+  suspensionRequestsPending: number;
+  dateExtensionRequestsPending: number;
+  overdueCount: number;
+  imActivity: IMDigestActivityEntry[];
+  upcomingDeadlines: { 
+    id: string;
+    clientName: string; 
+    serviceName: string; 
+    targetDate: string; 
+    im: string;
+  }[];
+}
+
 export interface ExecutionMilestone {
   id: string;
   name: string;

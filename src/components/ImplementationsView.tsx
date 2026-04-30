@@ -15,6 +15,8 @@ interface ImplementationsViewProps {
   projects: Project[];
   users: User[];
   onShowToast: (msg: string, type?: 'success' | 'error') => void;
+  initialFilter?: string;
+  initialIM?: string;
 }
 
 // ── IM Personal Dashboard Analytics ──────────────────────────────────────────
@@ -169,7 +171,7 @@ const IMPersonalDashboard: React.FC<{ extensions: ServiceExtension[]; userName: 
 
 // ── Main View ─────────────────────────────────────────────────────────────────
 export const ImplementationsView: React.FC<ImplementationsViewProps> = ({
-  userRole, userName, config, projects, users, onShowToast
+  userRole, userName, config, projects, users, onShowToast, initialFilter, initialIM
 }) => {
   const [extensions, setExtensions] = useState<ServiceExtension[]>([]);
   const [loading, setLoading] = useState(true);
@@ -183,6 +185,18 @@ export const ImplementationsView: React.FC<ImplementationsViewProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('All');
   const [managerFilter, setManagerFilter] = useState<string>('All');
+
+  // Handle initial deep-linking from digest
+  useEffect(() => {
+    if (initialFilter) {
+      setStatusFilter(initialFilter);
+      if (isLead && activeTab === 'mine') setActiveTab('all');
+    }
+    if (initialIM) {
+      setManagerFilter(initialIM);
+      if (isLead && activeTab === 'mine') setActiveTab('all');
+    }
+  }, [initialFilter, initialIM, isLead]);
 
   const loadExtensions = async () => {
     try {
@@ -217,7 +231,15 @@ export const ImplementationsView: React.FC<ImplementationsViewProps> = ({
   const filteredExtensions = useMemo(() => {
     return extensions.filter(ext => {
       const matchesSearch = ext.clientName.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesStatus = statusFilter === 'All' || ext.status === statusFilter;
+      
+      let matchesStatus = statusFilter === 'All' || ext.status === statusFilter;
+      
+      // Special digest filters
+      if (statusFilter === 'Mapping Pending') matchesStatus = ext.mappingStatus === 'Pending';
+      if (statusFilter === 'Suspension Pending') matchesStatus = ext.suspensionRequest?.status === 'Pending';
+      if (statusFilter === 'Extension Pending') matchesStatus = ext.extensionRequest?.status === 'Pending';
+      if (statusFilter === 'Delayed') matchesStatus = ext.status !== 'Completed' && new Date(ext.targetClosureDate) < new Date();
+
       const matchesManager = managerFilter === 'All' || ext.implementationManager === managerFilter;
       return matchesSearch && matchesStatus && matchesManager;
     });

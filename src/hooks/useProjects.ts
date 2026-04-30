@@ -104,16 +104,23 @@ export function useProjects(userRole: Role, config: AppConfig, userName: string 
   // ── Weekly Digest ─────────────────────────────────────────────────────────
   const [weeklyDigest, setWeeklyDigest] = useState<DigestData | null>(null);
   const [historicalDigests, setHistoricalDigests] = useState<DigestData[]>([]);
+  const [implementationDigest, setImplementationDigest] = useState<ImplementationDigestData | null>(null);
+  const [implementationHistoricalDigests, setImplementationHistoricalDigests] = useState<ImplementationDigestData[]>([]);
 
   const dismissDigest = useCallback(() => setWeeklyDigest(null), []);
+  const dismissImplementationDigest = useCallback(() => setImplementationDigest(null), []);
 
   // Fetch historical digests
   useEffect(() => {
-    if (!hasRole(userRole, ['Superadmin', 'Manager'])) return;
+    if (!hasRole(userRole, ['Superadmin', 'Manager', 'IM Lead'])) return;
     const fetchHistory = async () => {
       try {
-        const history = await api.digests.getHistorical();
-        setHistoricalDigests(history);
+        const [projHistory, implHistory] = await Promise.all([
+          api.digests.getHistorical(),
+          api.implementationDigests.getHistorical()
+        ]);
+        setHistoricalDigests(projHistory);
+        setImplementationHistoricalDigests(implHistory);
       } catch (err) {
         console.error("Failed to load historical digests", err);
       }
@@ -214,6 +221,84 @@ export function useProjects(userRole: Role, config: AppConfig, userName: string 
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rawProjects.length, userRole]);
+
+  // ── Implementation Weekly Digest ──────────────────────────────────────────
+  useEffect(() => {
+    if (!hasRole(userRole, ['Superadmin', 'Manager', 'IM Lead'])) return;
+    
+    const calculateImplDigest = async () => {
+      try {
+        const allExtensions = await api.serviceExtensions.getAll();
+        const today = new Date();
+        const sevenDaysAgo = new Date(today); sevenDaysAgo.setDate(today.getDate() - 7);
+        const mondayKey = getMondayKey();
+
+        const active = allExtensions.filter(e => e.status !== 'Completed');
+        const completedThisWeek = allExtensions.filter(e => e.status === 'Completed' && new Date(e.updatedAt) >= sevenDaysAgo).length;
+        
+        const overdueCount = active.filter(e => new Date(e.targetClosureDate) < today).length;
+
+        const imMap: Record<string, IMDigestActivityEntry> = {};
+        allExtensions.forEach(e => {
+          const im = e.implementationManager;
+          if (!imMap[im]) imMap[im] = { imName: im, totalActive: 0, completedThisWeek: 0, overdueCount: 0, lastUpdatedDaysAgo: 0 };
+          
+          const daysSinceUpdate = Math.floor((today.getTime() - new Date(e.updatedAt).getTime()) / 86400000);
+
+          if (e.status !== 'Completed') {
+            imMap[im].totalActive++;
+            if (new Date(e.targetClosureDate) < today) imMap[im].overdueCount++;
+            
+            // Track worst-case inactivity for active projects
+            if (daysSinceUpdate > imMap[im].lastUpdatedDaysAgo) {
+              imMap[im].lastUpdatedDaysAgo = daysSinceUpdate;
+            }
+          } else if (new Date(e.updatedAt) >= sevenDaysAgo) {
+            imMap[im].completedThisWeek++;
+          }
+        });
+
+        // Filter IM activity to only show those with active projects and sort by inactivity
+        const imActivity = Object.values(imMap)
+          .filter(im => im.totalActive > 0)
+          .sort((a, b) => b.lastUpdatedDaysAgo - a.lastUpdatedDaysAgo);
+
+        const upcomingDeadlines = active
+          .filter(e => {
+            const d = new Date(e.targetClosureDate);
+            return d >= today && d <= new Date(today.getTime() + 7 * 86400000);
+          })
+          .map(e => ({
+            id: e.id,
+            clientName: e.clientName,
+            serviceName: e.serviceName,
+            targetDate: e.targetClosureDate,
+            im: e.implementationManager
+          }))
+          .sort((a, b) => new Date(a.targetDate).getTime() - new Date(b.targetDate).getTime());
+
+        const digest: ImplementationDigestData = {
+          weekOf: mondayKey,
+          generatedAt: today,
+          totalActive: active.length,
+          completedThisWeek,
+          mappingRequestsPending: allExtensions.filter(e => e.mappingStatus === 'Pending').length,
+          suspensionRequestsPending: allExtensions.filter(e => e.suspensionRequest?.status === 'Pending').length,
+          dateExtensionRequestsPending: allExtensions.filter(e => e.extensionRequest?.status === 'Pending').length,
+          overdueCount,
+          imActivity,
+          upcomingDeadlines
+        };
+
+        setImplementationDigest(digest);
+        api.implementationDigests.save(digest).catch(err => console.error("Impl digest save error:", err));
+      } catch (err) {
+        console.error("Failed to calculate implementation digest", err);
+      }
+    };
+
+    calculateImplDigest();
+  }, [userRole, rawProjects.length]); // Refresh when projects refresh as they are often linked
 
   // ── Realtime: instant notification when webhook inserts a new project ──────
   useEffect(() => {
@@ -919,6 +1004,9 @@ export function useProjects(userRole: Role, config: AppConfig, userName: string 
     weeklyDigest,
     historicalDigests,
     dismissDigest,
+    implementationDigest,
+    implementationHistoricalDigests,
+    dismissImplementationDigest,
     loading,
     refreshProjects
   };

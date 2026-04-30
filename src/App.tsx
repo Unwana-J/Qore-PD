@@ -16,6 +16,7 @@ import { RebaselineRequestsView } from './components/RebaselineRequestsView';
 import { ExecutiveDashboard } from './components/ExecutiveDashboard';
 import { BulkImportView } from './components/BulkImportView';
 import { DigestModal } from './components/DigestModal';
+import { ImplementationDigestModal } from './components/ImplementationDigestModal';
 import { DeactivatedScreen } from './components/DeactivatedScreen';
 import { ImplementationsView } from './components/ImplementationsView';
 import { INITIAL_CONFIG } from './mockData';
@@ -41,9 +42,12 @@ function AppContent() {
   const [activeSettingsTab, setActiveSettingsTab] = useState<SettingsTab>('account');
   const [projectListFilter, setProjectListFilter] = useState<ProjectState | 'All'>('All');
   const [projectListPMFilter, setProjectListPMFilter] = useState<string | null>(null);
+  const [implementationsFilter, setImplementationsFilter] = useState<string | 'All'>('All');
+  const [implementationsIMFilter, setImplementationsIMFilter] = useState<string | 'All'>('All');
   const [openedFromDigest, setOpenedFromDigest] = useState(false);
   const [isBulkImportOpen, setIsBulkImportOpen] = useState(false);
   const [isDigestOpen, setIsDigestOpen] = useState(false);
+  const [isImplementationDigestOpen, setIsImplementationDigestOpen] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [config, setConfig] = useState<AppConfig>(INITIAL_CONFIG);
   const [users, setUsers] = useState<any[]>([]);
@@ -81,6 +85,9 @@ function AppContent() {
     weeklyDigest,
     historicalDigests,
     dismissDigest,
+    implementationDigest,
+    implementationHistoricalDigests,
+    dismissImplementationDigest,
     loading: projectsLoading,
     refreshProjects
   } = useProjects(userRole || 'PM', config, profile?.name || 'User');
@@ -364,6 +371,8 @@ function AppContent() {
           projects={projects}
           digestData={weeklyDigest}
           onOpenDigest={() => setIsDigestOpen(true)}
+          implementationDigestData={implementationDigest}
+          onOpenImplementationDigest={() => setIsImplementationDigestOpen(true)}
         />
 
         <div className="flex-1 overflow-y-auto bg-slate-50/50">
@@ -539,11 +548,13 @@ function AppContent() {
                     {currentView === 'implementations' && (
                       <ImplementationsView 
                         userRole={userRole}
-                        userName={profile?.name || ''}
+                        userName={profile?.name || 'User'}
                         config={config}
                         projects={projects}
                         users={users}
                         onShowToast={(msg, type) => type === 'error' ? notifyError(msg) : success(msg)}
+                        initialFilter={implementationsFilter}
+                        initialIM={implementationsIMFilter}
                       />
                     )}
                   </>
@@ -686,6 +697,24 @@ function AppContent() {
                 if (pmFilter) setProjectListPMFilter(pmFilter);
               }
             }}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Implementation Weekly Digest Modal */}
+      <AnimatePresence>
+        {isImplementationDigestOpen && implementationDigest && (
+          <ImplementationDigestModal
+            digest={implementationDigest}
+            historicalDigests={implementationHistoricalDigests}
+            onClose={() => setIsImplementationDigestOpen(false)}
+            onNavigate={(view, filter, imFilter) => {
+              setIsImplementationDigestOpen(false);
+              setCurrentView(view as any);
+              if (filter) setImplementationsFilter(filter);
+              if (imFilter) setImplementationsIMFilter(imFilter);
+            }}
+            themeColor={config.brand.themeColor}
           />
         )}
       </AnimatePresence>
