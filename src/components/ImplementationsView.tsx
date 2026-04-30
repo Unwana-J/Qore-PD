@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Wrench, Clock } from 'lucide-react';
+import { Plus, Layers, Clock } from 'lucide-react';
 import { cn, isRole } from '../lib/utils';
 import { ServiceExtension, Role, AppConfig } from '../types';
 import { api } from '../lib/api';
@@ -70,10 +70,10 @@ export const ImplementationsView: React.FC<ImplementationsViewProps> = ({
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-3xl font-black text-slate-900 tracking-tight flex items-center gap-3">
-            <Wrench className="w-8 h-8 text-teal-600" />
-            Service Implementations
+            <Layers className="w-8 h-8 text-teal-600" />
+            Ancillary Implementations
           </h2>
-          <p className="text-slate-500 font-medium mt-1">Manage standalone and project-linked service extensions.</p>
+          <p className="text-slate-500 font-medium mt-1">Manage standalone and project-linked ancillary services.</p>
         </div>
         <button 
           onClick={() => setIsNewModalOpen(true)}
@@ -120,8 +120,8 @@ export const ImplementationsView: React.FC<ImplementationsViewProps> = ({
           </div>
         ) : extensions.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-64 text-slate-400">
-            <Wrench className="w-12 h-12 mb-4 opacity-20" />
-            <p className="font-bold">No implementations found.</p>
+            <Layers className="w-12 h-12 mb-4 opacity-20" />
+            <p className="font-bold">No ancillary implementations found.</p>
           </div>
         ) : (
           <table className="w-full text-left border-collapse">

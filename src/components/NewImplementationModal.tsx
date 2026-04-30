@@ -136,7 +136,7 @@ export const NewImplementationModal: React.FC<NewImplementationModalProps> = ({
           {/* Header */}
           <div className="flex items-center justify-between p-6 sm:p-8 border-b border-slate-100">
             <div>
-              <h2 className="text-2xl font-black text-slate-900 tracking-tight">New Implementation</h2>
+              <h2 className="text-2xl font-black text-slate-900 tracking-tight">New Ancillary Implementation</h2>
               <p className="text-slate-500 font-medium mt-0.5">
                 {step === 1 ? 'Select the client and service details.' : 'Confirm timeline details.'}
               </p>
@@ -267,7 +267,7 @@ export const NewImplementationModal: React.FC<NewImplementationModalProps> = ({
                 </div>
 
                 <div className="space-y-2">
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between mb-2">
                     <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Target Closure Date</label>
                     {effectiveBaseline > 0 && (
                       <button

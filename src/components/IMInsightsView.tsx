@@ -260,7 +260,7 @@ export const IMInsightsView: React.FC<IMInsightsViewProps> = ({ extensions=[], u
                   </div>
                 )}
               </div>
-              <p className="text-[10px] text-indigo-400 mt-4 italic font-medium uppercase tracking-widest">Review these in the Implementations table</p>
+              <p className="text-[10px] text-indigo-400 mt-4 italic font-medium uppercase tracking-widest">Review these in the Ancillary table</p>
             </div>
           )}
         </div>
@@ -268,7 +268,7 @@ export const IMInsightsView: React.FC<IMInsightsViewProps> = ({ extensions=[], u
 
       {/* Volume Distribution */}
       <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="flex items-center gap-2 mb-5"><Layers className="w-4 h-4 text-sky-600"/><h3 className="text-xs font-black text-slate-900 uppercase tracking-widest">IM Volume Distribution by Product</h3></div>
+        <div className="flex items-center gap-2 mb-5"><Layers className="w-4 h-4 text-sky-600"/><h3 className="text-xs font-black text-slate-900 uppercase tracking-widest">Ancillary Volume Distribution</h3></div>
         <div className="overflow-x-auto">
           <table className="w-full text-left min-w-[700px]">
             <thead><tr className="border-b border-slate-100">

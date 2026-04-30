@@ -7,7 +7,7 @@ import {
   ChevronRight,
   AlertTriangle,
   Clock,
-  Wrench
+  Layers
 } from 'lucide-react';
 import { Role, AppConfig } from '../../types';
 import { cn, isRole, hasRole } from '../../lib/utils';
@@ -143,7 +143,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </div>
             <NavItem icon={Briefcase} label="Projects" view="projects" />
             {(isRole(userRole, 'IM') || isRole(userRole, 'IM Lead') || hasRole(userRole, ['Superadmin', 'Manager'])) && (
-              <NavItem icon={Wrench} label="Implementations" view="implementations" />
+              <NavItem icon={Layers} label="Ancillary Implementations" view="implementations" />
             )}
             {!isRole(userRole, 'Executive') && !isRole(userRole, 'Finance') && !isRole(userRole, 'IM') && !isRole(userRole, 'IM Lead') && (
               <>

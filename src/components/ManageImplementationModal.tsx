@@ -228,7 +228,7 @@ export const ManageImplementationModal: React.FC<ManageImplementationModalProps>
               {/* Progress Bar */}
               <div className="px-8 pt-6 pb-4">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Milestone Progress</span>
+                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Implementation Progress</span>
                   <span className="text-sm font-black text-slate-700">{Math.round(progress)}%</span>
                 </div>
                 <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden">
