@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Layers, Clock } from 'lucide-react';
+import { Plus, Layers, Clock, Search, Users, Filter, X } from 'lucide-react';
 import { cn, isRole } from '../lib/utils';
 import { ServiceExtension, Role, AppConfig } from '../types';
 import { api } from '../lib/api';
@@ -27,6 +27,11 @@ export const ImplementationsView: React.FC<ImplementationsViewProps> = ({
   
   const isLead = isRole(userRole, 'IM Lead') || isRole(userRole, 'Superadmin');
   const [activeTab, setActiveTab] = useState<'mine' | 'all' | 'insights'>(isLead ? 'insights' : 'mine');
+
+  // Filter state
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string>('All');
+  const [managerFilter, setManagerFilter] = useState<string>('All');
 
   const loadExtensions = async () => {
     try {
@@ -64,6 +69,20 @@ export const ImplementationsView: React.FC<ImplementationsViewProps> = ({
       api.supabase.removeChannel(channel);
     };
   }, [activeTab, userName, userRole]);
+
+  const filteredExtensions = React.useMemo(() => {
+    return extensions.filter(ext => {
+      const matchesSearch = ext.clientName.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesStatus = statusFilter === 'All' || ext.status === statusFilter;
+      const matchesManager = managerFilter === 'All' || ext.implementationManager === managerFilter;
+      return matchesSearch && matchesStatus && matchesManager;
+    });
+  }, [extensions, searchTerm, statusFilter, managerFilter]);
+
+  const managers = React.useMemo(() => {
+    const ims = users.filter(u => u.role === 'IM' || u.role === 'IM Lead' || u.role === 'Superadmin');
+    return Array.from(new Set(ims.map(u => u.name))).sort();
+  }, [users]);
 
   return (
     <div className="p-8 space-y-8 animate-in fade-in duration-300">
@@ -107,6 +126,67 @@ export const ImplementationsView: React.FC<ImplementationsViewProps> = ({
         </div>
       )}
 
+      {/* Filter Bar */}
+      {activeTab !== 'insights' && (
+        <div className="flex flex-col md:flex-row gap-4 mb-6">
+          <div className="relative flex-1 group">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-teal-500 transition-colors" />
+            <input 
+              type="text"
+              placeholder="Search by client name..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-11 pr-4 py-3 bg-white border border-slate-200 rounded-2xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all shadow-sm"
+            />
+          </div>
+
+          <div className="flex items-center gap-3">
+            <div className="relative group">
+              <Users className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-teal-500 transition-colors pointer-events-none" />
+              <select
+                value={managerFilter}
+                onChange={(e) => setManagerFilter(e.target.value)}
+                className="pl-11 pr-10 py-3 bg-white border border-slate-200 rounded-2xl text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 appearance-none transition-all shadow-sm cursor-pointer"
+              >
+                <option value="All">All Managers</option>
+                {managers.map(m => (
+                  <option key={m} value={m}>{m}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="relative group">
+              <Filter className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-teal-500 transition-colors pointer-events-none" />
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="pl-11 pr-10 py-3 bg-white border border-slate-200 rounded-2xl text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 appearance-none transition-all shadow-sm cursor-pointer"
+              >
+                <option value="All">All Statuses</option>
+                <option value="Not Started">Not Started</option>
+                <option value="In Progress">In Progress</option>
+                <option value="Completed">Completed</option>
+                <option value="Frozen">Frozen</option>
+              </select>
+            </div>
+
+            {(searchTerm || managerFilter !== 'All' || statusFilter !== 'All') && (
+              <button 
+                onClick={() => {
+                  setSearchTerm('');
+                  setManagerFilter('All');
+                  setStatusFilter('All');
+                }}
+                className="p-3 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-2xl transition-all"
+                title="Clear Filters"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
       <div className={cn("bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden min-h-[500px]", activeTab === 'insights' && "bg-transparent border-none shadow-none min-h-0")}>
         {activeTab === 'insights' ? (
           <IMInsightsView 
@@ -118,10 +198,20 @@ export const ImplementationsView: React.FC<ImplementationsViewProps> = ({
           <div className="flex justify-center items-center h-64">
              <div className="w-8 h-8 border-4 border-teal-500 border-t-transparent rounded-full animate-spin"></div>
           </div>
-        ) : extensions.length === 0 ? (
+        ) : filteredExtensions.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-64 text-slate-400">
-            <Layers className="w-12 h-12 mb-4 opacity-20" />
-            <p className="font-bold">No ancillary implementations found.</p>
+            <Search className="w-12 h-12 mb-4 opacity-20" />
+            <p className="font-bold text-slate-500">No matching ancillary implementations found.</p>
+            <button 
+              onClick={() => {
+                setSearchTerm('');
+                setManagerFilter('All');
+                setStatusFilter('All');
+              }}
+              className="mt-4 text-teal-600 font-bold hover:underline"
+            >
+              Clear all filters
+            </button>
           </div>
         ) : (
           <table className="w-full text-left border-collapse">
@@ -137,7 +227,7 @@ export const ImplementationsView: React.FC<ImplementationsViewProps> = ({
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {extensions.map(ext => {
+              {filteredExtensions.map(ext => {
                 const completedMilestones = ext.milestones.filter(m => m.completed).length;
                 const totalMilestones = ext.milestones.length;
                 const progress = totalMilestones > 0 ? (completedMilestones / totalMilestones) * 100 : 0;
