@@ -1,6 +1,6 @@
-export type Role = 'Superadmin' | 'Manager' | 'Team Lead' | 'PM' | 'Finance' | 'Executive';
+export type Role = 'Superadmin' | 'Manager' | 'Team Lead' | 'PM' | 'Finance' | 'Executive' | 'IM' | 'IM Lead';
 
-export type DeliveryTrack = 'Standard' | 'Customization' | 'Internal Initiative';
+export type DeliveryTrack = 'Standard' | 'Customization' | 'Internal Initiative' | 'Ancillary';
 
 export type ProjectState = 
   | 'On-Track' 
@@ -155,6 +155,7 @@ export interface Project {
   externalId?: string;
   tags?: string[];
   billingRejections?: BillingRejection[];
+  implementationManager?: string;
 }
 
 export interface PackageConfig {
@@ -169,10 +170,59 @@ export interface ProductLineConfig {
   services: string[]; // service IDs
 }
 
-export interface ServiceBaseline {
+export interface ServiceSubService {
   id: string;
   name: string;
   baselineDays: number;
+  milestones?: string[];
+}
+
+export interface ServiceBaseline {
+  id: string;
+  name: string;
+  baselineDays: number;        // parent-level fallback duration
+  milestones?: string[];       // parent-level milestone steps (used when no sub-service)
+  subServices?: ServiceSubService[]; // per-gateway / per-sub-service config
+  /** @deprecated Use subServices instead */
+  variants?: string[];
+}
+
+// ── Service Extensions (IM-managed ancillary implementations) ─────────────────
+
+export type ExtensionStatus = 'Not Started' | 'In Progress' | 'Completed' | 'Frozen';
+export type MappingStatus = 'None' | 'Pending' | 'Approved' | 'Rejected' | 'Unmapped';
+
+export interface IMilestone {
+  name: string;
+  completed: boolean;
+  completedAt: string | null;
+  completedBy: string | null;
+}
+
+export interface ServiceExtension {
+  id: string;
+  clientName: string;
+  serviceId: string;
+  serviceName: string;
+  serviceVariant: string;       // display name (sub-service name or custom)
+  subServiceId: string | null;  // references ServiceSubService.id
+  implementationManager: string;
+  startDate: string;
+  targetClosureDate: string;
+  baselineDays: number;         // locked at creation from sub-service or parent
+  status: ExtensionStatus;
+  milestones: IMilestone[];
+  // Mapping
+  linkedProjectId: string | null;
+  mappingStatus: MappingStatus;
+  mappingRequestedAt: string | null;
+  mappingApprovedAt: string | null;
+  mappingRejectionComment: string | null;
+  mappingNotes: string | null;
+  unmapComment: string | null;
+  // Metadata
+  createdAt: string;
+  updatedAt: string;
 }
 
 export type UserStatus = 'Active' | 'Inactive' | 'Invited' | 'Expired';

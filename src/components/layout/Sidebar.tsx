@@ -6,13 +6,14 @@ import {
   LogOut, 
   ChevronRight,
   AlertTriangle,
-  Clock 
+  Clock,
+  Wrench
 } from 'lucide-react';
 import { Role, AppConfig } from '../../types';
 import { cn, isRole, hasRole } from '../../lib/utils';
 import { getThemeClasses } from '../../lib/theme';
 
-type View = 'dashboard' | 'projects' | 'risks' | 'settings' | 'rebaseline-requests';
+type View = 'dashboard' | 'projects' | 'risks' | 'settings' | 'rebaseline-requests' | 'implementations';
 
 interface SidebarProps {
   currentView: View;
@@ -54,7 +55,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const [isRoleSelectOpen, setIsRoleSelectOpen] = React.useState(false);
   const theme = getThemeClasses(config.brand.themeColor);
   
-  const allRoles: Role[] = ['PM', 'Team Lead', 'Manager', 'Executive', 'Finance', 'Superadmin'];
+  const allRoles: Role[] = ['PM', 'Team Lead', 'Manager', 'Executive', 'Finance', 'IM', 'IM Lead', 'Superadmin'];
 
   const NavItem = ({ icon: Icon, label, view }: { icon: any, label: string, view: View }) => (
     <button 
@@ -141,7 +142,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
             )}
           </div>
             <NavItem icon={Briefcase} label="Projects" view="projects" />
-            {!isRole(userRole, 'Executive') && !isRole(userRole, 'Finance') && (
+            {(isRole(userRole, 'IM') || isRole(userRole, 'IM Lead') || hasRole(userRole, ['Superadmin', 'Manager'])) && (
+              <NavItem icon={Wrench} label="Implementations" view="implementations" />
+            )}
+            {!isRole(userRole, 'Executive') && !isRole(userRole, 'Finance') && !isRole(userRole, 'IM') && !isRole(userRole, 'IM Lead') && (
               <>
                 <NavItem icon={AlertTriangle} label="Risks & Issues" view="risks" />
                 {hasRole(userRole, ['Superadmin', 'Manager', 'Team Lead']) && (

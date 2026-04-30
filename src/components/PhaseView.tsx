@@ -1,7 +1,8 @@
-import React, { useState, useMemo } from 'react';
-import { Project, Phase, Comment, Risk, Role, RebaselineRequest, ServiceState, PackageConfig, ServiceBaseline } from '../types';
+import React, { useState, useMemo, useEffect } from 'react';
+import { Project, Phase, Comment, Risk, Role, RebaselineRequest, ServiceState, PackageConfig, ServiceBaseline, ServiceExtension } from '../types';
 import { StateBadge } from './ProjectList';
 import { formatCurrency, formatCompactCurrency, cn, calculatePhaseScores, getActiveDaysCount, getValidTransitions, isRole, hasRole, getAutoProjectState, getPhaseListFromState, calculateSPI, calculateWorkingDays, resolveServiceIds, getServiceNames, getEffectiveServiceIds } from '../lib/utils';
+import { api } from '../lib/api';
 import { 
   Calendar, 
   User, 
@@ -25,7 +26,10 @@ import {
   Minus,
   Activity,
   Pencil,
-  Save
+  Save,
+  Wrench,
+  MapPin,
+  XCircle
 } from 'lucide-react';
 import { PROJECT_STATES } from '../constants';
 import { getThemeClasses } from '../lib/theme';
@@ -152,6 +156,21 @@ export const PhaseView: React.FC<PhaseViewProps> = ({
   const [rebaselineDays, setRebaselineDays] = useState(1);
   const [rebaselineComment, setRebaselineComment] = useState('');
   const [isSubmittingRebaseline, setIsSubmittingRebaseline] = useState(false);
+
+  // Additional Scope (Service Extensions)
+  const [linkedExtensions, setLinkedExtensions] = useState<ServiceExtension[]>([]);
+  const [extensionsLoaded, setExtensionsLoaded] = useState(false);
+  const [approvingId, setApprovingId] = useState<string | null>(null);
+  const [rejectingId, setRejectingId] = useState<string | null>(null);
+  const [rejectComment, setRejectComment] = useState('');
+
+  useEffect(() => {
+    if (!rawProject?.id) return;
+    api.serviceExtensions.getAll().then(all => {
+      setLinkedExtensions(all.filter(e => e.linkedProjectId === rawProject.id));
+      setExtensionsLoaded(true);
+    }).catch(() => setExtensionsLoaded(true));
+  }, [rawProject?.id]);
   
   const [phaseCommentInputs, setPhaseCommentInputs] = useState<Record<string, string>>({});
   const [showAddMilestone, setShowAddMilestone] = useState(false);
@@ -752,6 +771,103 @@ export const PhaseView: React.FC<PhaseViewProps> = ({
                   );
                 })()}
               </div>
+            {/* ── Additional Scope (Service Extensions) ───────────────────────── */}
+            {(isRole(userRole, 'PM') || hasRole(userRole, ['Superadmin', 'Manager', 'Team Lead'])) && (
+              <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
+                <div className="flex items-center justify-between mb-5">
+                  <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                    <Wrench className="w-5 h-5 text-teal-600" />
+                    Additional Scope
+                    {linkedExtensions.filter(e => e.mappingStatus === 'Pending').length > 0 && (
+                      <span className="ml-1 px-2 py-0.5 bg-amber-100 text-amber-700 text-[10px] font-black rounded-full">
+                        {linkedExtensions.filter(e => e.mappingStatus === 'Pending').length} Pending
+                      </span>
+                    )}
+                  </h3>
+                </div>
+                {!extensionsLoaded ? (
+                  <div className="text-center py-4 text-slate-400 text-sm">Loading...</div>
+                ) : linkedExtensions.length === 0 ? (
+                  <p className="text-sm text-slate-400 font-medium py-2">No service extension requests for this project.</p>
+                ) : (
+                  <div className="space-y-3">
+                    {linkedExtensions.map(ext => {
+                      const completed = ext.milestones.filter(m => m.completed).length;
+                      const total = ext.milestones.length;
+                      const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
+                      const isApproving = approvingId === ext.id;
+                      const isRejecting = rejectingId === ext.id;
+                      return (
+                        <div key={ext.id} className={cn(
+                          "p-4 rounded-2xl border transition-all",
+                          ext.mappingStatus === 'Pending' ? "border-amber-200 bg-amber-50/50" :
+                          ext.mappingStatus === 'Approved' ? "border-emerald-200 bg-emerald-50/30" :
+                          "border-slate-100 bg-slate-50/30"
+                        )}>
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="text-sm font-black text-slate-900">{ext.serviceName}</span>
+                                <span className="text-[10px] font-bold text-slate-400">({ext.serviceVariant || 'Standard'})</span>
+                                <span className={cn("px-2 py-0.5 text-[10px] font-black uppercase rounded-md",
+                                  ext.mappingStatus === 'Approved' ? "bg-emerald-100 text-emerald-700" :
+                                  ext.mappingStatus === 'Pending' ? "bg-amber-100 text-amber-700" :
+                                  "bg-slate-100 text-slate-500"
+                                )}>{ext.mappingStatus}</span>
+                              </div>
+                              <p className="text-xs text-slate-500 font-medium mt-1">IM: {ext.implementationManager}</p>
+                              {ext.mappingNotes && <p className="text-xs text-slate-500 mt-1 italic">"{ext.mappingNotes}"</p>}
+                              {ext.mappingStatus === 'Approved' && total > 0 && (
+                                <div className="mt-2 flex items-center gap-2">
+                                  <div className="w-24 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                                    <div className="h-full bg-teal-500 rounded-full" style={{ width: `${pct}%` }} />
+                                  </div>
+                                  <span className="text-[10px] font-bold text-slate-400">{completed}/{total} milestones</span>
+                                </div>
+                              )}
+                            </div>
+                            {ext.mappingStatus === 'Pending' && (
+                              <div className="flex gap-2 flex-shrink-0">
+                                <button
+                                  onClick={async () => {
+                                    setApprovingId(ext.id);
+                                    try {
+                                      await api.serviceExtensions.approveMapping(ext.id);
+                                      setLinkedExtensions(prev => prev.map(e => e.id === ext.id ? { ...e, mappingStatus: 'Approved' } : e));
+                                      onShowToast?.('Mapping approved.', 'success');
+                                    } catch (err: any) { onShowToast?.(err.message, 'error'); }
+                                    finally { setApprovingId(null); }
+                                  }}
+                                  disabled={isApproving}
+                                  className="px-3 py-1.5 bg-emerald-600 text-white text-xs font-bold rounded-lg hover:bg-emerald-700 disabled:opacity-50"
+                                >{isApproving ? 'Approving...' : 'Approve'}</button>
+                                <button onClick={() => setRejectingId(ext.id)} className="px-3 py-1.5 bg-red-50 text-red-600 text-xs font-bold rounded-lg hover:bg-red-100">Reject</button>
+                              </div>
+                            )}
+                          </div>
+                          {isRejecting && (
+                            <div className="mt-3 space-y-2 animate-in fade-in">
+                              <textarea autoFocus placeholder="Reason for rejection (required)..." className="w-full px-3 py-2 bg-white border border-red-200 rounded-xl text-sm outline-none resize-none" rows={2} value={rejectComment} onChange={e => setRejectComment(e.target.value)} />
+                              <div className="flex gap-2">
+                                <button onClick={() => { setRejectingId(null); setRejectComment(''); }} className="px-3 py-1.5 text-slate-500 text-xs font-bold rounded-lg hover:bg-slate-100">Cancel</button>
+                                <button disabled={!rejectComment.trim()} onClick={async () => {
+                                  try {
+                                    await api.serviceExtensions.rejectMapping(ext.id, rejectComment);
+                                    setLinkedExtensions(prev => prev.map(e => e.id === ext.id ? { ...e, mappingStatus: 'Rejected', linkedProjectId: null, mappingRejectionComment: rejectComment } : e));
+                                    onShowToast?.('Mapping rejected.', 'success');
+                                  } catch (err: any) { onShowToast?.(err.message, 'error'); }
+                                  finally { setRejectingId(null); setRejectComment(''); }
+                                }} className="px-3 py-1.5 bg-red-500 text-white text-xs font-bold rounded-lg hover:bg-red-600 disabled:opacity-50">Confirm Rejection</button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
 
               <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
                 <h3 className="text-lg font-bold text-slate-900 mb-6 flex items-center gap-2">

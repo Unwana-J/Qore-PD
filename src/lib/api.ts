@@ -1,4 +1,4 @@
-import { Project, User, AuditLog, AppConfig, DigestData } from '../types';
+import { Project, User, AuditLog, AppConfig, DigestData, ServiceExtension, IMilestone, MappingStatus, ServiceSubService } from '../types';
 import { MOCK_PROJECTS, MOCK_USERS, MOCK_AUDIT_LOGS, INITIAL_CONFIG } from '../mockData';
 import { supabase } from './supabase';
 
@@ -36,7 +36,8 @@ const mapProjectFromDb = (p: any): Project => ({
   deliveryTrack: p.delivery_track || (p.is_internal_initiative ? 'Internal Initiative' : 'Standard'),
   milestones: p.milestones || [],
   phaseComments: p.phase_comments || {},
-  externalId: p.external_id
+  externalId: p.external_id,
+  implementationManager: p.implementation_manager,
 });
 
 // Helper to map Frontend camelCase to DB snake_case
@@ -72,6 +73,7 @@ const mapProjectToDb = (p: Partial<Project>) => {
   if (p.milestones !== undefined) mapped.milestones = p.milestones;
   if (p.phaseComments !== undefined) mapped.phase_comments = p.phaseComments;
   if (p.externalId !== undefined) mapped.external_id = p.externalId;
+  if (p.implementationManager !== undefined) mapped.implementation_manager = p.implementationManager;
   return mapped;
 };
 
@@ -437,5 +439,228 @@ export const api = {
         console.error("[Digests] Failed to save digest:", error);
       }
     }
+  },
+
+  serviceExtensions: {
+    // ── Mapper ──────────────────────────────────────────────────────────────
+    _fromDb: (r: any): ServiceExtension => ({
+      id: r.id,
+      clientName: r.client_name,
+      serviceId: r.service_id,
+      serviceName: r.service_name,
+      serviceVariant: r.service_variant,
+      subServiceId: r.sub_service_id ?? null,
+      baselineDays: r.baseline_days ?? 0,
+      implementationManager: r.implementation_manager,
+      startDate: r.start_date,
+      targetClosureDate: r.target_closure_date,
+      status: r.status,
+      milestones: r.milestones || [],
+      linkedProjectId: r.linked_project_id,
+      mappingStatus: r.mapping_status,
+      mappingRequestedAt: r.mapping_requested_at,
+      mappingApprovedAt: r.mapping_approved_at,
+      mappingRejectionComment: r.mapping_rejection_comment,
+      mappingNotes: r.mapping_notes,
+      unmapComment: r.unmap_comment,
+      createdAt: r.created_at,
+      updatedAt: r.updated_at,
+    }),
+
+    // ── CRUD ─────────────────────────────────────────────────────────────────
+    getAll: async (): Promise<ServiceExtension[]> => {
+      const { data, error } = await supabase
+        .from('service_extensions')
+        .select('*')
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return (data || []).map(api.serviceExtensions._fromDb);
+    },
+
+    getByIM: async (imName: string): Promise<ServiceExtension[]> => {
+      const { data, error } = await supabase
+        .from('service_extensions')
+        .select('*')
+        .eq('implementation_manager', imName)
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return (data || []).map(api.serviceExtensions._fromDb);
+    },
+
+    getByProject: async (projectId: string): Promise<ServiceExtension[]> => {
+      const { data, error } = await supabase
+        .from('service_extensions')
+        .select('*')
+        .eq('linked_project_id', projectId)
+        .eq('mapping_status', 'Approved');
+      if (error) throw error;
+      return (data || []).map(api.serviceExtensions._fromDb);
+    },
+
+    create: async (ext: Omit<ServiceExtension, 'id' | 'createdAt' | 'updatedAt'>): Promise<ServiceExtension> => {
+      const { data, error } = await supabase
+        .from('service_extensions')
+        .insert({
+          client_name: ext.clientName,
+          service_id: ext.serviceId,
+          service_name: ext.serviceName,
+          service_variant: ext.serviceVariant,
+          sub_service_id: ext.subServiceId,
+          baseline_days: ext.baselineDays,
+          implementation_manager: ext.implementationManager,
+          start_date: ext.startDate,
+          target_closure_date: ext.targetClosureDate,
+          status: ext.status,
+          milestones: ext.milestones,
+          linked_project_id: ext.linkedProjectId,
+          mapping_status: ext.mappingStatus,
+          mapping_notes: ext.mappingNotes,
+        })
+        .select()
+        .single();
+      if (error) throw error;
+      return api.serviceExtensions._fromDb(data);
+    },
+
+    updateMilestones: async (
+      id: string,
+      milestones: IMilestone[],
+      newStatus: string,
+      linkedProjectId?: string | null,
+      serviceVariant?: string,
+    ): Promise<ServiceExtension> => {
+      const { data, error } = await supabase
+        .from('service_extensions')
+        .update({ milestones, status: newStatus })
+        .eq('id', id)
+        .select()
+        .single();
+      if (error) throw error;
+
+      // Sync to linked project's service_states if approved mapping exists
+      if (linkedProjectId && serviceVariant) {
+        const serviceStatus =
+          newStatus === 'Completed' ? 'Closed' :
+          newStatus === 'In Progress' ? 'In Progress' : 'Not Started';
+        const { data: proj } = await supabase
+          .from('projects')
+          .select('service_states')
+          .eq('id', linkedProjectId)
+          .single();
+        if (proj) {
+          const updatedStates = { ...(proj.service_states || {}), [serviceVariant]: serviceStatus };
+          await supabase
+            .from('projects')
+            .update({ service_states: updatedStates })
+            .eq('id', linkedProjectId);
+        }
+      }
+      return api.serviceExtensions._fromDb(data);
+    },
+
+    reassign: async (id: string, newIM: string): Promise<void> => {
+      const { error } = await supabase
+        .from('service_extensions')
+        .update({ implementation_manager: newIM })
+        .eq('id', id);
+      if (error) throw error;
+    },
+
+    // ── Mapping Workflow ─────────────────────────────────────────────────────
+    requestMapping: async (id: string, projectId: string, notes: string): Promise<void> => {
+      const { error } = await supabase
+        .from('service_extensions')
+        .update({
+          linked_project_id: projectId,
+          mapping_status: 'Pending',
+          mapping_requested_at: new Date().toISOString(),
+          mapping_notes: notes,
+        })
+        .eq('id', id);
+      if (error) throw error;
+    },
+
+    approveMapping: async (id: string): Promise<void> => {
+      const { error } = await supabase
+        .from('service_extensions')
+        .update({
+          mapping_status: 'Approved',
+          mapping_approved_at: new Date().toISOString(),
+        })
+        .eq('id', id);
+      if (error) throw error;
+    },
+
+    rejectMapping: async (id: string, comment: string): Promise<void> => {
+      if (!comment?.trim()) throw new Error('Rejection comment is required.');
+      const { error } = await supabase
+        .from('service_extensions')
+        .update({
+          mapping_status: 'Rejected',
+          mapping_rejection_comment: comment,
+          linked_project_id: null,
+        })
+        .eq('id', id);
+      if (error) throw error;
+    },
+
+    unmapFromProject: async (id: string, comment: string, linkedProjectId: string, serviceVariant: string): Promise<void> => {
+      if (!comment?.trim()) throw new Error('Unmap comment is required.');
+      // Revert service_states on the project
+      const { data: proj } = await supabase
+        .from('projects')
+        .select('service_states')
+        .eq('id', linkedProjectId)
+        .single();
+      if (proj) {
+        const updatedStates = { ...(proj.service_states || {}) };
+        delete updatedStates[serviceVariant];
+        await supabase
+          .from('projects')
+          .update({ service_states: updatedStates })
+          .eq('id', linkedProjectId);
+      }
+      const { error } = await supabase
+        .from('service_extensions')
+        .update({
+          mapping_status: 'Unmapped',
+          linked_project_id: null,
+          unmap_comment: comment,
+        })
+        .eq('id', id);
+      if (error) throw error;
+    },
+
+    // Freeze/unfreeze all extensions linked to a project
+    freezeByProject: async (projectId: string): Promise<void> => {
+      await supabase
+        .from('service_extensions')
+        .update({ status: 'Frozen' })
+        .eq('linked_project_id', projectId)
+        .eq('mapping_status', 'Approved')
+        .neq('status', 'Completed');
+    },
+
+    unfreezeByProject: async (projectId: string): Promise<void> => {
+      await supabase
+        .from('service_extensions')
+        .update({ status: 'Not Started' })
+        .eq('linked_project_id', projectId)
+        .eq('mapping_status', 'Approved')
+        .eq('status', 'Frozen');
+    },
+
+    // Check for duplicate active extension (warn before create)
+    checkDuplicate: async (clientName: string, serviceId: string, serviceVariant: string): Promise<boolean> => {
+      const { data } = await supabase
+        .from('service_extensions')
+        .select('id')
+        .eq('client_name', clientName)
+        .eq('service_id', serviceId)
+        .eq('service_variant', serviceVariant)
+        .neq('status', 'Completed')
+        .limit(1);
+      return (data || []).length > 0;
+    },
   }
 };

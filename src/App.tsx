@@ -17,6 +17,7 @@ import { ExecutiveDashboard } from './components/ExecutiveDashboard';
 import { BulkImportView } from './components/BulkImportView';
 import { DigestModal } from './components/DigestModal';
 import { DeactivatedScreen } from './components/DeactivatedScreen';
+import { ImplementationsView } from './components/ImplementationsView';
 import { INITIAL_CONFIG } from './mockData';
 import { Role, AppConfig, SettingsTab, Project, ProjectState } from './types';
 import { useProjects } from './hooks/useProjects';
@@ -27,7 +28,7 @@ import { api } from './lib/api';
 import { OnboardingWizard } from './components/OnboardingWizard';
 import { calculateSPI } from './lib/utils';
 
-type View = 'dashboard' | 'projects' | 'risks' | 'settings' | 'rebaseline-requests';
+type View = 'dashboard' | 'projects' | 'risks' | 'settings' | 'rebaseline-requests' | 'implementations';
 
 import { safety } from './lib/safety';
 
@@ -404,9 +405,19 @@ function AppContent() {
                   />
                 ) : (
                   <>
-                    {currentView === 'dashboard' && (
+                    {currentView === 'dashboard' && (hasRole(userRole, ['IM', 'IM Lead'])) && (
+                      <ImplementationsView
+                        userRole={userRole}
+                        userName={profile?.name || ''}
+                        config={config}
+                        projects={projects}
+                        users={users}
+                        onShowToast={(msg, type) => type === 'error' ? notifyError(msg) : success(msg)}
+                      />
+                    )}
+                    {currentView === 'dashboard' && !hasRole(userRole, ['IM', 'IM Lead']) && (
                       userRole === 'Finance' ? (
-                        <FinanceDashboard 
+                        <FinanceDashboard
                           projects={filteredProjects}
                           onBillProject={billProject}
                           onRejectBilling={rejectBilling}
@@ -505,6 +516,14 @@ function AppContent() {
                           invites={invites}
                           setInvites={setInvites}
                         />
+                    )}
+                    {currentView === 'implementations' && (
+                      <ImplementationsView 
+                        userRole={userRole}
+                        userName={profile?.name || ''}
+                        config={config}
+                        onShowToast={(msg, type) => type === 'error' ? notifyError(msg) : success(msg)}
+                      />
                     )}
                   </>
                 )}
