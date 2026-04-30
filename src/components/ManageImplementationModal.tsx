@@ -42,6 +42,11 @@ export const ManageImplementationModal: React.FC<ManageImplementationModalProps>
 
   const [unmapComment, setUnmapComment] = useState('');
   const [showUnmapDialog, setShowUnmapDialog] = useState(false);
+  
+  const [newComment, setNewComment] = useState('');
+  const [addingComment, setAddingComment] = useState(false);
+  const [rejectionReason, setRejectionReason] = useState('');
+  const [isRejecting, setIsRejecting] = useState(false);
 
   React.useEffect(() => {
     const loadUsers = async () => {
@@ -163,15 +168,35 @@ export const ManageImplementationModal: React.FC<ManageImplementationModalProps>
   };
 
   const handleRejectExtension = async () => {
+    if (!rejectionReason.trim()) {
+      onShowToast('Please provide a reason for rejection.', 'error');
+      return;
+    }
     setProcessingExtension(true);
     try {
-      await api.serviceExtensions.rejectExtension(extension.id, 'Rejected by IM Lead');
+      await api.serviceExtensions.rejectExtension(extension.id, rejectionReason);
       onShowToast('Extension request rejected.');
       onClose();
     } catch (err: any) {
       onShowToast(err.message, 'error');
     } finally {
       setProcessingExtension(false);
+      setIsRejecting(false);
+    }
+  };
+
+  const handleAddComment = async () => {
+    if (!newComment.trim()) return;
+    setAddingComment(true);
+    try {
+      const result = await api.serviceExtensions.addComment(extension.id, userName, newComment);
+      onUpdated(result);
+      setNewComment('');
+      onShowToast('Comment added');
+    } catch (err: any) {
+      onShowToast(err.message, 'error');
+    } finally {
+      setAddingComment(false);
     }
   };
 
@@ -262,9 +287,27 @@ export const ManageImplementationModal: React.FC<ManageImplementationModalProps>
                       "{extension.extensionRequest.reason}"
                     </p>
                     {isLead ? (
-                      <div className="flex gap-2">
-                        <button onClick={handleApproveExtension} disabled={processingExtension} className="flex-1 py-2 bg-emerald-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-emerald-700 shadow-lg shadow-emerald-600/10">Approve</button>
-                        <button onClick={handleRejectExtension} disabled={processingExtension} className="flex-1 py-2 bg-red-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-red-700 shadow-lg shadow-red-600/10">Reject</button>
+                      <div className="space-y-3">
+                        {!isRejecting ? (
+                          <div className="flex gap-2">
+                            <button onClick={handleApproveExtension} disabled={processingExtension} className="flex-1 py-2 bg-emerald-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-emerald-700 shadow-lg shadow-emerald-600/10">Approve</button>
+                            <button onClick={() => setIsRejecting(true)} disabled={processingExtension} className="flex-1 py-2 bg-red-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-red-700 shadow-lg shadow-red-600/10">Reject</button>
+                          </div>
+                        ) : (
+                          <div className="space-y-2 animate-in slide-in-from-top-1">
+                            <textarea
+                              value={rejectionReason}
+                              onChange={e => setRejectionReason(e.target.value)}
+                              placeholder="Reason for rejection (required)..."
+                              className="w-full p-3 bg-white border border-red-200 rounded-xl text-xs outline-none focus:ring-2 focus:ring-red-500/20"
+                              rows={2}
+                            />
+                            <div className="flex gap-2">
+                              <button onClick={() => { setIsRejecting(false); setRejectionReason(''); }} className="px-3 py-1.5 text-slate-500 text-[10px] font-bold uppercase">Cancel</button>
+                              <button onClick={handleRejectExtension} disabled={processingExtension || !rejectionReason.trim()} className="flex-1 py-1.5 bg-red-600 text-white text-[10px] font-black uppercase tracking-widest rounded-lg">Confirm Reject</button>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     ) : (
                       <p className="text-[10px] font-bold text-amber-500 text-center uppercase tracking-widest">Awaiting IM Lead Approval</p>
@@ -344,27 +387,50 @@ export const ManageImplementationModal: React.FC<ManageImplementationModalProps>
                     <p className="text-sm text-orange-800 font-medium">"{extension.suspensionRequest.reason}"</p>
                     <p className="text-[10px] text-orange-500">Requested by {extension.suspensionRequest.requestedBy}</p>
                     {isLead ? (
-                      <div className="flex gap-2 mt-2">
-                        <button
-                          onClick={async () => {
-                            setProcessingSuspension(true);
-                            try { await api.serviceExtensions.approveSuspension(extension.id); onShowToast('Suspension approved.'); onClose(); }
-                            catch (err: any) { onShowToast(err.message, 'error'); }
-                            finally { setProcessingSuspension(false); }
-                          }}
-                          disabled={processingSuspension}
-                          className="flex-1 py-2 bg-orange-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-orange-700"
-                        >Approve Suspension</button>
-                        <button
-                          onClick={async () => {
-                            setProcessingSuspension(true);
-                            try { await api.serviceExtensions.rejectSuspension(extension.id, 'Rejected by Lead'); onShowToast('Suspension request rejected.'); onClose(); }
-                            catch (err: any) { onShowToast(err.message, 'error'); }
-                            finally { setProcessingSuspension(false); }
-                          }}
-                          disabled={processingSuspension}
-                          className="flex-1 py-2 bg-slate-200 text-slate-700 text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-slate-300"
-                        >Reject</button>
+                      <div className="space-y-3">
+                         {!isRejecting ? (
+                          <div className="flex gap-2 mt-2">
+                            <button
+                              onClick={async () => {
+                                setProcessingSuspension(true);
+                                try { await api.serviceExtensions.approveSuspension(extension.id, userName); onShowToast('Suspension approved.'); onClose(); }
+                                catch (err: any) { onShowToast(err.message, 'error'); }
+                                finally { setProcessingSuspension(false); }
+                              }}
+                              disabled={processingSuspension}
+                              className="flex-1 py-2 bg-orange-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-orange-700 shadow-lg shadow-orange-600/10"
+                            >Approve Suspension</button>
+                            <button
+                              onClick={() => setIsRejecting(true)}
+                              disabled={processingSuspension}
+                              className="flex-1 py-2 bg-slate-200 text-slate-700 text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-slate-300"
+                            >Reject</button>
+                          </div>
+                        ) : (
+                          <div className="space-y-2 animate-in slide-in-from-top-1">
+                            <textarea
+                              value={rejectionReason}
+                              onChange={e => setRejectionReason(e.target.value)}
+                              placeholder="Reason for rejection (required)..."
+                              className="w-full p-3 bg-white border border-orange-200 rounded-xl text-xs outline-none focus:ring-2 focus:ring-orange-500/20"
+                              rows={2}
+                            />
+                            <div className="flex gap-2">
+                              <button onClick={() => { setIsRejecting(false); setRejectionReason(''); }} className="px-3 py-1.5 text-slate-500 text-[10px] font-bold uppercase">Cancel</button>
+                              <button 
+                                onClick={async () => {
+                                  if (!rejectionReason.trim()) return;
+                                  setProcessingSuspension(true);
+                                  try { await api.serviceExtensions.rejectSuspension(extension.id, rejectionReason, userName); onShowToast('Suspension request rejected.'); onClose(); }
+                                  catch (err: any) { onShowToast(err.message, 'error'); }
+                                  finally { setProcessingSuspension(false); setIsRejecting(false); }
+                                }}
+                                disabled={processingSuspension || !rejectionReason.trim()}
+                                className="flex-1 py-1.5 bg-red-600 text-white text-[10px] font-black uppercase tracking-widest rounded-lg"
+                              >Confirm Reject</button>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     ) : (
                       <p className="text-[10px] font-bold text-orange-500 text-center uppercase tracking-widest">Awaiting IM Lead Approval</p>
@@ -566,6 +632,61 @@ export const ManageImplementationModal: React.FC<ManageImplementationModalProps>
                   )}
                 </div>
               )}
+
+              {/* Comments Section */}
+              <div className="px-8 pb-12">
+                <h3 className="text-xs font-black uppercase text-slate-400 tracking-widest mb-4">Implementation Trail & Comments</h3>
+                
+                <div className="space-y-4">
+                  {/* New Comment Input */}
+                  <div className="flex gap-3">
+                    <div className="w-8 h-8 rounded-full bg-teal-100 flex items-center justify-center text-[10px] font-black text-teal-700 shrink-0">
+                      {userName[0]}
+                    </div>
+                    <div className="flex-1 space-y-2">
+                      <textarea
+                        value={newComment}
+                        onChange={e => setNewComment(e.target.value)}
+                        placeholder="Add a comment or update..."
+                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-medium outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all resize-none"
+                        rows={2}
+                      />
+                      <button
+                        onClick={handleAddComment}
+                        disabled={addingComment || !newComment.trim()}
+                        className="px-4 py-2 bg-teal-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-teal-700 transition-all disabled:opacity-50 flex items-center gap-2"
+                      >
+                        {addingComment && <Loader2 className="w-3 h-3 animate-spin" />}
+                        Post Comment
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Comment Trail */}
+                  <div className="space-y-6 pt-4">
+                    {(extension.comments || []).length === 0 ? (
+                      <p className="text-center text-xs font-bold text-slate-400 py-4 italic">No comments yet. Start the trail!</p>
+                    ) : (
+                      extension.comments.map(c => (
+                        <div key={c.id} className="flex gap-3 group">
+                          <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-[10px] font-black text-slate-500 shrink-0">
+                            {c.author[0]}
+                          </div>
+                          <div className="flex-1">
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="text-xs font-black text-slate-900">{c.author}</span>
+                              <span className="text-[10px] font-bold text-slate-400">{new Date(c.createdAt).toLocaleString()}</span>
+                            </div>
+                            <div className="p-3 bg-slate-50 rounded-2xl rounded-tl-none border border-slate-100">
+                              <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap">{c.content}</p>
+                            </div>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              </div>
             </div>
           </motion.div>
         </div>

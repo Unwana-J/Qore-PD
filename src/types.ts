@@ -239,8 +239,15 @@ export interface ExtensionHistoryEntry {
   oldTargetDate: string;
   newTargetDate: string;
   reason: string;
-  approvedAt: string;
   approvedBy: string;
+  rejectionReason?: string;
+}
+
+export interface ServiceComment {
+  id: string;
+  author: string;
+  content: string;
+  createdAt: string;
 }
 
 export interface AssignmentHistoryEntry {
@@ -283,6 +290,7 @@ export interface ServiceExtension {
   extensionHistory: ExtensionHistoryEntry[];
   assignmentHistory: AssignmentHistoryEntry[];
   suspensionRequest: SuspensionRequest | null;
+  comments: ServiceComment[];
   // Metadata
   createdAt: string;
   updatedAt: string;

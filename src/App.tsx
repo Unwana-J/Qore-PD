@@ -443,6 +443,8 @@ function AppContent() {
                         projects={projects}
                         users={users}
                         onShowToast={(msg, type) => type === 'error' ? notifyError(msg) : success(msg)}
+                        defaultTab="insights"
+                        mode="dashboard"
                       />
                     )}
                     {currentView === 'dashboard' && !hasRole(userRole, ['IM', 'IM Lead']) && (
@@ -562,6 +564,8 @@ function AppContent() {
                         onShowToast={(msg, type) => type === 'error' ? notifyError(msg) : success(msg)}
                         initialFilter={implementationsFilter}
                         initialIM={implementationsIMFilter}
+                        defaultTab={isRole(userRole, 'IM Lead') || isRole(userRole, 'Superadmin') ? 'all' : 'mine'}
+                        mode="list"
                       />
                     )}
                   </>

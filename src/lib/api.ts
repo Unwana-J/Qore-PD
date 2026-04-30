@@ -672,20 +672,46 @@ export const api = {
       if (error) throw error;
     },
 
-    approveSuspension: async (id: string): Promise<void> => {
+    approveSuspension: async (id: string, resolvedBy: string): Promise<void> => {
+      const { data: ext } = await supabase.from('service_extensions').select('suspension_request').eq('id', id).single();
+      const updated = { ...ext?.suspension_request, status: 'Approved', resolvedAt: new Date().toISOString(), resolvedBy };
+      
       const { error } = await supabase
         .from('service_extensions')
-        .update({ status: 'Suspended', suspension_request: null })
+        .update({ status: 'Suspended', suspension_request: updated })
         .eq('id', id);
       if (error) throw error;
     },
 
-    rejectSuspension: async (id: string, rejectionComment: string): Promise<void> => {
+    rejectSuspension: async (id: string, rejectionReason: string, resolvedBy: string): Promise<void> => {
+      const { data: ext } = await supabase.from('service_extensions').select('suspension_request').eq('id', id).single();
+      const updated = { ...ext?.suspension_request, status: 'Rejected', rejectionComment: rejectionReason, resolvedAt: new Date().toISOString(), resolvedBy };
+
       const { error } = await supabase
         .from('service_extensions')
-        .update({ suspension_request: null })
+        .update({ suspension_request: updated })
         .eq('id', id);
       if (error) throw error;
+    },
+
+    addComment: async (id: string, author: string, content: string): Promise<ServiceExtension> => {
+      const { data: ext } = await supabase.from('service_extensions').select('comments').eq('id', id).single();
+      const newComment = {
+        id: crypto.randomUUID(),
+        author,
+        content,
+        createdAt: new Date().toISOString()
+      };
+      const comments = [newComment, ...(ext?.comments || [])];
+      
+      const { data, error } = await supabase
+        .from('service_extensions')
+        .update({ comments })
+        .eq('id', id)
+        .select('*')
+        .single();
+      if (error) throw error;
+      return api.serviceExtensions._fromDb(data);
     },
 
     // ── Mapping Workflow ─────────────────────────────────────────────────────
