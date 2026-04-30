@@ -53,13 +53,14 @@ interface PhaseViewProps {
   onShowToast?: (msg: string, type?: 'success' | 'error' | 'info') => void;
   userName?: string;
   riskCategories?: string[];
+  onViewImplementation?: (ext: ServiceExtension) => void;
 }
 
 export const PhaseView: React.FC<PhaseViewProps> = ({ 
   project: rawProject, onBack, onUpdateProject, onSubmitRebaseline, 
   onApproveRebaseline, onDeclineRebaseline, 
   userRole, currencies = [], serviceBaselines = [], packages = [], themeColor = 'teal', onReassign, defaultPhases = [],
-  spiThresholds, validateStateTransition, onShowToast, userName, riskCategories = []
+  spiThresholds, validateStateTransition, onShowToast, userName, riskCategories = [], onViewImplementation
 }) => {
   const effectiveIds = getEffectiveServiceIds(rawProject, packages, serviceBaselines);
 
@@ -824,6 +825,15 @@ export const PhaseView: React.FC<PhaseViewProps> = ({
                                   </div>
                                   <span className="text-[10px] font-bold text-slate-400">{completed}/{total} milestones</span>
                                 </div>
+                              )}
+                              {onViewImplementation && (
+                                <button 
+                                  onClick={() => onViewImplementation(ext)}
+                                  className="mt-3 px-3 py-1.5 bg-slate-100 text-slate-600 text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-slate-200 transition-all flex items-center gap-1.5"
+                                >
+                                  <Layers className="w-3 h-3" />
+                                  Manage Details
+                                </button>
                               )}
                             </div>
                             {ext.mappingStatus === 'Pending' && (

@@ -85,7 +85,7 @@ export const api = {
     getAll: async (): Promise<Project[]> => {
       const { data, error } = await supabase
         .from('projects')
-        .select('id, client_name, package_name, services, product_lines, assigned_pm, start_date, expected_duration, expected_completion_date, current_completion_date, value, currency, state, phases, phase_weights, service_states, pid_signed_off_date, priority, created_at, updated_at, signed_off_at, billed_at, total_active_days, suspension_cycles, is_internal_initiative, delivery_track, rebaseline_requests, comments, risks, activities, milestones, phase_comments')
+        .select('id, client_name, package_name, services, product_lines, assigned_pm, start_date, expected_duration, expected_completion_date, current_completion_date, value, currency, state, phases, phase_weights, service_states, pid_signed_off_date, priority, created_at, updated_at, signed_off_at, billed_at, total_active_days, suspension_cycles, is_internal_initiative, delivery_track, rebaseline_requests, comments, risks, activities, milestones, phase_comments, implementation_managers')
         .order('created_at', { ascending: false });
       
       if (error) throw error;
@@ -105,7 +105,7 @@ export const api = {
     ): Promise<{ data: Project[]; count: number }> => {
       let query = supabase
         .from('projects')
-        .select('id, client_name, package_name, services, product_lines, assigned_pm, start_date, expected_duration, expected_completion_date, current_completion_date, value, currency, state, phases, phase_weights, service_states, pid_signed_off_date, priority, created_at, updated_at, signed_off_at, billed_at, total_active_days, suspension_cycles, is_internal_initiative, delivery_track, rebaseline_requests', { count: 'exact' });
+        .select('id, client_name, package_name, services, product_lines, assigned_pm, start_date, expected_duration, expected_completion_date, current_completion_date, value, currency, state, phases, phase_weights, service_states, pid_signed_off_date, priority, created_at, updated_at, signed_off_at, billed_at, total_active_days, suspension_cycles, is_internal_initiative, delivery_track, rebaseline_requests, implementation_managers', { count: 'exact' });
 
       if (filters?.state && filters.state !== 'All') {
         query = query.eq('state', filters.state);

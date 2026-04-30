@@ -19,10 +19,11 @@ interface ManageImplementationModalProps {
   userName: string;
   config: AppConfig;
   onShowToast: (msg: string, type?: 'success' | 'error') => void;
+  onViewProject?: (projectId: string) => void;
 }
 
 export const ManageImplementationModal: React.FC<ManageImplementationModalProps> = ({
-  extension, isOpen, onClose, onUpdated, userRole, userName, config, onShowToast
+  extension, isOpen, onClose, onUpdated, userRole, userName, config, onShowToast, onViewProject
 }) => {
   const [milestones, setMilestones] = useState<IMilestone[]>(extension.milestones);
   const [saving, setSaving] = useState(false);
@@ -47,6 +48,10 @@ export const ManageImplementationModal: React.FC<ManageImplementationModalProps>
   const [addingComment, setAddingComment] = useState(false);
   const [rejectionReason, setRejectionReason] = useState('');
   const [isRejecting, setIsRejecting] = useState(false);
+
+  const [isReassigning, setIsReassigning] = useState(false);
+  const [newIM, setNewIM] = useState(extension.implementationManager);
+  const [processingReassign, setProcessingReassign] = useState(false);
 
   React.useEffect(() => {
     const loadUsers = async () => {
@@ -79,7 +84,6 @@ export const ManageImplementationModal: React.FC<ManageImplementationModalProps>
     });
     setMilestones(updated);
 
-    // Derive new status
     const allDone = updated.every(m => m.completed);
     const anyDone = updated.some(m => m.completed);
     const newStatus = allDone ? 'Completed' : anyDone ? 'In Progress' : 'Not Started';
@@ -97,7 +101,6 @@ export const ManageImplementationModal: React.FC<ManageImplementationModalProps>
       if (allDone) onShowToast('All milestones completed — implementation marked as Closed!');
     } catch (err: any) {
       onShowToast(err.message, 'error');
-      // Revert local state on error
       setMilestones(extension.milestones);
     } finally {
       setSaving(false);
@@ -123,20 +126,6 @@ export const ManageImplementationModal: React.FC<ManageImplementationModalProps>
       onShowToast(err.message, 'error');
     } finally {
       setUnmapping(false);
-    }
-  };
-
-  const handleReassign = async (newIM: string) => {
-    setSaving(true);
-    try {
-      await api.serviceExtensions.reassign(extension.id, newIM, extension.implementationManager, userName);
-      onShowToast(`Implementation reassigned to ${newIM}`);
-      onClose(); // Close and let parent refresh
-    } catch (err: any) {
-      onShowToast(err.message, 'error');
-    } finally {
-      setSaving(false);
-      setShowReassignModal(false);
     }
   };
 
@@ -200,6 +189,25 @@ export const ManageImplementationModal: React.FC<ManageImplementationModalProps>
     }
   };
 
+  const handleReassign = async () => {
+    if (newIM === extension.implementationManager) {
+      setIsReassigning(false);
+      return;
+    }
+    setProcessingReassign(true);
+    try {
+      await api.serviceExtensions.reassign(extension.id, newIM, extension.implementationManager, userName);
+      const updated = { ...extension, implementationManager: newIM };
+      onUpdated(updated);
+      onShowToast(`Reassigned to ${newIM}`);
+      setIsReassigning(false);
+    } catch (err: any) {
+      onShowToast(err.message, 'error');
+    } finally {
+      setProcessingReassign(false);
+    }
+  };
+
   const progress = milestones.length > 0
     ? (milestones.filter(m => m.completed).length / milestones.length) * 100
     : 0;
@@ -232,7 +240,6 @@ export const ManageImplementationModal: React.FC<ManageImplementationModalProps>
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
             className="relative w-full max-w-2xl bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
           >
-            {/* Header */}
             <div className="flex items-start justify-between p-6 sm:p-8 border-b border-slate-100">
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1">
@@ -253,7 +260,6 @@ export const ManageImplementationModal: React.FC<ManageImplementationModalProps>
             </div>
 
             <div className="flex-1 overflow-y-auto custom-scrollbar">
-              {/* Progress Bar */}
               <div className="px-8 pt-6 pb-4">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Implementation Progress</span>
@@ -269,7 +275,6 @@ export const ManageImplementationModal: React.FC<ManageImplementationModalProps>
                 </div>
               </div>
 
-              {/* Extension Request Section */}
               {extension.extensionRequest ? (
                 <div className="mx-8 mb-6 p-5 bg-amber-50 border border-amber-200 rounded-2xl animate-in zoom-in-95">
                   <div className="flex items-center justify-between mb-3">
@@ -317,7 +322,6 @@ export const ManageImplementationModal: React.FC<ManageImplementationModalProps>
               ) : (
                 !isSuspended && extension.status !== 'Completed' && !extension.suspensionRequest && (
                   <div className="px-8 mb-6 space-y-3">
-                    {/* Extension Request — only for mapped implementations */}
                     {(extension.mappingStatus === 'Approved') && (
                       <button
                         onClick={() => setShowExtensionModal(true)}
@@ -326,7 +330,6 @@ export const ManageImplementationModal: React.FC<ManageImplementationModalProps>
                         <Calendar className="w-3.5 h-3.5" /> Request Date Extension
                       </button>
                     )}
-                    {/* Suspension Request — for unmapped only */}
                     {(extension.mappingStatus === 'None' || extension.mappingStatus === 'Rejected' || extension.mappingStatus === 'Unmapped') && (
                       !showSuspensionModal ? (
                         <button
@@ -376,7 +379,6 @@ export const ManageImplementationModal: React.FC<ManageImplementationModalProps>
                 )
               )}
 
-              {/* Pending Suspension Request Panel */}
               {extension.suspensionRequest?.status === 'Pending' && (
                 <div className="px-8 mb-6">
                   <div className="p-4 bg-orange-50 border border-orange-200 rounded-2xl space-y-2">
@@ -439,7 +441,6 @@ export const ManageImplementationModal: React.FC<ManageImplementationModalProps>
                 </div>
               )}
 
-              {/* Milestones */}
               <div className="px-8 pb-6 space-y-2">
                 {milestones.length === 0 ? (
                   <div className="py-8 text-center text-slate-400">
@@ -484,16 +485,32 @@ export const ManageImplementationModal: React.FC<ManageImplementationModalProps>
                 )}
               </div>
 
-              {/* Mapping Section */}
               <div className="mx-8 mb-8 p-6 bg-slate-50 rounded-2xl border border-slate-100 space-y-4">
                 <div className="flex items-center justify-between">
                   <h3 className="text-xs font-black uppercase text-slate-400 tracking-widest">Project Mapping</h3>
-                  <span className={cn(
-                    "px-2.5 py-1 text-[10px] font-black uppercase tracking-widest rounded-md",
-                    mappingStatusColors[extension.mappingStatus] || 'bg-slate-100 text-slate-500'
-                  )}>
-                    {extension.mappingStatus}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    {extension.linkedProjectId ? (
+                      <div className="flex items-center gap-2">
+                        <span className="px-3 py-1.5 bg-emerald-100 text-emerald-700 text-[10px] font-black uppercase tracking-widest rounded-lg border border-emerald-200">Mapped to Project</span>
+                        {onViewProject && (
+                          <button 
+                            onClick={() => onViewProject(extension.linkedProjectId!)}
+                            className="px-3 py-1.5 bg-white border border-slate-200 text-slate-600 text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-slate-50 transition-all flex items-center gap-1.5"
+                          >
+                            <Briefcase className="w-3 h-3" />
+                            View Overview
+                          </button>
+                        )}
+                      </div>
+                    ) : (
+                      <span className={cn(
+                        "px-2.5 py-1 text-[10px] font-black uppercase tracking-widest rounded-md",
+                        mappingStatusColors[extension.mappingStatus] || 'bg-slate-100 text-slate-500'
+                      )}>
+                        {extension.mappingStatus}
+                      </span>
+                    )}
+                  </div>
                 </div>
 
                 {extension.mappingStatus === 'None' && (
@@ -597,48 +614,62 @@ export const ManageImplementationModal: React.FC<ManageImplementationModalProps>
                 )}
               </div>
 
-              {/* IM Lead Actions */}
               {isLead && (
                 <div className="mx-8 mb-8 p-6 bg-indigo-50 border border-indigo-100 rounded-2xl space-y-4">
-                   <div className="flex items-center justify-between">
-                    <h3 className="text-xs font-black uppercase text-indigo-400 tracking-widest">IM Lead Controls</h3>
-                    <UserPlus className="w-4 h-4 text-indigo-400" />
-                  </div>
-                  <div className="flex items-center justify-between gap-4">
-                    <div className="min-w-0">
-                      <p className="text-sm font-bold text-indigo-900 truncate">Current: {extension.implementationManager}</p>
-                      <p className="text-xs text-indigo-700 mt-0.5">Assigned since {new Date(extension.createdAt).toLocaleDateString()}</p>
-                    </div>
-                    <button 
-                      onClick={() => setShowReassignModal(true)}
-                      className="px-4 py-2 bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-600/10"
-                    >
-                      Reassign IM
-                    </button>
-                  </div>
-                  
-                  {/* History Tooltips or Small Logs can go here */}
-                  {(extension.assignmentHistory?.length ?? 0) > 0 && (
-                    <div className="pt-3 border-t border-indigo-200/50">
-                      <p className="text-[9px] font-black text-indigo-400 uppercase tracking-widest mb-1.5">Assignment History</p>
-                      <div className="space-y-1">
-                        {extension.assignmentHistory.slice(-2).map((h, i) => (
-                          <p key={i} className="text-[10px] text-indigo-700 font-medium">
-                            {h.from} → {h.to} ({new Date(h.timestamp).toLocaleDateString()})
-                          </p>
-                        ))}
+                  <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-xs font-black text-slate-500">
+                        {extension.implementationManager.split(' ').map(n => n[0]).join('')}
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Lead Manager</p>
+                        {isReassigning ? (
+                          <div className="flex items-center gap-2 mt-1">
+                            <select 
+                              value={newIM} 
+                              onChange={e => setNewIM(e.target.value)}
+                              className="px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-bold outline-none focus:ring-2 focus:ring-teal-500/20"
+                            >
+                              {users.filter(u => u.role === 'IM' || u.role === 'IM Lead').map(u => (
+                                <option key={u.id} value={u.name}>{u.name}</option>
+                              ))}
+                            </select>
+                            <button onClick={handleReassign} disabled={processingReassign} className="p-1.5 bg-teal-600 text-white rounded-lg hover:bg-teal-700">
+                              {processingReassign ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+                            </button>
+                            <button onClick={() => setIsReassigning(false)} className="p-1.5 bg-slate-100 text-slate-400 rounded-lg hover:bg-slate-200">
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-2">
+                            <p className="text-sm font-black text-slate-900">{extension.implementationManager}</p>
+                            {isLead && (
+                              <button onClick={() => setIsReassigning(true)} className="p-1 text-slate-400 hover:text-teal-600 transition-colors">
+                                <RefreshCw className="w-3 h-3" />
+                              </button>
+                            )}
+                          </div>
+                        )}
                       </div>
                     </div>
-                  )}
+                    <div className="w-px h-8 bg-indigo-200/50" />
+                    {(extension.assignmentHistory?.length ?? 0) > 0 && (
+                      <div className="flex-1">
+                        <p className="text-[9px] font-black text-indigo-400 uppercase tracking-widest mb-1">Recent History</p>
+                        <p className="text-[10px] text-indigo-700 font-medium truncate">
+                          {extension.assignmentHistory[extension.assignmentHistory.length - 1].from} → {extension.assignmentHistory[extension.assignmentHistory.length - 1].to}
+                        </p>
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
 
-              {/* Comments Section */}
               <div className="px-8 pb-12">
                 <h3 className="text-xs font-black uppercase text-slate-400 tracking-widest mb-4">Implementation Trail & Comments</h3>
                 
                 <div className="space-y-4">
-                  {/* New Comment Input */}
                   <div className="flex gap-3">
                     <div className="w-8 h-8 rounded-full bg-teal-100 flex items-center justify-center text-[10px] font-black text-teal-700 shrink-0">
                       {userName[0]}
@@ -662,7 +693,6 @@ export const ManageImplementationModal: React.FC<ManageImplementationModalProps>
                     </div>
                   </div>
 
-                  {/* Comment Trail */}
                   <div className="space-y-6 pt-4">
                     {(extension.comments || []).length === 0 ? (
                       <p className="text-center text-xs font-bold text-slate-400 py-4 italic">No comments yet. Start the trail!</p>

@@ -442,9 +442,15 @@ function AppContent() {
                         config={config}
                         projects={projects}
                         users={users}
-                        onShowToast={(msg, type) => type === 'error' ? notifyError(msg) : success(msg)}
                         defaultTab="insights"
                         mode="dashboard"
+                        onViewProject={(pid) => {
+                          const proj = projects.find(p => p.id === pid);
+                          if (proj) {
+                            setViewingProject(proj);
+                            setCurrentView('projects');
+                          }
+                        }}
                       />
                     )}
                     {currentView === 'dashboard' && !hasRole(userRole, ['IM', 'IM Lead']) && (
@@ -523,6 +529,11 @@ function AppContent() {
                         projects={filteredProjects} 
                         onSelectProject={setSelectedProject} 
                         riskCategories={config.riskCategories}
+                        onViewImplementation={(ext) => {
+                          setImplementationsFilter('All');
+                          setImplementationsIMFilter('All');
+                          setCurrentView('implementations');
+                        }}
                         allPMNames={Array.from(new Set([
                           ...users.filter(u => u.role === 'PM').map(u => u.name),
                           ...projects.map(p => p.assignedPM)
@@ -561,11 +572,15 @@ function AppContent() {
                         config={config}
                         projects={projects}
                         users={users}
-                        onShowToast={(msg, type) => type === 'error' ? notifyError(msg) : success(msg)}
-                        initialFilter={implementationsFilter}
-                        initialIM={implementationsIMFilter}
                         defaultTab={isRole(userRole, 'IM Lead') || isRole(userRole, 'Superadmin') ? 'all' : 'mine'}
                         mode="list"
+                        onViewProject={(pid) => {
+                          const proj = projects.find(p => p.id === pid);
+                          if (proj) {
+                            setViewingProject(proj);
+                            setCurrentView('projects');
+                          }
+                        }}
                       />
                     )}
                   </>
