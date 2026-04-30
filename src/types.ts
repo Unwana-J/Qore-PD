@@ -188,7 +188,7 @@ export interface ServiceBaseline {
 
 // ── Service Extensions (IM-managed ancillary implementations) ─────────────────
 
-export type ExtensionStatus = 'Not Started' | 'In Progress' | 'Completed' | 'Frozen';
+export type ExtensionStatus = 'Not Started' | 'In Progress' | 'Completed' | 'Suspended';
 export type MappingStatus = 'None' | 'Pending' | 'Approved' | 'Rejected' | 'Unmapped';
 
 export interface IMilestone {
@@ -222,6 +222,14 @@ export interface AssignmentHistoryEntry {
   timestamp: string;
 }
 
+export interface SuspensionRequest {
+  reason: string;
+  requestedAt: string;
+  requestedBy: string;
+  status: 'Pending' | 'Approved' | 'Rejected';
+  rejectionComment?: string;
+}
+
 export interface ServiceExtension {
   id: string;
   clientName: string;
@@ -246,6 +254,7 @@ export interface ServiceExtension {
   extensionRequest: ExtensionRequest | null;
   extensionHistory: ExtensionHistoryEntry[];
   assignmentHistory: AssignmentHistoryEntry[];
+  suspensionRequest: SuspensionRequest | null;
   // Metadata
   createdAt: string;
   updatedAt: string;

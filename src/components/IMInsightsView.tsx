@@ -54,7 +54,7 @@ export const IMInsightsView: React.FC<IMInsightsViewProps> = ({ extensions=[], u
 
   const kpis = useMemo(() => {
     const total=fd.length, completed=fd.filter(e=>e.status==='Completed').length;
-    const suspended=fd.filter(e=>e.status==='Frozen').length, active=total-completed-suspended;
+    const suspended=fd.filter(e=>e.status==='Suspended').length, active=total-completed-suspended;
     const overdue=fd.filter(e=>e.status!=='Completed'&&new Date(e.targetClosureDate)<today).length;
     const mapped=fd.filter(e=>e.mappingStatus==='Approved').length;
     return {
@@ -75,7 +75,7 @@ export const IMInsightsView: React.FC<IMInsightsViewProps> = ({ extensions=[], u
       if(!m[ext.serviceName]) m[ext.serviceName]={total:0,active:0,suspended:0,completed:0};
       m[ext.serviceName].total++;
       if(ext.status==='Completed') m[ext.serviceName].completed++;
-      else if(ext.status==='Frozen') m[ext.serviceName].suspended++;
+      else if(ext.status==='Suspended') m[ext.serviceName].suspended++;
       else m[ext.serviceName].active++;
     });
     return m;
@@ -89,7 +89,7 @@ export const IMInsightsView: React.FC<IMInsightsViewProps> = ({ extensions=[], u
       const t=m[ext.implementationManager];
       t.total++;
       if(ext.status==='Completed') t.completed++;
-      else if(ext.status==='Frozen') t.suspended++;
+      else if(ext.status==='Suspended') t.suspended++;
       else t.active++;
       if(ext.status!=='Completed'&&new Date(ext.targetClosureDate)<today) t.overdue++;
     });
@@ -101,7 +101,7 @@ export const IMInsightsView: React.FC<IMInsightsViewProps> = ({ extensions=[], u
     extensions.forEach(ext => {
       d[new Date(ext.startDate).getMonth()].started++;
       if(ext.status==='Completed') d[new Date(ext.updatedAt||ext.startDate).getMonth()].completed++;
-      if(ext.status==='Frozen') d[new Date(ext.updatedAt||ext.startDate).getMonth()].suspended++;
+      if(ext.status==='Suspended') d[new Date(ext.updatedAt||ext.startDate).getMonth()].suspended++;
     });
     return d.map(r=>({...r, rate: r.started>0 ? Math.round((r.completed/r.started)*100) : 0}));
   }, [extensions]);

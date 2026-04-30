@@ -27,7 +27,7 @@ const IMPersonalDashboard: React.FC<{ extensions: ServiceExtension[]; userName: 
     const completed = extensions.filter(e => e.status === 'Completed').length;
     const inProgress = extensions.filter(e => e.status === 'In Progress').length;
     const notStarted = extensions.filter(e => e.status === 'Not Started').length;
-    const frozen = extensions.filter(e => e.status === 'Frozen').length;
+    const frozen = extensions.filter(e => e.status === 'Suspended').length;
     const overdue = extensions.filter(e => e.status !== 'Completed' && new Date(e.targetClosureDate) < today).length;
     const mapped = extensions.filter(e => e.mappingStatus === 'Approved').length;
     const completionRate = total > 0 ? Math.round((completed / total) * 100) : 0;
@@ -110,7 +110,7 @@ const IMPersonalDashboard: React.FC<{ extensions: ServiceExtension[]; userName: 
               { label: 'In Progress', count: stats.inProgress, color: 'bg-blue-500', textColor: 'text-blue-600' },
               { label: 'Not Started', count: stats.notStarted, color: 'bg-slate-300', textColor: 'text-slate-500' },
               { label: 'Completed', count: stats.completed, color: 'bg-emerald-500', textColor: 'text-emerald-600' },
-              { label: 'Frozen', count: stats.frozen, color: 'bg-amber-400', textColor: 'text-amber-600' },
+              { label: 'Suspended', count: stats.frozen, color: 'bg-amber-400', textColor: 'text-amber-600' },
             ].map(({ label, count, color, textColor }) => (
               <div key={label}>
                 <div className="flex items-center justify-between mb-1">
@@ -268,7 +268,7 @@ export const ImplementationsView: React.FC<ImplementationsViewProps> = ({
               <option value="Not Started">Not Started</option>
               <option value="In Progress">In Progress</option>
               <option value="Completed">Completed</option>
-              <option value="Frozen">Frozen</option>
+              <option value="Suspended">Suspended</option>
             </select>
           </div>
           {(searchTerm || managerFilter !== 'All' || statusFilter !== 'All') && (
@@ -328,7 +328,7 @@ export const ImplementationsView: React.FC<ImplementationsViewProps> = ({
                         "px-2.5 py-1 text-[10px] font-black uppercase tracking-widest rounded-md",
                         ext.status === 'Completed' ? "bg-emerald-100 text-emerald-700" :
                         ext.status === 'In Progress' ? "bg-blue-100 text-blue-700" :
-                        ext.status === 'Frozen' ? "bg-slate-200 text-slate-600" :
+                        ext.status === 'Suspended' ? "bg-slate-200 text-slate-600" :
                         "bg-slate-100 text-slate-500"
                       )}>
                         {ext.status}

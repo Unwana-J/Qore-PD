@@ -1,4 +1,4 @@
-import { Project, User, AuditLog, AppConfig, DigestData, ServiceExtension, IMilestone, MappingStatus, ServiceSubService, ExtensionRequest, ExtensionHistoryEntry, AssignmentHistoryEntry } from '../types';
+import { Project, User, AuditLog, AppConfig, DigestData, ServiceExtension, IMilestone, MappingStatus, ServiceSubService, ExtensionRequest, ExtensionHistoryEntry, AssignmentHistoryEntry, SuspensionRequest } from '../types';
 import { MOCK_PROJECTS, MOCK_USERS, MOCK_AUDIT_LOGS, INITIAL_CONFIG } from '../mockData';
 import { supabase } from './supabase';
 
@@ -467,6 +467,7 @@ export const api = {
       extensionRequest: r.extension_request || null,
       extensionHistory: r.extension_history || [],
       assignmentHistory: r.assignment_history || [],
+      suspensionRequest: r.suspension_request || null,
       createdAt: r.created_at,
       updatedAt: r.updated_at,
     }),
@@ -631,7 +632,38 @@ export const api = {
     rejectExtension: async (id: string, comment: string): Promise<void> => {
       const { error } = await supabase
         .from('service_extensions')
-        .update({ extension_request: null }) // We just clear it for now, can add rejection history later if needed
+        .update({ extension_request: null })
+        .eq('id', id);
+      if (error) throw error;
+    },
+
+    // ── Suspension Workflow ──────────────────────────────────────────────────
+    requestSuspension: async (id: string, reason: string, requestedBy: string): Promise<void> => {
+      const pendingRequest: SuspensionRequest = {
+        reason,
+        requestedAt: new Date().toISOString(),
+        requestedBy,
+        status: 'Pending',
+      };
+      const { error } = await supabase
+        .from('service_extensions')
+        .update({ suspension_request: pendingRequest })
+        .eq('id', id);
+      if (error) throw error;
+    },
+
+    approveSuspension: async (id: string): Promise<void> => {
+      const { error } = await supabase
+        .from('service_extensions')
+        .update({ status: 'Suspended', suspension_request: null })
+        .eq('id', id);
+      if (error) throw error;
+    },
+
+    rejectSuspension: async (id: string, rejectionComment: string): Promise<void> => {
+      const { error } = await supabase
+        .from('service_extensions')
+        .update({ suspension_request: null })
         .eq('id', id);
       if (error) throw error;
     },
@@ -705,7 +737,7 @@ export const api = {
     freezeByProject: async (projectId: string): Promise<void> => {
       await supabase
         .from('service_extensions')
-        .update({ status: 'Frozen' })
+        .update({ status: 'Suspended' })
         .eq('linked_project_id', projectId)
         .eq('mapping_status', 'Approved')
         .neq('status', 'Completed');
@@ -717,7 +749,7 @@ export const api = {
         .update({ status: 'Not Started' })
         .eq('linked_project_id', projectId)
         .eq('mapping_status', 'Approved')
-        .eq('status', 'Frozen');
+        .eq('status', 'Suspended');
     },
 
     // Check for duplicate active extension (warn before create)

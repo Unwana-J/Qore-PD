@@ -30,12 +30,15 @@ export const ManageImplementationModal: React.FC<ManageImplementationModalProps>
   const [unmapping, setUnmapping] = useState(false);
   const [showReassignModal, setShowReassignModal] = useState(false);
   const [showExtensionModal, setShowExtensionModal] = useState(false);
+  const [showSuspensionModal, setShowSuspensionModal] = useState(false);
+  const [suspensionReason, setSuspensionReason] = useState('');
+  const [processingSuspension, setProcessingSuspension] = useState(false);
   const [processingExtension, setProcessingExtension] = useState(false);
   const [users, setUsers] = useState<User[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
 
   const isLead = isRole(userRole, 'IM Lead') || isRole(userRole, 'Superadmin');
-  const isFrozen = extension.status === 'Frozen';
+  const isSuspended = extension.status === 'Suspended';
 
   const [unmapComment, setUnmapComment] = useState('');
   const [showUnmapDialog, setShowUnmapDialog] = useState(false);
@@ -56,8 +59,8 @@ export const ManageImplementationModal: React.FC<ManageImplementationModalProps>
   }, [isLead, isOpen]);
 
   const toggleMilestone = async (idx: number) => {
-    if (isFrozen) {
-      onShowToast('This implementation is frozen because the linked project is closed.', 'error');
+    if (isSuspended) {
+      onShowToast('This implementation is suspended.', 'error');
       return;
     }
     const updated = milestones.map((m, i) => {
@@ -209,9 +212,9 @@ export const ManageImplementationModal: React.FC<ManageImplementationModalProps>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1">
                   <h2 className="text-xl font-black text-slate-900 truncate">{extension.clientName}</h2>
-                  {isFrozen && (
-                    <span className="flex items-center gap-1 px-2 py-0.5 bg-slate-200 text-slate-600 text-[10px] font-black uppercase tracking-widest rounded-md">
-                      <Lock className="w-3 h-3" /> Frozen
+                  {isSuspended && (
+                    <span className="flex items-center gap-1 px-2 py-0.5 bg-amber-100 text-amber-700 text-[10px] font-black uppercase tracking-widest rounded-md">
+                      <Lock className="w-3 h-3" /> Suspended
                     </span>
                   )}
                 </div>
@@ -269,16 +272,105 @@ export const ManageImplementationModal: React.FC<ManageImplementationModalProps>
                   </div>
                 </div>
               ) : (
-                !isFrozen && extension.status !== 'Completed' && (
-                  <div className="px-8 mb-6">
-                    <button 
-                      onClick={() => setShowExtensionModal(true)}
-                      className="w-full py-3 bg-slate-50 border border-slate-200 rounded-2xl text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-amber-600 hover:border-amber-200 hover:bg-amber-50/30 transition-all flex items-center justify-center gap-2"
-                    >
-                      <Calendar className="w-3.5 h-3.5" /> Request Date Extension
-                    </button>
+                !isSuspended && extension.status !== 'Completed' && !extension.suspensionRequest && (
+                  <div className="px-8 mb-6 space-y-3">
+                    {/* Extension Request — only for mapped implementations */}
+                    {(extension.mappingStatus === 'Approved') && (
+                      <button
+                        onClick={() => setShowExtensionModal(true)}
+                        className="w-full py-3 bg-slate-50 border border-slate-200 rounded-2xl text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-amber-600 hover:border-amber-200 hover:bg-amber-50/30 transition-all flex items-center justify-center gap-2"
+                      >
+                        <Calendar className="w-3.5 h-3.5" /> Request Date Extension
+                      </button>
+                    )}
+                    {/* Suspension Request — for unmapped only */}
+                    {(extension.mappingStatus === 'None' || extension.mappingStatus === 'Rejected' || extension.mappingStatus === 'Unmapped') && (
+                      !showSuspensionModal ? (
+                        <button
+                          onClick={() => setShowSuspensionModal(true)}
+                          className="w-full py-3 bg-slate-50 border border-slate-200 rounded-2xl text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-orange-600 hover:border-orange-200 hover:bg-orange-50/30 transition-all flex items-center justify-center gap-2"
+                        >
+                          <Lock className="w-3.5 h-3.5" /> Request Suspension
+                        </button>
+                      ) : (
+                        <div className="p-4 bg-orange-50 border border-orange-200 rounded-2xl space-y-3 animate-in fade-in">
+                          <p className="text-[10px] font-black text-orange-700 uppercase tracking-widest">Suspension Request</p>
+                          <textarea
+                            className="w-full px-3 py-2.5 bg-white border border-orange-200 rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-400 transition-all resize-none"
+                            placeholder="Provide a reason for suspension (required)..."
+                            rows={3}
+                            value={suspensionReason}
+                            onChange={e => setSuspensionReason(e.target.value)}
+                          />
+                          <div className="flex gap-2">
+                            <button onClick={() => { setShowSuspensionModal(false); setSuspensionReason(''); }} className="px-4 py-2 text-slate-500 text-xs font-bold rounded-lg hover:bg-slate-100 transition-colors">Cancel</button>
+                            <button
+                              onClick={async () => {
+                                if (!suspensionReason.trim()) return;
+                                setProcessingSuspension(true);
+                                try {
+                                  await api.serviceExtensions.requestSuspension(extension.id, suspensionReason, userName);
+                                  onShowToast('Suspension request submitted for approval.');
+                                  setShowSuspensionModal(false);
+                                  setSuspensionReason('');
+                                  onClose();
+                                } catch (err: any) {
+                                  onShowToast(err.message, 'error');
+                                } finally {
+                                  setProcessingSuspension(false);
+                                }
+                              }}
+                              disabled={processingSuspension || !suspensionReason.trim()}
+                              className="px-4 py-2 bg-orange-600 text-white text-xs font-bold rounded-lg hover:bg-orange-700 transition-colors disabled:opacity-50 flex items-center gap-1.5"
+                            >
+                              {processingSuspension ? <><Loader2 className="w-3 h-3 animate-spin" /> Submitting...</> : 'Submit Request'}
+                            </button>
+                          </div>
+                        </div>
+                      )
+                    )}
                   </div>
                 )
+              )}
+
+              {/* Pending Suspension Request Panel */}
+              {extension.suspensionRequest?.status === 'Pending' && (
+                <div className="px-8 mb-6">
+                  <div className="p-4 bg-orange-50 border border-orange-200 rounded-2xl space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Clock className="w-4 h-4 text-orange-600" />
+                      <p className="text-[10px] font-black text-orange-700 uppercase tracking-widest">Pending Suspension Request</p>
+                    </div>
+                    <p className="text-sm text-orange-800 font-medium">"{extension.suspensionRequest.reason}"</p>
+                    <p className="text-[10px] text-orange-500">Requested by {extension.suspensionRequest.requestedBy}</p>
+                    {isLead ? (
+                      <div className="flex gap-2 mt-2">
+                        <button
+                          onClick={async () => {
+                            setProcessingSuspension(true);
+                            try { await api.serviceExtensions.approveSuspension(extension.id); onShowToast('Suspension approved.'); onClose(); }
+                            catch (err: any) { onShowToast(err.message, 'error'); }
+                            finally { setProcessingSuspension(false); }
+                          }}
+                          disabled={processingSuspension}
+                          className="flex-1 py-2 bg-orange-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-orange-700"
+                        >Approve Suspension</button>
+                        <button
+                          onClick={async () => {
+                            setProcessingSuspension(true);
+                            try { await api.serviceExtensions.rejectSuspension(extension.id, 'Rejected by Lead'); onShowToast('Suspension request rejected.'); onClose(); }
+                            catch (err: any) { onShowToast(err.message, 'error'); }
+                            finally { setProcessingSuspension(false); }
+                          }}
+                          disabled={processingSuspension}
+                          className="flex-1 py-2 bg-slate-200 text-slate-700 text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-slate-300"
+                        >Reject</button>
+                      </div>
+                    ) : (
+                      <p className="text-[10px] font-bold text-orange-500 text-center uppercase tracking-widest">Awaiting IM Lead Approval</p>
+                    )}
+                  </div>
+                </div>
               )}
 
               {/* Milestones */}
@@ -294,13 +386,13 @@ export const ManageImplementationModal: React.FC<ManageImplementationModalProps>
                     <button
                       key={idx}
                       onClick={() => toggleMilestone(idx)}
-                      disabled={saving || isFrozen}
+                      disabled={saving || isSuspended}
                       className={cn(
                         "w-full flex items-center gap-4 p-4 rounded-2xl border text-left transition-all group",
                         m.completed
                           ? "bg-emerald-50/50 border-emerald-200"
                           : "bg-white border-slate-200 hover:border-teal-300 hover:bg-teal-50/20",
-                        isFrozen && "opacity-60 cursor-not-allowed",
+                        isSuspended && "opacity-60 cursor-not-allowed",
                       )}
                     >
                       {m.completed
