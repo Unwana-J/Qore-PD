@@ -32,7 +32,7 @@ export const ImplementationsView: React.FC<ImplementationsViewProps> = ({
     try {
       setLoading(true);
       let data;
-      if (activeTab === 'all' && isLead) {
+      if ((activeTab === 'all' || activeTab === 'insights') && isLead) {
         data = await api.serviceExtensions.getAll();
       } else {
         data = await api.serviceExtensions.getByIM(userName);
@@ -47,7 +47,23 @@ export const ImplementationsView: React.FC<ImplementationsViewProps> = ({
 
   useEffect(() => {
     loadExtensions();
-  }, [activeTab, userName]);
+
+    // Set up Realtime listener for cross-user updates
+    const channel = api.supabase
+      .channel('service_extensions_changes')
+      .on('postgres_changes', { 
+        event: '*', 
+        schema: 'public', 
+        table: 'service_extensions' 
+      }, () => {
+        loadExtensions();
+      })
+      .subscribe();
+
+    return () => {
+      api.supabase.removeChannel(channel);
+    };
+  }, [activeTab, userName, userRole]);
 
   return (
     <div className="p-8 space-y-8 animate-in fade-in duration-300">

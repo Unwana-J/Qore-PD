@@ -78,6 +78,7 @@ const mapProjectToDb = (p: Partial<Project>) => {
 };
 
 export const api = {
+  supabase,
   projects: {
     getAll: async (): Promise<Project[]> => {
       const { data, error } = await supabase
