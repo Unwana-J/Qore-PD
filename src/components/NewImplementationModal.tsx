@@ -32,9 +32,7 @@ export const NewImplementationModal: React.FC<NewImplementationModalProps> = ({
 
   const hasSubServices = (selectedService?.subServices?.length ?? 0) > 0;
   const effectiveBaseline = selectedSubService?.baselineDays ?? selectedService?.baselineDays ?? 0;
-  const effectiveMilestones: string[] = selectedSubService?.milestones?.length
-    ? selectedSubService.milestones
-    : (selectedService?.milestones ?? []);
+  const effectiveMilestones: string[] = selectedService?.milestones ?? [];
 
   // Auto-suggest target date when sub-service/service is selected
   const suggestDate = (baselineDays: number) => {
@@ -232,7 +230,7 @@ export const NewImplementationModal: React.FC<NewImplementationModalProps> = ({
                           )}
                         >
                           <div className="text-sm font-bold text-slate-900">{ss.name}</div>
-                          <div className="text-[10px] font-bold text-slate-400 mt-0.5">{ss.baselineDays}d · {ss.milestones?.length ?? 0} milestones</div>
+                          <div className="text-[10px] font-bold text-slate-400 mt-0.5">{ss.baselineDays}d baseline</div>
                         </button>
                       ))}
                     </div>

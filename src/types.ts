@@ -174,7 +174,6 @@ export interface ServiceSubService {
   id: string;
   name: string;
   baselineDays: number;
-  milestones?: string[];
 }
 
 export interface ServiceBaseline {
