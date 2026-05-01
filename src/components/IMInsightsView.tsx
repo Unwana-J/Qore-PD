@@ -116,8 +116,12 @@ export const IMInsightsView: React.FC<IMInsightsViewProps> = ({ extensions=[], u
       const month = new Date(ext.startDate).getMonth();
       if (!isNaN(month)) {
         d[month].started++;
-        if(ext.status==='Completed') d[new Date(ext.updatedAt||ext.startDate).getMonth()].completed++;
-        if(ext.status==='Suspended') d[new Date(ext.updatedAt||ext.startDate).getMonth()].suspended++;
+        const compDate = new Date(ext.updatedAt || ext.startDate);
+        const compMonth = compDate.getMonth();
+        if (!isNaN(compMonth)) {
+          if(ext.status==='Completed') d[compMonth].completed++;
+          if(ext.status==='Suspended') d[compMonth].suspended++;
+        }
       }
     });
     return d.map(r=>({...r, rate: r.started>0 ? Math.round((r.completed/r.started)*100) : 0}));
@@ -134,33 +138,34 @@ export const IMInsightsView: React.FC<IMInsightsViewProps> = ({ extensions=[], u
     const rows = (ims || []).map(im => {
       const exts = fd.filter(e => e.implementationManager === im.name);
       let ws = 0, tw = 0;
+      const bd: Record<string,number|null> = {};
       
+      // Calculate breakdown for leaderboard
+      Object.entries(PW).forEach(([prod])=>{
+        const pe=exts.filter(e=>e.serviceName.includes(prod));
+        if(pe.length>0){ 
+          const r=pe.filter(e=>e.status==='Completed').length/pe.length; 
+          bd[prod]=Math.round(r*100); 
+        } else bd[prod]=null;
+      });
+
       exts.forEach(ext => {
-        // Find complexity weight
         const baseWeight = PW[ext.serviceName] || Object.entries(PW).find(([k]) => ext.serviceName.includes(k))?.[1] || 1;
-        
-        // Progress weight
         let progress = 0;
         if (ext.status === 'Completed') progress = 1;
         else if (ext.status === 'Suspended') progress = 0;
         else {
-          // Calculate milestone progress
           const totalMilestones = ext.milestones?.length || 0;
           const completedMilestones = ext.milestones?.filter(m => m.completed).length || 0;
-          progress = totalMilestones > 0 ? (completedMilestones / totalMilestones) : 0.1; // 10% floor if not started but assigned
+          progress = totalMilestones > 0 ? (completedMilestones / totalMilestones) : 0.1;
         }
-        
-        // Overdue penalty
         let penalty = 0;
-        if (ext.status !== 'Completed' && new Date(ext.targetClosureDate) < today) {
-           penalty = 0.15; 
-        }
-
+        if (ext.status !== 'Completed' && new Date(ext.targetClosureDate) < today) penalty = 0.15; 
         ws += (progress - penalty) * baseWeight;
         tw += baseWeight;
       });
 
-      const score = tw > 0 ? Math.max(0, (ws / tw) * 100) : 0;
+      const score = tw > 0 ? Math.max(0, (ws / tw)) : 0;
 
       return {
         name: im.name, 
@@ -169,11 +174,13 @@ export const IMInsightsView: React.FC<IMInsightsViewProps> = ({ extensions=[], u
         active: exts.filter(e => e.status !== 'Completed' && e.status !== 'Suspended').length,
         suspended: exts.filter(e => e.status === 'Suspended').length,
         completed: exts.filter(e => e.status === 'Completed').length,
-        overdue: exts.filter(e => e.status !== 'Completed' && new Date(e.targetClosureDate) < today).length
+        overdue: exts.filter(e => e.status !== 'Completed' && new Date(e.targetClosureDate) < today).length,
+        bd
       };
     }).sort((a,b)=>b.score-a.score);
     
-    return rows;
+    const avg = rows.length > 0 ? rows.reduce((s,r)=>s+r.score,0)/rows.length : 0;
+    return { rows, avg };
   }, [fd, ims]);
 
   const overdue = useMemo(() =>
@@ -260,7 +267,7 @@ export const IMInsightsView: React.FC<IMInsightsViewProps> = ({ extensions=[], u
           <table className="w-full text-left">
             <thead><tr className="border-b border-slate-100">{['Manager','Total','Active','Susp.','Comp.','Overdue','Performance'].map(h=><th key={h} className="pb-2 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center first:text-left">{h}</th>)}</tr></thead>
             <tbody className="divide-y divide-slate-50">
-              {wp.map((m)=>(
+              {(wp.rows || []).map((m)=>(
                 <tr 
                   key={m.name} 
                   className="group hover:bg-slate-50 transition-colors cursor-pointer"
@@ -274,13 +281,14 @@ export const IMInsightsView: React.FC<IMInsightsViewProps> = ({ extensions=[], u
                   <td className="py-2.5 text-center"><span className={cn("px-1.5 py-0.5 text-[10px] font-black rounded",m.overdue>0?"bg-red-100 text-red-700":"bg-slate-100 text-slate-500")}>{m.overdue}</span></td>
                   <td className="py-2.5 text-right">
                     {(() => {
-                      const r = rating(m.score);
+                      const scorePct = m.score * 100;
+                      const r = rating(scorePct);
                       return (
                         <div className="flex flex-col items-end">
                           <span className={cn("px-2 py-0.5 text-[10px] font-black rounded-md border uppercase tracking-wider", r.c)}>
                             {r.l}
                           </span>
-                          <span className="text-[9px] font-bold text-slate-400 mt-0.5">{Math.round(m.score)}% Index</span>
+                          <span className="text-[9px] font-bold text-slate-400 mt-0.5">{Math.round(scorePct)}% Index</span>
                         </div>
                       );
                     })()}
