@@ -72,6 +72,38 @@ export const BulkImportView: React.FC<BulkImportViewProps> = ({
   const [currentPage, setCurrentPage] = useState(1);
   const rowsPerPage = 50;
 
+  // ── Draft Persistence ───────────────────────────────────────────────────────
+  useEffect(() => {
+    const draft = localStorage.getItem(`import_draft_${mode}`);
+    if (draft) {
+      try {
+        const parsed = JSON.parse(draft);
+        if (parsed.rows && parsed.rows.length > 0 && step === 1) {
+          setProcessedRows(parsed.rows);
+          setStep(2);
+          onShowToast(`Resumed from saved ${mode} draft.`, 'info');
+        }
+      } catch (e) {
+        console.error("Failed to load draft:", e);
+      }
+    }
+  }, [mode]);
+
+  useEffect(() => {
+    if (processedRows.length > 0 && step === 2) {
+      localStorage.setItem(`import_draft_${mode}`, JSON.stringify({ rows: processedRows }));
+    }
+  }, [processedRows, step, mode]);
+
+  const handleSaveDraftAndClose = () => {
+    onShowToast(`${mode === 'projects' ? 'Project' : 'Implementation'} draft saved successfully.`, 'success');
+    onClose();
+  };
+
+  const clearDraft = () => {
+    localStorage.removeItem(`import_draft_${mode}`);
+  };
+
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const moduleStatusOptions = ['Live', 'Not Started', 'Out of Scope', 'Not Ready'];
@@ -663,6 +695,7 @@ export const BulkImportView: React.FC<BulkImportViewProps> = ({
         onShowToast(err.message || 'Import failed.', 'error');
       } finally {
         setIsImporting(false);
+        if (step === 3) clearDraft();
       }
     } else {
       // ── Implementation Import Logic ──
@@ -682,6 +715,7 @@ export const BulkImportView: React.FC<BulkImportViewProps> = ({
           startDate: row.startDate || new Date().toISOString().split('T')[0],
           targetClosureDate: row.targetClosureDate,
           status: (row.closureStatus as any) || 'Not Started',
+          baselineDays: sb?.baselineDays || 14,
           milestones: sb?.milestones?.map(m => ({ name: m, completed: false, completedAt: null, completedBy: null })) || [],
           mappingStatus: 'None'
         };
@@ -701,6 +735,7 @@ export const BulkImportView: React.FC<BulkImportViewProps> = ({
         onShowToast(err.message || 'Import failed.', 'error');
       } finally {
         setIsImporting(false);
+        if (step === 3) clearDraft();
       }
     }
   };
@@ -837,17 +872,25 @@ export const BulkImportView: React.FC<BulkImportViewProps> = ({
                    </div>
                 </div>
                 
-                <button 
-                  onClick={handleConfirmImport}
-                  disabled={!stats.canConfirm || isImporting}
-                  className={cn(
-                    "px-8 py-3 font-black rounded-xl transition-all shadow-md flex items-center gap-2",
-                    stats.canConfirm ? `${theme.bg} ${theme.hoverBg} text-white` : "bg-slate-200 text-slate-400"
-                  )}
-                >
-                  {isImporting ? <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></span> : <Upload className="w-5 h-5"/>}
-                  {isImporting ? 'Importing...' : 'Confirm Import'}
-                </button>
+                <div className="flex gap-3 items-center">
+                  <button 
+                    onClick={handleSaveDraftAndClose}
+                    className="px-6 py-3 bg-white border border-slate-300 text-slate-600 font-bold rounded-xl hover:bg-slate-50 transition-colors shadow-sm"
+                  >
+                    Save as Draft & Exit
+                  </button>
+                  <button 
+                    onClick={handleConfirmImport}
+                    disabled={!stats.canConfirm || isImporting}
+                    className={cn(
+                      "px-8 py-3 font-black rounded-xl transition-all shadow-md flex items-center gap-2",
+                      stats.canConfirm ? `${theme.bg} ${theme.hoverBg} text-white` : "bg-slate-200 text-slate-400"
+                    )}
+                  >
+                    {isImporting ? <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></span> : <Upload className="w-5 h-5"/>}
+                    {isImporting ? 'Importing...' : 'Confirm Import'}
+                  </button>
+                </div>
               </div>
 
               {/* Table */}

@@ -574,7 +574,7 @@ function AppContent() {
                         config={config} 
                         projects={projects}
                         users={users}
-                        onShowToast={(msg, type) => type === 'error' ? error(msg) : success(msg)}
+                        onShowToast={(msg, type) => type === 'error' ? notifyError(msg) : success(msg)}
                         onImportExtensions={() => {
                           setImportMode('implementations');
                           setIsBulkImportOpen(true);
@@ -642,7 +642,7 @@ function AppContent() {
               onImportBulk={importBulkProjects}
               onImportExtensions={importBulkExtensions}
               onShowToast={(msg, type) => {
-                if (type === 'error') error(msg);
+                if (type === 'error') notifyError(msg);
                 else if (type === 'success') success(msg);
                 else info(msg);
               }}
