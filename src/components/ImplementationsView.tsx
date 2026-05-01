@@ -174,7 +174,7 @@ const IMPersonalDashboard: React.FC<{ extensions: ServiceExtension[]; userName: 
 
 // ── Main View ─────────────────────────────────────────────────────────────────
 export const ImplementationsView: React.FC<ImplementationsViewProps> = ({
-  userRole, userName, config, projects, users, onShowToast, initialFilter, initialIM, defaultTab, mode
+  userRole, userName, config, projects, users, onShowToast, initialFilter, initialIM, defaultTab, mode, onImportExtensions
 }) => {
   const [extensions, setExtensions] = useState<ServiceExtension[]>([]);
   const [loading, setLoading] = useState(true);
