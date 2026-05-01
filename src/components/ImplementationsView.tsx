@@ -191,6 +191,10 @@ export const ImplementationsView: React.FC<ImplementationsViewProps> = ({
   const [serviceFilter, setServiceFilter] = useState<string>('All');
   const [monthFilter, setMonthFilter] = useState<string>('All');
 
+  // Pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 10;
+
   // Handle initial deep-linking from digest
   useEffect(() => {
     if (initialFilter) {
@@ -201,7 +205,8 @@ export const ImplementationsView: React.FC<ImplementationsViewProps> = ({
       setManagerFilter(initialIM);
       if (isLead && activeTab === 'mine') setActiveTab('all');
     }
-  }, [initialFilter, initialIM, isLead]);
+    setCurrentPage(1); // Reset page on filter/tab change
+  }, [initialFilter, initialIM, isLead, activeTab, searchTerm, statusFilter, managerFilter, serviceFilter, monthFilter]);
 
   const loadExtensions = async () => {
     try {
@@ -269,184 +274,251 @@ export const ImplementationsView: React.FC<ImplementationsViewProps> = ({
     return Array.from(new Set(ims.map(u => u.name))).sort();
   }, [users]);
 
-  // The table (shared for both IM and Lead "mine"/"all" tabs)
-  const renderTable = () => (
-    <>
-      {/* Filter Bar */}
-      <div className="flex flex-col md:flex-row gap-4 mb-4">
-        <div className="relative flex-1 group">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-teal-500 transition-colors" />
-          <input
-            type="text"
-            placeholder="Search by client name..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-11 pr-4 py-3 bg-white border border-slate-200 rounded-2xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all shadow-sm"
-          />
-        </div>
-        <div className="flex items-center gap-3">
-          {isLead && (
+  const renderTable = () => {
+    const statusColors: Record<string, string> = {
+      'Not Started': 'bg-slate-100 text-slate-500',
+      'In Progress': 'bg-blue-100 text-blue-700',
+      'Completed': 'bg-emerald-100 text-emerald-700',
+      'Suspended': 'bg-slate-200 text-slate-600',
+      'Frozen': 'bg-slate-200 text-slate-600',
+    };
+
+    const mappingStatusColors: Record<string, string> = {
+      None: 'bg-slate-100 text-slate-400',
+      Pending: 'bg-amber-100 text-amber-700',
+      Approved: 'bg-emerald-100 text-emerald-700',
+      Rejected: 'bg-red-100 text-red-600',
+      Unmapped: 'bg-slate-200 text-slate-500',
+    };
+
+    const paginatedItems = filteredExtensions.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+    const totalPages = Math.ceil(filteredExtensions.length / pageSize);
+
+    return (
+      <>
+        {/* Filter Bar */}
+        <div className="flex flex-col md:flex-row gap-4 mb-4">
+          <div className="relative flex-1 group">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-teal-500 transition-colors" />
+            <input
+              type="text"
+              placeholder="Search by client name..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-11 pr-4 py-3 bg-white border border-slate-200 rounded-2xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all shadow-sm"
+            />
+          </div>
+          <div className="flex items-center gap-3">
+            {isLead && (
+              <div className="relative group">
+                <Users className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                <select
+                  value={managerFilter}
+                  onChange={(e) => setManagerFilter(e.target.value)}
+                  className="pl-11 pr-10 py-3 bg-white border border-slate-200 rounded-2xl text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 appearance-none shadow-sm cursor-pointer"
+                >
+                  <option value="All">All Managers</option>
+                  {managers.map(m => <option key={m} value={m}>{m}</option>)}
+                </select>
+              </div>
+            )}
             <div className="relative group">
-              <Users className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+              <Package className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
               <select
-                value={managerFilter}
-                onChange={(e) => setManagerFilter(e.target.value)}
+                value={serviceFilter}
+                onChange={(e) => setServiceFilter(e.target.value)}
                 className="pl-11 pr-10 py-3 bg-white border border-slate-200 rounded-2xl text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 appearance-none shadow-sm cursor-pointer"
               >
-                <option value="All">All Managers</option>
-                {managers.map(m => <option key={m} value={m}>{m}</option>)}
+                <option value="All">All Services</option>
+                {validServices.map(s => <option key={s} value={s}>{s}</option>)}
               </select>
             </div>
-          )}
-          <div className="relative group">
-            <Package className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
-            <select
-              value={serviceFilter}
-              onChange={(e) => setServiceFilter(e.target.value)}
-              className="pl-11 pr-10 py-3 bg-white border border-slate-200 rounded-2xl text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 appearance-none shadow-sm cursor-pointer"
-            >
-              <option value="All">All Services</option>
-              {validServices.map(s => <option key={s} value={s}>{s}</option>)}
-            </select>
+            <div className="relative group">
+              <Clock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+              <select
+                value={monthFilter}
+                onChange={(e) => setMonthFilter(e.target.value)}
+                className="pl-11 pr-10 py-3 bg-white border border-slate-200 rounded-2xl text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 appearance-none shadow-sm cursor-pointer"
+              >
+                <option value="All">All Months</option>
+                {months.map((m, i) => <option key={i} value={i}>{m}</option>)}
+              </select>
+            </div>
+            <div className="relative group">
+              <Filter className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="pl-11 pr-10 py-3 bg-white border border-slate-200 rounded-2xl text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 appearance-none shadow-sm cursor-pointer"
+              >
+                <option value="All">All Statuses</option>
+                <option value="Not Started">Not Started</option>
+                <option value="In Progress">In Progress</option>
+                <option value="Completed">Completed</option>
+                <option value="Suspended">Suspended</option>
+              </select>
+            </div>
+            {(searchTerm || managerFilter !== 'All' || statusFilter !== 'All' || serviceFilter !== 'All' || monthFilter !== 'All') && (
+              <button
+                onClick={() => { setSearchTerm(''); setManagerFilter('All'); setStatusFilter('All'); setServiceFilter('All'); setMonthFilter('All'); }}
+                className="p-3 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-2xl transition-all"
+                title="Clear Filters"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            )}
           </div>
-          <div className="relative group">
-            <Clock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
-            <select
-              value={monthFilter}
-              onChange={(e) => setMonthFilter(e.target.value)}
-              className="pl-11 pr-10 py-3 bg-white border border-slate-200 rounded-2xl text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 appearance-none shadow-sm cursor-pointer"
-            >
-              <option value="All">All Months</option>
-              {months.map((m, i) => <option key={i} value={i}>{m}</option>)}
-            </select>
-          </div>
-          <div className="relative group">
-            <Filter className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="pl-11 pr-10 py-3 bg-white border border-slate-200 rounded-2xl text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 appearance-none shadow-sm cursor-pointer"
-            >
-              <option value="All">All Statuses</option>
-              <option value="Not Started">Not Started</option>
-              <option value="In Progress">In Progress</option>
-              <option value="Completed">Completed</option>
-              <option value="Suspended">Suspended</option>
-            </select>
-          </div>
-          {(searchTerm || managerFilter !== 'All' || statusFilter !== 'All' || serviceFilter !== 'All' || monthFilter !== 'All') && (
-            <button
-              onClick={() => { setSearchTerm(''); setManagerFilter('All'); setStatusFilter('All'); setServiceFilter('All'); setMonthFilter('All'); }}
-              className="p-3 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-2xl transition-all"
-              title="Clear Filters"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          )}
         </div>
-      </div>
 
-      <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
-        {loading ? (
-          <div className="flex justify-center items-center h-64">
-            <div className="w-8 h-8 border-4 border-teal-500 border-t-transparent rounded-full animate-spin" />
-          </div>
-        ) : filteredExtensions.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-64 text-slate-400">
-            <Search className="w-12 h-12 mb-4 opacity-20" />
-            <p className="font-bold text-slate-500">No matching implementations found.</p>
-            <button onClick={() => { setSearchTerm(''); setManagerFilter('All'); setStatusFilter('All'); }} className="mt-4 text-teal-600 font-bold hover:underline">Clear all filters</button>
-          </div>
-        ) : (
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-slate-50 border-b border-slate-200">
-                <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Client & Service</th>
-                {isLead && <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Manager</th>}
-                <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Status</th>
-                <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Progress</th>
-                <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Target Date</th>
-                <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Mapping</th>
-                <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {filteredExtensions.map(ext => {
-                const completedMilestones = ext.milestones.filter(m => m.completed).length;
-                const totalMilestones = ext.milestones.length;
-                const progress = totalMilestones > 0 ? (completedMilestones / totalMilestones) * 100 : 0;
-                return (
-                  <tr key={ext.id} className="group hover:bg-slate-50/50 transition-colors">
-                    <td className="px-6 py-4">
-                      <div className="font-black text-slate-900">{ext.clientName}</div>
-                      <div className="text-[10px] font-bold text-slate-500 mt-1 uppercase tracking-widest">{ext.serviceName} ({ext.serviceVariant || 'Standard'})</div>
-                    </td>
-                    {isLead && (
-                      <td className="px-6 py-4">
-                        <span className="text-sm font-bold text-slate-700">{ext.implementationManager}</span>
-                      </td>
-                    )}
-                    <td className="px-6 py-4 text-center">
-                      <span className={cn(
-                        "px-2.5 py-1 text-[10px] font-black uppercase tracking-widest rounded-md",
-                        ext.status === 'Completed' ? "bg-emerald-100 text-emerald-700" :
-                        ext.status === 'In Progress' ? "bg-blue-100 text-blue-700" :
-                        ext.status === 'Suspended' ? "bg-slate-200 text-slate-600" :
-                        "bg-slate-100 text-slate-500"
-                      )}>
-                        {ext.status}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-center">
-                      {totalMilestones > 0 ? (
-                        <div className="flex flex-col items-center gap-1.5">
-                          <div className="w-24 h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                            <div className="h-full bg-teal-500 rounded-full transition-all duration-500" style={{ width: `${progress}%` }} />
-                          </div>
-                          <span className="text-[10px] font-bold text-slate-400">{completedMilestones} of {totalMilestones}</span>
-                        </div>
-                      ) : (
-                        <span className="text-[10px] font-bold text-slate-400">No milestones</span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex flex-col gap-0.5">
-                        <span className="text-sm font-bold text-slate-600">{ext.targetClosureDate}</span>
-                        {ext.extensionRequest && (
-                          <span className="px-1.5 py-0.5 bg-amber-100 text-amber-700 text-[9px] font-black uppercase tracking-widest rounded w-fit flex items-center gap-1">
-                            <Clock className="w-2.5 h-2.5" /> Pending Extension
-                          </span>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className={cn(
-                        "px-2 py-0.5 text-[10px] font-black uppercase tracking-widest rounded-md",
-                        ext.mappingStatus === 'Approved' ? "bg-emerald-100 text-emerald-700" :
-                        ext.mappingStatus === 'Pending' ? "bg-amber-100 text-amber-700" :
-                        ext.mappingStatus === 'Rejected' ? "bg-red-100 text-red-600" :
-                        "bg-slate-100 text-slate-400"
-                      )}>
-                        {ext.mappingStatus}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <button
-                        onClick={() => setManagingExtension(ext)}
-                        className="px-4 py-1.5 bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold rounded-lg transition-colors shadow-sm shadow-teal-600/20"
-                      >
-                        Manage
-                      </button>
-                    </td>
+        {/* Implementation List */}
+        <div className="bg-white rounded-[2rem] border border-slate-200 shadow-sm overflow-hidden mb-6">
+          <div className="overflow-x-auto">
+            {loading ? (
+              <div className="flex justify-center items-center h-64">
+                <div className="w-8 h-8 border-4 border-teal-500 border-t-transparent rounded-full animate-spin" />
+              </div>
+            ) : (
+              <table className="w-full text-left">
+                <thead className="bg-slate-50/50 border-b border-slate-100">
+                  <tr>
+                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Client & Service</th>
+                    {isLead && <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Manager</th>}
+                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Status</th>
+                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Progress</th>
+                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Target Date</th>
+                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Mapping</th>
+                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Actions</th>
                   </tr>
-                );
-              })}
-            </tbody>
-          </table>
+                </thead>
+                <tbody className="divide-y divide-slate-50">
+                  {filteredExtensions.length === 0 ? (
+                    <tr>
+                      <td colSpan={isLead ? 7 : 6} className="px-6 py-12 text-center text-slate-400 italic font-bold">
+                        No matching implementations found.
+                      </td>
+                    </tr>
+                  ) : (
+                    paginatedItems.map((ext) => {
+                      const completedCount = ext.milestones.filter(m => m.completed).length;
+                      const totalCount = ext.milestones.length;
+                      const progress = totalCount > 0 ? (completedCount / totalCount) * 100 : 0;
+                      
+                      return (
+                        <tr key={ext.id} className="hover:bg-slate-50/50 transition-colors group">
+                          <td className="px-6 py-4">
+                            <div>
+                              <p className="text-sm font-black text-slate-900 leading-tight group-hover:text-teal-700 transition-colors">{ext.clientName}</p>
+                              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-0.5">{ext.serviceName} ({ext.serviceVariant || 'Standard'})</p>
+                            </div>
+                          </td>
+                          {isLead && (
+                            <td className="px-6 py-4">
+                              <p className="text-sm font-bold text-slate-700">{ext.implementationManager}</p>
+                            </td>
+                          )}
+                          <td className="px-6 py-4">
+                            <span className={cn(
+                              "px-2.5 py-1 text-[10px] font-black rounded-lg uppercase tracking-wider",
+                              statusColors[ext.status] || 'bg-slate-100 text-slate-500'
+                            )}>
+                              {ext.status === 'Suspended' ? 'Frozen' : ext.status}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="w-32">
+                              <div className="flex items-center justify-between mb-1">
+                                <span className="text-[10px] font-black text-slate-400 uppercase">
+                                  {Math.round(progress)}%
+                                </span>
+                                <span className="text-[9px] font-bold text-slate-400">
+                                  {completedCount} of {totalCount}
+                                </span>
+                              </div>
+                              <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                                <div 
+                                  className="h-full bg-teal-500 rounded-full transition-all duration-500" 
+                                  style={{ width: `${progress}%` }}
+                                />
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="flex flex-col gap-0.5">
+                              <p className="text-sm font-black text-slate-700">{ext.targetClosureDate}</p>
+                              {ext.extensionRequest?.status === 'Pending' && (
+                                <span className="px-1.5 py-0.5 bg-amber-100 text-amber-700 text-[8px] font-black uppercase tracking-widest rounded w-fit flex items-center gap-1">
+                                  <Clock className="w-2.5 h-2.5" /> Pending Extension
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 text-center">
+                            <span className={cn(
+                              "px-2 py-0.5 text-[9px] font-black rounded uppercase tracking-widest",
+                              mappingStatusColors[ext.mappingStatus] || 'bg-slate-100 text-slate-400'
+                            )}>
+                              {ext.mappingStatus}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 text-right">
+                            <button
+                              onClick={() => setManagingExtension(ext)}
+                              className="px-4 py-2 bg-teal-600 text-white text-xs font-black uppercase tracking-widest rounded-xl hover:bg-teal-700 transition-all active:scale-95 shadow-md shadow-teal-600/10"
+                            >
+                              Manage
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            )}
+          </div>
+        </div>
+
+        {/* Pagination Controls */}
+        {filteredExtensions.length > pageSize && (
+          <div className="flex items-center justify-between bg-white px-8 py-4 rounded-2xl border border-slate-200 shadow-sm mb-8">
+            <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">
+              Showing <span className="text-slate-900">{(currentPage - 1) * pageSize + 1}</span> to <span className="text-slate-900">{Math.min(currentPage * pageSize, filteredExtensions.length)}</span> of <span className="text-slate-900">{filteredExtensions.length}</span> results
+            </p>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="px-4 py-2 text-xs font-black uppercase tracking-widest text-slate-400 hover:text-teal-600 disabled:opacity-30 disabled:hover:text-slate-400 transition-colors"
+              >
+                Previous
+              </button>
+              <div className="flex items-center gap-1">
+                {Array.from({ length: totalPages }).map((_, i) => (
+                  <button
+                    key={i}
+                    onClick={() => setCurrentPage(i + 1)}
+                    className={cn(
+                      "w-8 h-8 rounded-lg text-xs font-black transition-all",
+                      currentPage === i + 1 ? "bg-teal-600 text-white shadow-lg shadow-teal-600/20 scale-110" : "text-slate-400 hover:bg-slate-100"
+                    )}
+                  >
+                    {i + 1}
+                  </button>
+                ))}
+              </div>
+              <button
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+                className="px-4 py-2 text-xs font-black uppercase tracking-widest text-slate-400 hover:text-teal-600 disabled:opacity-30 disabled:hover:text-slate-400 transition-colors"
+              >
+                Next
+              </button>
+            </div>
+          </div>
         )}
-      </div>
-    </>
-  );
+      </>
+    );
+  };
 
   return (
     <div className="p-8 space-y-6 animate-in fade-in duration-300">
