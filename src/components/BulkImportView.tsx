@@ -687,12 +687,23 @@ export const BulkImportView: React.FC<BulkImportViewProps> = ({
 
       <div className="flex justify-between items-center mb-6 px-6">
         <div>
-          <h2 className="text-2xl font-black text-slate-900 tracking-tight">Bulk Import Projects</h2>
+          <h2 className="text-2xl font-black text-slate-900 tracking-tight">
+            {isProjects ? 'Bulk Import Projects' : 'Bulk Import Implementations'}
+          </h2>
           <p className="text-sm font-medium text-slate-500">Upload CSV or Excel files</p>
         </div>
-        <button onClick={onClose} className="p-2 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 shadow-sm transition-colors text-slate-400">
-          <X className="w-5 h-5"/>
-        </button>
+        <div className="flex items-center gap-3">
+          <button 
+            onClick={() => setShowGuide(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-slate-100 text-slate-700 hover:bg-slate-200 font-bold rounded-xl transition-all text-sm"
+          >
+            <Info className="w-4 h-4"/>
+            Show Guide & Template
+          </button>
+          <button onClick={onClose} className="p-2 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 shadow-sm transition-colors text-slate-400">
+            <X className="w-5 h-5"/>
+          </button>
+        </div>
       </div>
 
       <div className="flex-1 bg-white rounded-t-3xl border-t border-x border-slate-200 shadow-sm overflow-hidden flex flex-col">
