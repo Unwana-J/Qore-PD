@@ -280,7 +280,7 @@ export const IMInsightsView: React.FC<IMInsightsViewProps> = ({ extensions=[], u
         <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
           <div className="flex items-center gap-2 mb-5"><Users className="w-4 h-4 text-teal-600"/><h3 className="text-xs font-black text-slate-900 uppercase tracking-widest">IM Workload & Performance</h3></div>
           <table className="w-full text-left">
-            <thead><tr className="border-b border-slate-100">{['Manager','Total','Active','Susp.','Comp.','Overdue','Performance'].map(h=><th key={h} className="pb-2 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center first:text-left">{h}</th>)}</tr></thead>
+            <thead><tr className="border-b border-slate-100">{['Manager','Total','Active','Susp.','Comp.','Overdue','Performance'].map(h=><th key={h} className="pb-2 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center first:text-left last:text-right">{h}</th>)}</tr></thead>
             <tbody className="divide-y divide-slate-50">
               {(wp.rows || []).map((m)=>(
                 <tr 
