@@ -1,6 +1,6 @@
 import React, { useState, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Upload, FileType, AlertTriangle, CheckCircle2, X, ChevronRight, Edit2, Archive, Check } from 'lucide-react';
+import { Upload, FileType, AlertTriangle, CheckCircle2, X, ChevronRight, Edit2, Archive, Check, Info } from 'lucide-react';
 import Papa from 'papaparse';
 import * as XLSX from 'xlsx';
 import { cn, formatCurrency, calculateWorkingDays, getActiveDaysCount, getPhaseListFromState, getWorkingDaysInRange, resolveServiceIds } from '../lib/utils';
