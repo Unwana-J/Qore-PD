@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Plus, Layers, Clock, Search, Users, Filter, X, CheckCircle2, AlertTriangle, TrendingUp, MapPin, Upload } from 'lucide-react';
+import { Plus, Layers, Clock, Search, Users, Filter, X, CheckCircle2, AlertTriangle, TrendingUp, MapPin, Upload, Package } from 'lucide-react';
 import { cn, isRole } from '../lib/utils';
 import { ServiceExtension, Role, AppConfig } from '../types';
 import { api } from '../lib/api';
