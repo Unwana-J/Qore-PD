@@ -12,7 +12,7 @@ interface IMInsightsViewProps {
   onFilter?: (status: string, manager?: string) => void;
 }
 
-const PW: Record<string,number> = { USSD:2, Transfers:3, Mobile:4, Cards:4, ASPFEP:5, API:3 };
+// Product Weights moved to dynamic config
 const MN = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
 const rating = (r: number, inv=false) => {
@@ -149,6 +149,17 @@ export const IMInsightsView: React.FC<IMInsightsViewProps> = ({ extensions=[], u
     return {started:s, completed:c, suspended:su, rate: s>0?Math.round((c/s)*100):0};
   }, [trends]);
 
+  const weightMap = useMemo(() => {
+    const map: Record<string, number> = {};
+    config.serviceBaselines.forEach(sb => {
+      map[sb.name] = sb.complexityWeight || 1.0;
+      sb.subServices?.forEach(ss => {
+        map[ss.name] = ss.complexityWeight || sb.complexityWeight || 1.0;
+      });
+    });
+    return map;
+  }, [config.serviceBaselines]);
+
   const wp = useMemo(() => {
     const rows = (ims || []).map(im => {
       const exts = fd.filter(e => e.implementationManager === im.name);
@@ -156,8 +167,8 @@ export const IMInsightsView: React.FC<IMInsightsViewProps> = ({ extensions=[], u
       const bd: Record<string,number|null> = {};
       
       // Calculate breakdown for leaderboard
-      Object.entries(PW).forEach(([prod])=>{
-        const pe=exts.filter(e=>e.serviceName.includes(prod));
+      Object.keys(weightMap).forEach((prod)=>{
+        const pe=exts.filter(e=>e.serviceName.includes(prod) || e.serviceVariant.includes(prod));
         if(pe.length>0){ 
           const r=pe.filter(e=>e.status==='Completed').length/pe.length; 
           bd[prod]=Math.round(r*100); 
@@ -165,7 +176,10 @@ export const IMInsightsView: React.FC<IMInsightsViewProps> = ({ extensions=[], u
       });
 
       exts.forEach(ext => {
-        const baseWeight = PW[ext.serviceName] || Object.entries(PW).find(([k]) => ext.serviceName.includes(k))?.[1] || 1;
+        // Find most specific weight (variant then service name)
+        const baseWeight = weightMap[ext.serviceVariant] || weightMap[ext.serviceName] || 
+                          Object.entries(weightMap).find(([k]) => ext.serviceName.includes(k))?.[1] || 1;
+        
         let progress = 0;
         if (ext.status === 'Completed') progress = 1;
         else if (ext.status === 'Suspended') progress = 0;
@@ -196,7 +210,7 @@ export const IMInsightsView: React.FC<IMInsightsViewProps> = ({ extensions=[], u
     
     const avg = rows.length > 0 ? rows.reduce((s,r)=>s+r.score,0)/rows.length : 0;
     return { rows, avg };
-  }, [fd, ims]);
+  }, [fd, ims, weightMap]);
 
   const overdue = useMemo(() =>
     fd.filter(e=>e.status!=='Completed'&&new Date(e.targetClosureDate)<today)
@@ -368,7 +382,7 @@ export const IMInsightsView: React.FC<IMInsightsViewProps> = ({ extensions=[], u
           <table className="w-full text-left min-w-[700px]">
             <thead><tr className="border-b border-slate-100">
               <th className="pb-2 text-[10px] font-black text-slate-400 uppercase tracking-widest">Manager</th>
-              {Object.keys(PW).map(p=><th key={p} className="pb-2 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">{p}</th>)}
+              {config.serviceBaselines.map(sb=><th key={sb.id} className="pb-2 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">{sb.name}</th>)}
               <th className="pb-2 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center bg-slate-50/50">Total</th>
             </tr></thead>
             <tbody className="divide-y divide-slate-50">
@@ -376,9 +390,9 @@ export const IMInsightsView: React.FC<IMInsightsViewProps> = ({ extensions=[], u
                 const exts=fd.filter(e=>e.implementationManager===im.name);
                 return <tr key={im.id} className="hover:bg-slate-50/30 transition-colors">
                   <td className="py-2.5 text-sm font-bold text-slate-700">{im.name}</td>
-                  {Object.keys(PW).map(prod=>{
-                    const cnt=exts.filter(e=>e.serviceName.includes(prod)).length;
-                    return <td key={prod} className={cn("py-2.5 text-sm font-bold text-center",cnt>0?"text-slate-900":"text-slate-200")}>{cnt||'—'}</td>;
+                  {config.serviceBaselines.map(sb=>{
+                    const cnt=exts.filter(e=>e.serviceName.includes(sb.name)).length;
+                    return <td key={sb.id} className={cn("py-2.5 text-sm font-bold text-center",cnt>0?"text-slate-900":"text-slate-200")}>{cnt||'—'}</td>;
                   })}
                   <td className="py-2.5 text-sm font-black text-slate-900 text-center bg-slate-50/50">{exts.length}</td>
                 </tr>;
@@ -451,10 +465,10 @@ export const IMInsightsView: React.FC<IMInsightsViewProps> = ({ extensions=[], u
               </button>
               {expandedIM===entry.name && (
                 <div className="px-4 pb-4 pt-1 border-t border-slate-50 grid grid-cols-3 sm:grid-cols-6 gap-2">
-                  {Object.entries(PW).map(([prod])=>{
-                    const val=entry.bd[prod];
-                    return <div key={prod} className="text-center p-2 bg-slate-50 rounded-xl">
-                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{prod}</p>
+                  {config.serviceBaselines.slice(0, 12).map((sb)=>{
+                    const val=entry.bd[sb.name];
+                    return <div key={sb.id} className="text-center p-2 bg-slate-50 rounded-xl">
+                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{sb.name}</p>
                       <p className={cn("text-sm font-black mt-0.5",val==null?"text-slate-300":val>=70?"text-emerald-600":val>=50?"text-amber-600":"text-red-600")}>{val!=null?`${val}%`:'—'}</p>
                     </div>;
                   })}
@@ -463,7 +477,7 @@ export const IMInsightsView: React.FC<IMInsightsViewProps> = ({ extensions=[], u
             </div>
           ))}
         </div>
-        <p className="text-[10px] text-slate-400 mt-4 italic">* Weights: USSD(2) Transfers(3) Mobile(4) Cards(4) ASPFEP(5) API(3). Click a row to see per-product breakdown.</p>
+        <p className="text-[10px] text-slate-400 mt-4 italic">* Complexity weights are configured in Settings. Click a row to see per-product breakdown.</p>
       </div>
 
     </div>

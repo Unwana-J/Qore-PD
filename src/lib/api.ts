@@ -140,6 +140,13 @@ export const api = {
         count: count || 0
       };
     },
+    deleteByIds: async (ids: string[]): Promise<void> => {
+      const { error } = await supabase
+        .from('projects')
+        .delete()
+        .in('id', ids);
+      if (error) throw error;
+    },
     getById: async (id: string): Promise<Project> => {
       const { data, error } = await supabase
         .from('projects')
@@ -222,6 +229,59 @@ export const api = {
       const { error } = await supabase.from('projects').delete().in('id', ids);
       if (error) throw error;
     },
+  },
+
+  notifications: {
+    getAll: async (userId: string): Promise<DBNotification[]> => {
+      const { data, error } = await supabase
+        .from('notifications')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+    markAsRead: async (id: string): Promise<void> => {
+      const { error } = await supabase
+        .from('notifications')
+        .update({ is_read: true })
+        .eq('id', id);
+      if (error) throw error;
+    },
+    markAllAsRead: async (userId: string): Promise<void> => {
+      const { error } = await supabase
+        .from('notifications')
+        .update({ is_read: true })
+        .eq('user_id', userId)
+        .eq('is_read', false);
+      if (error) throw error;
+    },
+    clearAll: async (userId: string): Promise<void> => {
+      const { error } = await supabase
+        .from('notifications')
+        .delete()
+        .eq('user_id', userId);
+      if (error) throw error;
+    },
+    create: async (userId: string, message: string, type: 'Comment' | 'Mapping' | 'Status' | 'System', projectId?: string | null, implementationId?: string | null): Promise<void> => {
+      const { error } = await supabase
+        .from('notifications')
+        .insert({
+          user_id: userId,
+          message,
+          type,
+          project_id: projectId,
+          implementation_id: implementationId
+        });
+      if (error) throw error;
+    },
+    createMany: async (notificationsList: Partial<DBNotification>[]): Promise<void> => {
+      const { error } = await supabase
+        .from('notifications')
+        .insert(notificationsList);
+      if (error) throw error;
+    }
+  },
     // Admin tool to seed the database initially
     seed: async () => {
       // Seeding is permanently disabled to ensure 100% clean production environment.
@@ -718,27 +778,81 @@ export const api = {
     },
 
     addComment: async (id: string, author: string, content: string): Promise<ServiceExtension> => {
-      const { data: ext } = await supabase.from('service_extensions').select('comments').eq('id', id).single();
-      const newComment = {
-        id: crypto.randomUUID(),
-        author,
-        content,
-        createdAt: new Date().toISOString()
-      };
-      const comments = [newComment, ...(ext?.comments || [])];
-      
-      const { data, error } = await supabase
+      // 1. Get current comments and participants
+      const { data: ext, error: fetchErr } = await supabase
         .from('service_extensions')
-        .update({ comments })
+        .select('comments, implementation_manager, client_name, service_name, linked_project_id')
+        .eq('id', id)
+        .single();
+      if (fetchErr) throw fetchErr;
+
+      const newComments = [
+        ...(ext.comments || []),
+        { id: Math.random().toString(36).substr(2, 9), author, content, createdAt: new Date().toISOString() }
+      ];
+
+      const { data: updated, error } = await supabase
+        .from('service_extensions')
+        .update({ comments: newComments })
         .eq('id', id)
         .select('*')
         .single();
       if (error) throw error;
-      return api.serviceExtensions._fromDb(data);
+
+      // ── Notifications ──────────────────────────────────────────────────────
+      try {
+        const notificationsToCreate = [];
+        
+        // Notify IM if they are not the author
+        if (ext.implementation_manager && author !== ext.implementation_manager) {
+          const { data: imUser } = await supabase.from('profiles').select('id').eq('name', ext.implementation_manager).single();
+          if (imUser) {
+            notificationsToCreate.push({
+              user_id: imUser.id,
+              message: `${author} commented on ${ext.client_name} (${ext.service_name})`,
+              type: 'Comment',
+              project_id: ext.linked_project_id,
+              implementation_id: id
+            });
+          }
+        }
+
+        // Notify PM if it's mapped and they are not the author
+        if (ext.linked_project_id) {
+          const { data: proj } = await supabase.from('projects').select('assigned_pm').eq('id', ext.linked_project_id).single();
+          if (proj?.assigned_pm && author !== proj.assigned_pm) {
+            const { data: pmUser } = await supabase.from('profiles').select('id').eq('name', proj.assigned_pm).single();
+            if (pmUser) {
+              notificationsToCreate.push({
+                user_id: pmUser.id,
+                message: `${author} commented on ${ext.client_name} (${ext.service_name})`,
+                type: 'Comment',
+                project_id: ext.linked_project_id,
+                implementation_id: id
+              });
+            }
+          }
+        }
+
+        if (notificationsToCreate.length > 0) {
+          await api.notifications.createMany(notificationsToCreate);
+        }
+      } catch (notifErr) {
+        console.error("[API] Failed to dispatch comment notifications:", notifErr);
+      }
+
+      return api.serviceExtensions._fromDb(updated);
     },
 
     // ── Mapping Workflow ─────────────────────────────────────────────────────
     requestMapping: async (id: string, projectId: string, notes: string): Promise<void> => {
+      const { data: ext, error: fetchErr } = await supabase
+        .from('service_extensions')
+        .select('client_name, service_name, implementation_manager')
+        .eq('id', id)
+        .single();
+      if (fetchErr) throw fetchErr;
+
       const { error } = await supabase
         .from('service_extensions')
         .update({
@@ -749,6 +863,21 @@ export const api = {
         })
         .eq('id', id);
       if (error) throw error;
+
+      // Notify PM
+      const { data: proj } = await supabase.from('projects').select('assigned_pm').eq('id', projectId).single();
+      if (proj?.assigned_pm) {
+        const { data: pmUser } = await supabase.from('profiles').select('id').eq('name', proj.assigned_pm).single();
+        if (pmUser) {
+          await api.notifications.create(
+            pmUser.id,
+            `${ext.implementation_manager} requested a mapping for ${ext.client_name} (${ext.service_name})`,
+            'Mapping',
+            projectId,
+            id
+          );
+        }
+      }
     },
 
     approveMapping: async (id: string, approvedBy: string): Promise<void> => {
@@ -760,7 +889,7 @@ export const api = {
           mapping_approved_at: new Date().toISOString(),
         })
         .eq('id', id)
-        .select('linked_project_id, implementation_manager, status, service_variant')
+        .select('linked_project_id, implementation_manager, status, service_variant, client_name, service_name')
         .single();
       if (extErr) throw extErr;
 
@@ -797,12 +926,30 @@ export const api = {
               implementation_managers: ims 
             })
             .eq('id', ext.linked_project_id);
+
+          // Notify IM
+          const { data: imUser } = await supabase.from('profiles').select('id').eq('name', ext.implementation_manager).single();
+          if (imUser) {
+            await api.notifications.create(
+              imUser.id,
+              `Your mapping for ${ext.client_name} (${ext.service_name}) has been APPROVED.`,
+              'Mapping',
+              ext.linked_project_id,
+              id
+            );
+          }
         }
       }
     },
 
     rejectMapping: async (id: string, comment: string): Promise<void> => {
       if (!comment?.trim()) throw new Error('Rejection comment is required.');
+      const { data: ext, error: fetchErr } = await supabase
+        .from('service_extensions')
+        .select('client_name, service_name, implementation_manager')
+        .eq('id', id)
+        .single();
+      
       const { error } = await supabase
         .from('service_extensions')
         .update({
@@ -812,6 +959,19 @@ export const api = {
         })
         .eq('id', id);
       if (error) throw error;
+
+      if (ext) {
+        const { data: imUser } = await supabase.from('profiles').select('id').eq('name', ext.implementation_manager).single();
+        if (imUser) {
+          await api.notifications.create(
+            imUser.id,
+            `Your mapping for ${ext.client_name} (${ext.service_name}) was REJECTED: ${comment}`,
+            'Mapping',
+            null,
+            id
+          );
+        }
+      }
     },
 
     unmapFromProject: async (id: string, comment: string, linkedProjectId: string, serviceVariant: string): Promise<void> => {

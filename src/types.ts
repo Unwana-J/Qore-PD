@@ -202,16 +202,29 @@ export interface ServiceSubService {
   id: string;
   name: string;
   baselineDays: number;
+  complexityWeight?: number; // default 1.0
 }
 
 export interface ServiceBaseline {
   id: string;
   name: string;
   baselineDays: number;        // parent-level fallback duration
+  complexityWeight?: number;   // parent-level fallback weight
   milestones?: string[];       // parent-level milestone steps (used when no sub-service)
   subServices?: ServiceSubService[]; // per-gateway / per-sub-service config
   /** @deprecated Use subServices instead */
   variants?: string[];
+}
+
+export interface DBNotification {
+  id: string;
+  user_id: string;
+  message: string;
+  project_id: string | null;
+  implementation_id: string | null;
+  type: 'Comment' | 'Mapping' | 'Status' | 'System';
+  is_read: boolean;
+  created_at: string;
 }
 
 // ── Service Extensions (IM-managed ancillary implementations) ─────────────────

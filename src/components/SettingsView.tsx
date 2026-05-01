@@ -1564,6 +1564,10 @@ const PackageServiceConfig = ({ config, setConfig, theme, showToast }: any) => {
                   <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Default Baseline (Days)</label>
                   <NumberInput className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-bold outline-none focus:ring-4 focus:ring-teal-500/10 focus:border-teal-500 transition-all" value={newForm?.baselineDays || 1} onChange={(val: number) => setNewForm({ ...newForm, baselineDays: val })} />
                 </div>
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Complexity Weight (e.g. 1.5)</label>
+                  <NumberInput step="0.1" className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-bold outline-none focus:ring-4 focus:ring-teal-500/10 focus:border-teal-500 transition-all" value={newForm?.complexityWeight || 1.0} onChange={(val: number) => setNewForm({ ...newForm, complexityWeight: val })} />
+                </div>
               </div>
               <div className="space-y-1.5">
                 <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Default Milestones (comma-separated, used when no sub-service selected)</label>
@@ -1594,9 +1598,14 @@ const PackageServiceConfig = ({ config, setConfig, theme, showToast }: any) => {
                         <span className="text-[10px] text-slate-400 font-bold">Default:</span>
                         <NumberInput className="w-20 px-2 py-1 bg-slate-50 border border-slate-200 rounded-lg text-sm font-bold text-center outline-none" value={editForm.baselineDays} onChange={(val: number) => setEditForm({ ...editForm, baselineDays: val })} />
                         <span className="text-[10px] text-slate-400 font-bold">days</span>
+                        <span className="text-[10px] text-slate-400 font-bold ml-2">Weight:</span>
+                        <NumberInput step="0.1" className="w-20 px-2 py-1 bg-slate-50 border border-slate-200 rounded-lg text-sm font-bold text-center outline-none" value={editForm.complexityWeight || 1.0} onChange={(val: number) => setEditForm({ ...editForm, complexityWeight: val })} />
                       </div>
                     ) : (
-                      <span className="text-[10px] font-bold text-slate-400">{service.baselineDays}d default</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-bold text-slate-400">{service.baselineDays}d default</span>
+                        <span className="text-[10px] font-bold text-teal-600 bg-teal-50 px-1.5 py-0.5 rounded">x{service.complexityWeight || 1.0} weight</span>
+                      </div>
                     )}
                     <button 
                       onClick={() => setMilestoneModal({ isOpen: true, serviceId: service.id, serviceName: service.name, initialMilestones: service.milestones || [] })}
@@ -1627,6 +1636,7 @@ const PackageServiceConfig = ({ config, setConfig, theme, showToast }: any) => {
                       <tr className="bg-slate-50/70">
                         <th className="px-5 py-2.5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Sub-Service / Gateway</th>
                         <th className="px-5 py-2.5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Duration (Days)</th>
+                        <th className="px-5 py-2.5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Complexity Weight</th>
                         {isEditing && <th className="px-5 py-2.5 text-right"></th>}
                       </tr>
                     </thead>
@@ -1645,6 +1655,13 @@ const PackageServiceConfig = ({ config, setConfig, theme, showToast }: any) => {
                               <NumberInput className="w-20 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-sm font-bold text-center outline-none" value={ss.baselineDays} onChange={(val: number) => { const u = [...subServices]; u[i] = { ...ss, baselineDays: val }; setEditForm({ ...editForm, subServices: u }); }} />
                             ) : (
                               <span className="text-xs font-bold text-slate-500">{ss.baselineDays}d</span>
+                            )}
+                          </td>
+                          <td className="px-5 py-2.5 text-center">
+                            {isEditing ? (
+                              <NumberInput step="0.1" className="w-20 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-sm font-bold text-center outline-none" value={ss.complexityWeight || 1.0} onChange={(val: number) => { const u = [...subServices]; u[i] = { ...ss, complexityWeight: val }; setEditForm({ ...editForm, subServices: u }); }} />
+                            ) : (
+                              <span className="text-xs font-bold text-slate-500">x{ss.complexityWeight || 1.0}</span>
                             )}
                           </td>
                           {isEditing && (

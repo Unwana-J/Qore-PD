@@ -6,37 +6,49 @@ import { api } from '../lib/api';
 import { supabase } from '../lib/supabase';
 import { calculateWorkingDays, getActiveDaysCount, calculateSPI, getAutoProjectState, isRole, hasRole } from '../lib/utils';
 
-export function useProjects(userRole: Role, config: AppConfig, userName: string = 'User') {
+export function useProjects(userRole: Role, config: AppConfig, userName: string = 'User', userId?: string) {
   const queryClient = useQueryClient();
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
-  // Ref-based dedup: tracks keys of notifications already added this session
-  const notifKeysRef = useRef<Set<string>>(new Set());
-  const [notifications, setNotifications] = useState<Array<{
-    id: string; message: string; projectId: string;
-    createdAt: Date; isRead: boolean; key: string;
-  }>>([]);
+  
+  // Persistent Notifications from DB
+  const { data: notifications = [], refetch: refreshNotifications } = useQuery({
+    queryKey: ['notifications', userId],
+    queryFn: async () => {
+      if (!userId) return [];
+      return await api.notifications.getAll(userId);
+    },
+    enabled: !!userId,
+    staleTime: 60000, // 1 minute
+  });
 
+  const dismissNotification = useCallback(async (id: string) => {
+    await api.notifications.markAsRead(id);
+    queryClient.setQueryData(['notifications', userId], (prev: any) => 
+      (prev || []).map((n: any) => n.id === id ? { ...n, is_read: true } : n)
+    );
+  }, [userId, queryClient]);
+
+  const markAllRead = useCallback(async () => {
+    if (!userId) return;
+    await api.notifications.markAllAsRead(userId);
+    queryClient.setQueryData(['notifications', userId], (prev: any) => 
+      (prev || []).map((n: any) => ({ ...n, is_read: true }))
+    );
+  }, [userId, queryClient]);
+
+  const clearAllNotifications = useCallback(async () => {
+    if (!userId) return;
+    await api.notifications.clearAll(userId);
+    queryClient.setQueryData(['notifications', userId], []);
+  }, [userId, queryClient]);
+
+  // UI-only transient notifications (retained for backward compatibility or flash messages)
+  const [transientNotifications, setTransientNotifications] = useState<any[]>([]);
+  
   const addNotification = useCallback((message: string, projectId: string, key?: string) => {
+    // This now only adds to local state, for real notifications use api.notifications.create
     const id = Math.random().toString(36).substr(2, 9);
-    const notifKey = key || id;
-    setNotifications(prev => [...prev, { id, message, projectId, createdAt: new Date(), isRead: false, key: notifKey }]);
-  }, []);
-
-  const dismissNotification = useCallback((id: string) => {
-    setNotifications(prev => {
-      const target = prev.find(n => n.id === id);
-      if (target?.key) notifKeysRef.current.delete(target.key);
-      return prev.filter(n => n.id !== id);
-    });
-  }, []);
-
-  const markAllRead = useCallback(() => {
-    setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
-  }, []);
-
-  const clearAllNotifications = useCallback(() => {
-    notifKeysRef.current.clear();
-    setNotifications([]);
+    setTransientNotifications(prev => [...prev, { id, message, projectId, createdAt: new Date(), isRead: false, key: key || id }]);
   }, []);
 
 
