@@ -57,6 +57,8 @@ export const IMInsightsView: React.FC<IMInsightsViewProps> = ({ extensions=[], u
   const today = new Date();
 
   const fd = useMemo(() => (extensions || []).filter(ext => {
+    // Only filter by date if q or mo are set
+    if (q === 'All' && mo === 'All') return true;
     if (!ext.startDate) return false;
     const d = new Date(ext.startDate), m = d.getMonth(), qr = Math.floor(m/3)+1;
     if(q!=='All' && qr!==q) return false;
@@ -64,7 +66,20 @@ export const IMInsightsView: React.FC<IMInsightsViewProps> = ({ extensions=[], u
     return true;
   }), [extensions, q, mo]);
 
-  const ims = useMemo(() => (users || []).filter(u=>u.role==='IM'||u.role==='IM Lead'), [users]);
+  const ims = useMemo(() => {
+    // Get known IMs from users list
+    const baseIms = (users || []).filter(u=>u.role==='IM'||u.role==='IM Lead'||u.role==='Superadmin');
+    
+    // Also capture any managers mentioned in the data but missing from the users list
+    const dataManagers = Array.from(new Set(fd.map(e => e.implementationManager)));
+    const knownNames = new Set(baseIms.map(u => u.name));
+    
+    const additionalIms = dataManagers
+      .filter(name => name && !knownNames.has(name))
+      .map(name => ({ id: name, name, role: 'IM' as any }));
+      
+    return [...baseIms, ...additionalIms];
+  }, [fd, users]);
 
   const kpis = useMemo(() => {
     const total=fd.length, completed=fd.filter(e=>e.status==='Completed').length;
