@@ -142,41 +142,62 @@ export const MapToProjectModal: React.FC<MapToProjectModalProps> = ({
               </div>
             ) : (
               <div className="space-y-2">
-                {results.map(p => (
-                  <button
-                    key={p.id}
-                    onClick={() => setSelected(p)}
-                    className={cn(
-                      "w-full text-left p-4 rounded-2xl border transition-all",
-                      selected?.id === p.id
-                        ? "border-teal-500 bg-teal-50/50"
-                        : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/50"
-                    )}
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0">
-                        <span className="text-sm font-black text-slate-900 block truncate">{p.clientName}</span>
-                        <div className="flex items-center gap-2 mt-1 flex-wrap">
-                          <span className="flex items-center gap-1 text-[10px] font-bold text-slate-500">
-                            <Package className="w-3 h-3" /> {p.packageName}
-                          </span>
-                          <span className="flex items-center gap-1 text-[10px] font-bold text-slate-500">
-                            <Calendar className="w-3 h-3" /> {p.startDate}
-                          </span>
+                {results.sort((a,b) => {
+                  const aMatch = a.clientName?.toLowerCase().includes(extension.clientName.toLowerCase()) ? 1 : 0;
+                  const bMatch = b.clientName?.toLowerCase().includes(extension.clientName.toLowerCase()) ? 1 : 0;
+                  return bMatch - aMatch;
+                }).map(p => {
+                  const isCoreMatch = p.service_states && Object.keys(p.service_states).some(s => 
+                    s.toLowerCase() === extension.serviceName.toLowerCase() || 
+                    s.toLowerCase() === extension.serviceVariant.toLowerCase()
+                  );
+                  const isExactClient = p.clientName?.toLowerCase() === extension.clientName.toLowerCase();
+
+                  return (
+                    <button
+                      key={p.id}
+                      onClick={() => setSelected(p)}
+                      className={cn(
+                        "w-full text-left p-4 rounded-2xl border transition-all relative overflow-hidden",
+                        selected?.id === p.id
+                          ? "border-teal-500 bg-teal-50/50"
+                          : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/50",
+                        isExactClient && !selected && "border-teal-200 bg-teal-50/20"
+                      )}
+                    >
+                      {isCoreMatch && (
+                        <div className="absolute top-0 right-0 px-3 py-1 bg-teal-600 text-white text-[8px] font-black uppercase tracking-widest rounded-bl-xl shadow-sm">
+                          Core Service Match
                         </div>
-                        <span className="text-[10px] font-bold text-slate-400 block mt-1">PM: {p.assignedPM}</span>
+                      )}
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-black text-slate-900 truncate">{p.clientName}</span>
+                            {isExactClient && <span className="px-1.5 py-0.5 bg-teal-100 text-teal-700 text-[8px] font-black uppercase tracking-widest rounded">Exact Match</span>}
+                          </div>
+                          <div className="flex items-center gap-2 mt-1 flex-wrap">
+                            <span className="flex items-center gap-1 text-[10px] font-bold text-slate-500">
+                              <Package className="w-3 h-3" /> {p.packageName}
+                            </span>
+                            <span className="flex items-center gap-1 text-[10px] font-bold text-slate-500">
+                              <Calendar className="w-3 h-3" /> {p.startDate}
+                            </span>
+                          </div>
+                          <span className="text-[10px] font-bold text-slate-400 block mt-1">PM: {p.assignedPM}</span>
+                        </div>
+                        <span className={cn(
+                          "flex-shrink-0 px-2 py-0.5 text-[10px] font-black uppercase tracking-widest rounded-md mt-6",
+                          p.state === 'On-Track' ? 'bg-emerald-100 text-emerald-700' :
+                          p.state === 'Delayed' ? 'bg-amber-100 text-amber-700' :
+                          'bg-slate-100 text-slate-500'
+                        )}>
+                          {p.state}
+                        </span>
                       </div>
-                      <span className={cn(
-                        "flex-shrink-0 px-2 py-0.5 text-[10px] font-black uppercase tracking-widest rounded-md",
-                        p.state === 'On-Track' ? 'bg-emerald-100 text-emerald-700' :
-                        p.state === 'Delayed' ? 'bg-amber-100 text-amber-700' :
-                        'bg-slate-100 text-slate-500'
-                      )}>
-                        {p.state}
-                      </span>
-                    </div>
-                  </button>
-                ))}
+                    </button>
+                  );
+                })}
               </div>
             )}
 

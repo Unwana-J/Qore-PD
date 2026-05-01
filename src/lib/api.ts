@@ -583,14 +583,18 @@ export const api = {
 
       // Sync to linked project's service_states if approved mapping exists
       if (linkedProjectId && serviceVariant) {
-        const serviceStatus =
+        // Map implementation status to project status
+        const serviceStatus = 
           newStatus === 'Completed' ? 'Closed' :
+          newStatus === 'Suspended' ? 'Suspended' :
           newStatus === 'In Progress' ? 'In Progress' : 'Not Started';
+
         const { data: proj } = await supabase
           .from('projects')
           .select('service_states')
           .eq('id', linkedProjectId)
           .single();
+        
         if (proj) {
           const updatedStates = { ...(proj.service_states || {}), [serviceVariant]: serviceStatus };
           await supabase
@@ -747,8 +751,8 @@ export const api = {
       if (error) throw error;
     },
 
-    approveMapping: async (id: string): Promise<void> => {
-      // 1. Approve the extension
+    approveMapping: async (id: string, approvedBy: string): Promise<void> => {
+      // 1. Mark as approved and get linked info
       const { data: ext, error: extErr } = await supabase
         .from('service_extensions')
         .update({
@@ -756,23 +760,44 @@ export const api = {
           mapping_approved_at: new Date().toISOString(),
         })
         .eq('id', id)
-        .select('linked_project_id, implementation_manager')
+        .select('linked_project_id, implementation_manager, status, service_variant')
         .single();
       if (extErr) throw extErr;
 
-      // 2. Re-aggregate all approved IMs for this project
       if (ext?.linked_project_id) {
-        const { data: allApproved } = await supabase
-          .from('service_extensions')
-          .select('implementation_manager')
-          .eq('linked_project_id', ext.linked_project_id)
-          .eq('mapping_status', 'Approved');
+        // 2. Map implementation status to project status
+        const serviceStatus = 
+          ext.status === 'Completed' ? 'Closed' :
+          ext.status === 'Suspended' ? 'Suspended' :
+          ext.status === 'In Progress' ? 'In Progress' : 'Not Started';
 
-        const ims = Array.from(new Set((allApproved || []).map((e: any) => e.implementation_manager).filter(Boolean)));
-        await supabase
+        const { data: proj } = await supabase
           .from('projects')
-          .update({ implementation_managers: ims })
-          .eq('id', ext.linked_project_id);
+          .select('service_states, implementation_managers')
+          .eq('id', ext.linked_project_id)
+          .single();
+
+        if (proj) {
+          // Update service status
+          const updatedStates = { ...(proj.service_states || {}), [ext.service_variant]: serviceStatus };
+          
+          // Re-aggregate implementation managers
+          const { data: allApproved } = await supabase
+            .from('service_extensions')
+            .select('implementation_manager')
+            .eq('linked_project_id', ext.linked_project_id)
+            .eq('mapping_status', 'Approved');
+
+          const ims = Array.from(new Set((allApproved || []).map((e: any) => e.implementation_manager).filter(Boolean)));
+          
+          await supabase
+            .from('projects')
+            .update({ 
+              service_states: updatedStates,
+              implementation_managers: ims 
+            })
+            .eq('id', ext.linked_project_id);
+        }
       }
     },
 
