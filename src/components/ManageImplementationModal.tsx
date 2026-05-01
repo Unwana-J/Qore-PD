@@ -694,21 +694,21 @@ export const ManageImplementationModal: React.FC<ManageImplementationModalProps>
                     </div>
                   </div>
 
-                  <div className="space-y-6 pt-4">
+                  <div className="space-y-4 pt-4 max-h-[400px] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent">
                     {(extension.comments || []).length === 0 ? (
-                      <p className="text-center text-xs font-bold text-slate-400 py-4 italic">No comments yet. Start the trail!</p>
+                      <p className="text-center text-xs font-bold text-slate-400 py-8 italic">No comments yet. Start the trail!</p>
                     ) : (
-                      extension.comments.map(c => (
-                        <div key={c.id} className="flex gap-3 group">
-                          <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-[10px] font-black text-slate-500 shrink-0">
+                      [...(extension.comments || [])].sort((a,b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).map(c => (
+                        <div key={c.id} className="flex gap-3 group animate-in slide-in-from-top-2 duration-300">
+                          <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-[10px] font-black text-slate-500 shrink-0 group-hover:bg-teal-50 group-hover:text-teal-600 transition-colors">
                             {c.author[0]}
                           </div>
                           <div className="flex-1">
                             <div className="flex items-center justify-between mb-1">
                               <span className="text-xs font-black text-slate-900">{c.author}</span>
-                              <span className="text-[10px] font-bold text-slate-400">{new Date(c.createdAt).toLocaleString()}</span>
+                              <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">{new Date(c.createdAt).toLocaleDateString()} · {new Date(c.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
                             </div>
-                            <div className="p-3 bg-slate-50 rounded-2xl rounded-tl-none border border-slate-100">
+                            <div className="p-3 bg-slate-50 rounded-2xl rounded-tl-none border border-slate-100 group-hover:border-slate-200 transition-colors">
                               <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap">{c.content}</p>
                             </div>
                           </div>
