@@ -8,19 +8,7 @@ import { getThemeClasses } from '../lib/theme';
 import { Project, Role, AppConfig, ImportRow, ImportRowStatus, User, ServiceBaseline, ProductLine, ServiceState } from '../types';
 import { ImportGuideModal } from './ImportGuideModal';
 
-interface BulkImportViewProps {
-  users: User[];
-  invites?: any[];
-  projects: Project[];
-  config: AppConfig;
-  userRole: Role;
-  onImportBulk: (add: Partial<Project>[], update: Partial<Project>[], skippedCount: number) => Promise<{ added: number, updated: number } | undefined>;
-  onShowToast: (message: string, type?: 'error' | 'success' | 'info') => void;
-  onUpdateConfig: (updates: Partial<AppConfig>) => void;
-  onClose: () => void;
-}
-
-const REQUIRED_FIELDS = [
+const REQUIRED_FIELDS_PROJECTS = [
   { key: 'clientName', label: 'Institution Name' },
   { key: 'packageName', label: 'Package / Service Type' },
   { key: 'assignedPM', label: 'Project Manager' },
@@ -29,7 +17,7 @@ const REQUIRED_FIELDS = [
   { key: 'currency', label: 'Currency' }
 ];
 
-const OPTIONAL_FIELDS = [
+const OPTIONAL_FIELDS_PROJECTS = [
   { key: 'implementationPerson', label: 'Project Implementation Person' },
   { key: 'subscriptionLevel', label: 'Subscription Level' },
   { key: 'intakeType', label: 'Intake Type' },
@@ -41,9 +29,29 @@ const OPTIONAL_FIELDS = [
   { key: 'notes', label: 'Key Updates / Notes' }
 ];
 
-const EXPECTED_COLUMNS = [...REQUIRED_FIELDS, ...OPTIONAL_FIELDS];
+const REQUIRED_FIELDS_IMPLEMENTATIONS = [
+  { key: 'clientName', label: 'Institution Name' },
+  { key: 'serviceName', label: 'Service' },
+  { key: 'implementationManager', label: 'Implementation Manager' },
+  { key: 'targetClosureDate', label: 'Target Closure Date' }
+];
 
-export const BulkImportView: React.FC<BulkImportViewProps> = ({ users, invites, projects, config, userRole, onImportBulk, onShowToast, onUpdateConfig, onClose }) => {
+const OPTIONAL_FIELDS_IMPLEMENTATIONS = [
+  { key: 'serviceVariant', label: 'Gateway / Variant' },
+  { key: 'startDate', label: 'Start Date' },
+  { key: 'closureStatus', label: 'Project Status' },
+  { key: 'notes', label: 'Key Updates / Notes' }
+];
+
+export const BulkImportView: React.FC<BulkImportViewProps> = ({ 
+  users, invites, projects, config, userRole, mode = 'projects',
+  onImportBulk, onImportExtensions, onShowToast, onUpdateConfig, onClose 
+}) => {
+  const isProjects = mode === 'projects';
+  const REQUIRED_FIELDS = isProjects ? REQUIRED_FIELDS_PROJECTS : REQUIRED_FIELDS_IMPLEMENTATIONS;
+  const OPTIONAL_FIELDS = isProjects ? OPTIONAL_FIELDS_PROJECTS : OPTIONAL_FIELDS_IMPLEMENTATIONS;
+  const EXPECTED_COLUMNS = [...REQUIRED_FIELDS, ...OPTIONAL_FIELDS];
+
   const theme = getThemeClasses(config.brand.themeColor);
   
   const [showGuide, setShowGuide] = useState(!config.hideImportGuide);
@@ -59,6 +67,7 @@ export const BulkImportView: React.FC<BulkImportViewProps> = ({ users, invites, 
   
   const [isImporting, setIsImporting] = useState(false);
   const [importResult, setImportResult] = useState<{ added: number, updated: number, skipped: number } | null>(null);
+  const [implImportResult, setImplImportResult] = useState<{ added: number, skipped: number } | null>(null);
 
   const [currentPage, setCurrentPage] = useState(1);
   const rowsPerPage = 50;
@@ -76,6 +85,13 @@ export const BulkImportView: React.FC<BulkImportViewProps> = ({ users, invites, 
   
   // Unique list of all PMs (system + invited)
   const validPMs = Array.from(new Set([...activePMNames, ...invitedNames]));
+
+  const validIMs = Array.from(new Set([
+    ...users.filter(u => u.role === 'IM' || u.role === 'IM Lead').map(u => u.name),
+    ...users.filter(u => u.role === 'Superadmin' || u.role === 'Manager').map(u => u.name)
+  ]));
+
+  const validServices = config.serviceBaselines.map(s => s.name);
   
   // Helper to safely trim values that might not be strings
   const safeTrim = (val: any) => String(val ?? '').trim();
@@ -88,103 +104,122 @@ export const BulkImportView: React.FC<BulkImportViewProps> = ({ users, invites, 
     // Required checks
     if (!safeTrim(row.clientName)) errors.push('Institution Name is blank');
     
-    // Config validation with stricter matching
-    const pName = safeTrim(row.packageName);
-    if (!pName) {
-      errors.push('Package is blank');
-    } else {
-      // 1. Exact match
-      let match = validPackages.find(p => p === pName);
-      // 2. Case-insensitive exact match
-      if (!match) match = validPackages.find(p => p.toLowerCase() === pName.toLowerCase());
-      // 3. Starts with match
-      if (!match) match = validPackages.find(p => p.toLowerCase().startsWith(pName.toLowerCase()));
-      // 4. Substring match (fallback)
-      if (!match) match = validPackages.find(p => p.toLowerCase().includes(pName.toLowerCase()));
-
-      if (match) {
-        row.packageName = match;
+    if (isProjects) {
+      // ── Project Specific Validation ──
+      const pName = safeTrim(row.packageName);
+      if (!pName) {
+        errors.push('Package is blank');
       } else {
-        errors.push(`Package '${pName}' not found in configuration`);
+        let match = validPackages.find(p => p === pName);
+        if (!match) match = validPackages.find(p => p.toLowerCase() === pName.toLowerCase());
+        if (!match) match = validPackages.find(p => p.toLowerCase().startsWith(pName.toLowerCase()));
+        if (!match) match = validPackages.find(p => p.toLowerCase().includes(pName.toLowerCase()));
+
+        if (match) row.packageName = match;
+        else errors.push(`Package '${pName}' not found in configuration`);
+      }
+
+      const apm = safeTrim(row.assignedPM);
+      if (!apm) {
+        errors.push('Project Manager is blank');
+      } else {
+        const match = validPMs.find(pm => {
+          const full = pm.toLowerCase();
+          const input = apm.toLowerCase();
+          return full === input || full.includes(input) || input.includes(full.split(' ')[0]);
+        });
+        if (match) row.assignedPM = match;
+        else errors.push(`PM '${apm}' not found in system users`);
+      }
+
+      // Numeric validation
+      let val = row.value;
+      if (val === undefined || val === null || val === '') {
+        errors.push('Cost is missing');
+      } else {
+        const numVal = typeof val === 'string' ? parseFloat(val.replace(/[^\d.-]/g, '')) : val;
+        if (isNaN(numVal) || numVal < 0) errors.push('Cost is invalid/negative');
+      }
+
+      if (!safeTrim(row.currency)) errors.push('Currency is missing');
+    } else {
+      // ── Implementation Specific Validation ──
+      const sName = safeTrim(row.serviceName);
+      if (!sName) {
+        errors.push('Service is blank');
+      } else {
+        let match = validServices.find(s => s === sName);
+        if (!match) match = validServices.find(s => s.toLowerCase() === sName.toLowerCase());
+        if (!match) match = validServices.find(s => s.toLowerCase().includes(sName.toLowerCase()));
+        if (match) row.serviceName = match;
+        else errors.push(`Service '${sName}' not found`);
+      }
+
+      const im = safeTrim(row.implementationManager);
+      if (im) {
+        const match = validIMs.find(v => v.toLowerCase().includes(im.toLowerCase()));
+        if (match) row.implementationManager = match;
+        else errors.push(`IM '${im}' not found`);
+      } else {
+        errors.push('Implementation Manager is blank');
+      }
+
+      // Target Date validation
+      if (!safeTrim(row.targetClosureDate)) {
+        errors.push('Target Closure Date is missing');
+      } else {
+        try {
+          let d: Date;
+          const raw = safeTrim(row.targetClosureDate);
+          if ((row.targetClosureDate as any) instanceof Date) d = row.targetClosureDate as any;
+          else if (raw.includes('/')) {
+            const parts = raw.split('/');
+            if (parts.length === 3) d = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
+            else d = new Date(raw);
+          } else d = new Date(raw);
+          
+          if (isNaN(d.getTime())) errors.push('Target Date is invalid');
+          else row.targetClosureDate = d.toISOString().split('T')[0];
+        } catch {
+          errors.push('Target Date is invalid');
+        }
       }
     }
 
-    const apm = safeTrim(row.assignedPM);
-    if (!apm) {
-      errors.push('Project Manager is blank');
-    } else {
-      // Fuzzy PM matching (first name or substring)
-      const match = validPMs.find(pm => {
-        const full = pm.toLowerCase();
-        const input = apm.toLowerCase();
-        return full === input || full.includes(input) || input.includes(full.split(' ')[0]);
-      });
-      
-      if (match) {
-        row.assignedPM = match;
-      } else {
-        errors.push(`PM '${apm}' not found in system users`);
-      }
-    }
-
-    // Date validation - Support dd/mm/yyyy explicitly
+    // ── Common Date Validation (Start Date) ──
     let normalizedStartDate = row.startDate;
     const sDateRaw = safeTrim(row.startDate);
     if (!sDateRaw) {
-      errors.push('Start Date is missing');
+      if (isProjects) errors.push('Start Date is missing');
     } else {
       try {
         let d: Date;
-        
-        // Handle native JS Date objects if Excel provided them
-        if ((row.startDate as any) instanceof Date) {
-          d = row.startDate as any;
-        } else if (sDateRaw.includes('/')) {
-          // Check for dd/mm/yyyy format
+        if ((row.startDate as any) instanceof Date) d = row.startDate as any;
+        else if (sDateRaw.includes('/')) {
           const parts = sDateRaw.split('/');
-          if (parts.length === 3) {
-            // Assume dd/mm/yyyy
-            d = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
-          } else {
-            d = new Date(sDateRaw);
-          }
-        } else {
-          d = new Date(sDateRaw);
-        }
+          if (parts.length === 3) d = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
+          else d = new Date(sDateRaw);
+        } else d = new Date(sDateRaw);
 
-        if (isNaN(d.getTime())) {
-          errors.push('Start Date is invalid');
-        } else {
-          normalizedStartDate = d.toISOString().split('T')[0];
-        }
+        if (isNaN(d.getTime())) errors.push('Start Date is invalid');
+        else normalizedStartDate = d.toISOString().split('T')[0];
       } catch {
         errors.push('Start Date is invalid');
       }
     }
 
-    // Numeric validation
-    let val = row.value;
-    if (val === undefined || val === null || val === '') {
-      errors.push('Cost is missing');
-    } else {
-      const numVal = typeof val === 'string' ? parseFloat(val.replace(/[^\d.-]/g, '')) : val;
-      if (isNaN(numVal) || numVal < 0) {
-        errors.push('Cost is invalid/negative');
-      }
-    }
-
-    if (!safeTrim(row.currency)) errors.push('Currency is missing');
-    
     // Duplicate calculation
     const currentName = safeTrim(row.clientName).toLowerCase();
+    const isDuplicateInDb = isProjects 
+      ? projects.some(p => p.clientName.toLowerCase() === currentName)
+      : false; // For extensions, duplicates are handled by linked project logic usually, or just allow multiple
     
-    const isDuplicateInDb = projects.some(p => p.clientName.toLowerCase() === currentName);
     const duplicatesInFile = allRows.filter((r, idx) => idx !== rowIndex && safeTrim(r.clientName).toLowerCase() === currentName);
 
-    // Summary Row Detection: Skip rows that look like totals/subtotals
+    // Summary Row Detection
     const summaryKeywords = ['total', 'grand total', 'sub-total', 'subtotal', 'summary'];
     const lowerClientName = currentName;
-    const isSummaryRow = summaryKeywords.some(k => lowerClientName.includes(k) || pName.toLowerCase().includes(k));
+    const isSummaryRow = summaryKeywords.some(k => lowerClientName.includes(k));
 
     if (errors.length > 0) {
       status = 'error';
@@ -461,172 +496,193 @@ export const BulkImportView: React.FC<BulkImportViewProps> = ({ users, invites, 
     
     return { total: processedRows.length, errors, duplicates, clean, canConfirm };
   }, [processedRows]);
-
   const handleConfirmImport = async () => {
     setIsImporting(true);
-    
-    const toAdd: Partial<Project>[] = [];
-    const toUpdate: Partial<Project>[] = [];
     let skipped = 0;
 
-    processedRows.forEach(row => {
-      if (row.duplicateAction === 'skip') {
-        skipped++;
-        return;
-      }
+    if (isProjects) {
+      const toAdd: Partial<Project>[] = [];
+      const toUpdate: Partial<Project>[] = [];
 
-      // Format numeric value
-      const numVal = typeof row.value === 'string' ? parseFloat(row.value.replace(/[^\d.-]/g, '')) : row.value;
-      
-      const isOld = (row.intakeType || 'New').toLowerCase() === 'old';
-      
-      // Calculate Auto Services and Baseline Days
-      let baselineDays = 0;
-      // CRITICAL: Resolve imported service names to internal IDs
-      const mappedServiceIds = resolveServiceIds(row.services || [], config.serviceBaselines);
-      
-      let productLines: ProductLine[] = [];
-      const plInput = safeTrim(row.productLine);
-      if (plInput) {
-        // Support comma separated product lines
-        productLines = plInput.split(/[,|]/).map(s => s.trim() as ProductLine).filter(s => ['Bankone', 'Digital Banking', 'Agency Banking', 'Other'].includes(s));
-      }
-      if (productLines.length === 0) productLines = ['Bankone']; // Default
-      
-      let expectedCompletionDate = '';
-
-      if (isOld) {
-        // For old projects, use provided completion date to derive duration
-        expectedCompletionDate = row.expectedCompletionDate || row.startDate;
-        baselineDays = getWorkingDaysInRange(row.startDate, expectedCompletionDate, true);
-      } else if (row.packageName) {
-        const pkg = config.packages.find((p: any) => p.name === row.packageName);
-        if (pkg) {
-          baselineDays = mappedServiceIds.reduce((acc, sid) => {
-            const baseline = config.serviceBaselines.find((sb: any) => sb.id === sid);
-            return acc + (baseline ? baseline.baselineDays : 0);
-          }, 0);
+      processedRows.forEach(row => {
+        if (row.status === 'error') return;
+        if (row.duplicateAction === 'skip') {
+          skipped++;
+          return;
         }
-        expectedCompletionDate = calculateWorkingDays(row.startDate, baselineDays);
-      }
-      
-      // Extract explicit service states set in the excel columns
-      // We must map these to ID-based keys as well
-      const finalServiceStates: Record<string, any> = {};
-      
-      // If row.serviceStates was populated by names, resolve them to IDs
-      if (row.serviceStates) {
-        Object.entries(row.serviceStates).forEach(([name, status]) => {
-          const matchingService = config.serviceBaselines.find(sb => sb.name.toLowerCase() === name.toLowerCase());
-          const key = matchingService ? matchingService.id : name;
-          finalServiceStates[key] = status;
+
+        // Format numeric value
+        const numVal = typeof row.value === 'string' ? parseFloat(row.value.replace(/[^\d.-]/g, '')) : row.value;
+        const isOld = (row.intakeType || 'New').toLowerCase() === 'old';
+        
+        // Calculate Auto Services and Baseline Days
+        let baselineDays = 0;
+        const mappedServiceIds = resolveServiceIds(row.services || [], config.serviceBaselines);
+        
+        let productLines: ProductLine[] = [];
+        const plInput = safeTrim(row.productLine);
+        if (plInput) {
+          productLines = plInput.split(/[,|]/).map(s => s.trim() as ProductLine).filter(s => ['Bankone', 'Digital Banking', 'Agency Banking', 'Other'].includes(s));
+        }
+        if (productLines.length === 0) productLines = ['Bankone'];
+        
+        let expectedCompletionDate = '';
+
+        if (isOld) {
+          expectedCompletionDate = row.expectedCompletionDate || row.startDate;
+          baselineDays = getWorkingDaysInRange(row.startDate, expectedCompletionDate, true);
+        } else if (row.packageName) {
+          const pkg = config.packages.find((p: any) => p.name === row.packageName);
+          if (pkg) {
+            baselineDays = mappedServiceIds.reduce((acc, sid) => {
+              const baseline = config.serviceBaselines.find((sb: any) => sb.id === sid);
+              return acc + (baseline ? baseline.baselineDays : 0);
+            }, 0);
+          }
+          expectedCompletionDate = calculateWorkingDays(row.startDate, baselineDays);
+        }
+        
+        const finalServiceStates: Record<string, any> = {};
+        if (row.serviceStates) {
+          Object.entries(row.serviceStates).forEach(([name, status]) => {
+            const matchingService = config.serviceBaselines.find(sb => sb.name.toLowerCase() === name.toLowerCase());
+            const key = matchingService ? matchingService.id : name;
+            finalServiceStates[key] = status;
+          });
+        }
+
+        mappedServiceIds.forEach(sid => {
+          if (!finalServiceStates[sid]) finalServiceStates[sid] = 'Not Started';
         });
-      }
 
-      mappedServiceIds.forEach(sid => {
-        if (!finalServiceStates[sid]) finalServiceStates[sid] = 'Not Started';
-      });
+        const closureStatus = row.closureStatus || 'Active';
+        const isClosed = closureStatus.toLowerCase() === 'closed' || closureStatus.toLowerCase() === 'billed';
+        const actualCompDate = row.actualCompletionDate || (isClosed ? expectedCompletionDate : undefined);
 
-      const closureStatus = row.closureStatus || 'Active';
-      const isClosed = closureStatus.toLowerCase() === 'closed' || closureStatus.toLowerCase() === 'billed';
-      const actualCompDate = row.actualCompletionDate || (isClosed ? expectedCompletionDate : undefined);
+        let defaultStartPhase = isOld ? 'Execution' : 'Initiation';
+        if (row.packageName?.includes('Digital Banking') && !row.currentPhase) {
+          defaultStartPhase = 'Planning';
+        }
 
-      // Universal Phase Generation: Support "Starting Phase" for all projects
-      // Default: New projects start at Initiation, Old projects start at Execution
-      // Special: Digital Banking defaults to Planning if not specified
-      let defaultStartPhase = isOld ? 'Execution' : 'Initiation';
-      if (row.packageName?.includes('Digital Banking') && !row.currentPhase) {
-        defaultStartPhase = 'Planning';
-      }
+        const phases = getPhaseListFromState(
+          row.currentPhase || defaultStartPhase, 
+          isClosed,
+          row.startDate,
+          actualCompDate
+        );
 
-      const phases = getPhaseListFromState(
-        row.currentPhase || defaultStartPhase, 
-        isClosed,
-        row.startDate,
-        actualCompDate
-      );
+        const milestones = mappedServiceIds.map(sid => {
+          const sb = config.serviceBaselines.find(b => b.id === sid);
+          return {
+            id: sid,
+            name: sb ? sb.name : sid,
+            status: (finalServiceStates[sid] as ServiceState) || 'Not Started'
+          };
+        });
 
-      // Package-aware Milestones: Convert service IDs to milestones
-      const milestones = mappedServiceIds.map(sid => {
-        const sb = config.serviceBaselines.find(b => b.id === sid);
-        return {
-          id: sid,
-          name: sb ? sb.name : sid,
-          status: (finalServiceStates[sid] as ServiceState) || 'Not Started'
+        const isInternalInitiativeImport = row.packageName === 'Internal Initiative';
+        const importedDeliveryTrack = isInternalInitiativeImport ? 'Internal Initiative' : 'Standard';
+
+        const mappedData: Partial<Project> = {
+          clientName: row.clientName,
+          packageName: row.packageName,
+          assignedPM: row.assignedPM,
+          startDate: row.startDate,
+          expectedDuration: baselineDays,
+          expectedCompletionDate,
+          currentCompletionDate: expectedCompletionDate,
+          value: Number(numVal) || 0,
+          currency: row.currency,
+          state: isClosed ? 'Closed' : (row.closureStatus as any || 'On-Track'),
+          priority: 'P2',
+          productLines,
+          services: isInternalInitiativeImport ? [] : mappedServiceIds,
+          serviceStates: isInternalInitiativeImport ? {} : finalServiceStates,
+          milestones,
+          phases,
+          intakeType: isOld ? 'Old' : 'New',
+          actualCompletionDate: actualCompDate,
+          deliveryTrack: importedDeliveryTrack,
+          isInternalInitiative: isInternalInitiativeImport,
+          phaseWeights: { initiation: 10, planning: 10, execution: 60, closure: 20 },
+          comments: [],
+          risks: [],
+          activities: []
         };
+
+        if (row.status === 'duplicate' && row.duplicateAction === 'overwrite') {
+          toUpdate.push(mappedData);
+        } else {
+          toAdd.push(mappedData);
+        }
       });
 
-      // Derive delivery track from package name
-      const isInternalInitiativeImport = row.packageName === 'Internal Initiative';
-      const importedDeliveryTrack = isInternalInitiativeImport ? 'Internal Initiative' : 'Standard';
-
-      const mappedData: Partial<Project> = {
-        clientName: row.clientName,
-        packageName: row.packageName,
-        assignedPM: row.assignedPM,
-        startDate: row.startDate,
-        expectedDuration: baselineDays,
-        expectedCompletionDate,
-        currentCompletionDate: expectedCompletionDate,
-        value: Number(numVal) || 0,
-        currency: row.currency,
-        state: isClosed ? 'Closed' : (row.closureStatus as any || 'On-Track'),
-        priority: 'P2',
-        productLines,
-        services: isInternalInitiativeImport ? [] : mappedServiceIds,
-        serviceStates: isInternalInitiativeImport ? {} : finalServiceStates,
-        milestones,
-        phases,
-        intakeType: isOld ? 'Old' : 'New',
-        actualCompletionDate: actualCompDate,
-        deliveryTrack: importedDeliveryTrack,
-        isInternalInitiative: isInternalInitiativeImport,
-        phaseWeights: {
-          initiation: 10,
-          planning: 10,
-          execution: 60,
-          closure: 20
-        },
-        comments: [],
-        risks: [],
-        activities: []
-      };
-
-      if (row.status === 'duplicate' && row.duplicateAction === 'overwrite') {
-        toUpdate.push(mappedData);
-      } else {
-        toAdd.push(mappedData);
+      try {
+        if (toAdd.length > 0 || toUpdate.length > 0) {
+          const result = await onImportBulk(toAdd, toUpdate, skipped);
+          setImportResult({ added: result?.added || 0, updated: result?.updated || 0, skipped });
+          setStep(3);
+        } else {
+          onShowToast('No rows to import after skips.', 'info');
+          onClose();
+        }
+      } catch (err: any) {
+        onShowToast(err.message || 'Import failed.', 'error');
+      } finally {
+        setIsImporting(false);
       }
-    });
+    } else {
+      // ── Implementation Import Logic ──
+      const toAdd: Partial<ServiceExtension>[] = [];
+      processedRows.forEach(row => {
+        if (row.status === 'error') return;
+        
+        const sb = config.serviceBaselines.find(s => s.name === row.serviceName);
+        const variant = row.serviceVariant || 'Standard';
+        
+        const ext: Partial<ServiceExtension> = {
+          clientName: row.clientName,
+          serviceId: sb?.id || 'unknown',
+          serviceName: row.serviceName,
+          serviceVariant: variant,
+          implementationManager: row.implementationManager,
+          startDate: row.startDate || new Date().toISOString().split('T')[0],
+          targetClosureDate: row.targetClosureDate,
+          status: (row.closureStatus as any) || 'Not Started',
+          milestones: sb?.milestones?.map(m => ({ name: m, completed: false, completedAt: null, completedBy: null })) || [],
+          mappingStatus: 'None'
+        };
+        toAdd.push(ext);
+      });
 
-    try {
-      if (toAdd.length > 0 || toUpdate.length > 0) {
-        const result = await onImportBulk(toAdd, toUpdate, skipped);
-        setImportResult({ added: result?.added || 0, updated: result?.updated || 0, skipped });
-        setStep(3);
-      } else {
-         onShowToast('No rows to import after skips.', 'info');
-         onClose();
+      try {
+        if (toAdd.length > 0) {
+          const result = await onImportExtensions?.(toAdd, skipped);
+          setImplImportResult({ added: result?.added || 0, skipped });
+          setStep(3);
+        } else {
+          onShowToast('No valid rows to import.', 'info');
+          onClose();
+        }
+      } catch (err: any) {
+        onShowToast(err.message || 'Import failed.', 'error');
+      } finally {
+        setIsImporting(false);
       }
-    } catch (err: any) {
-      onShowToast('Import failed. Please try again.', 'error');
-    } finally {
-      setIsImporting(false);
     }
   };
 
   return (
     <div className="flex flex-col h-[calc(100vh-100px)] animate-in fade-in duration-300">
       <ImportGuideModal 
-        isOpen={showGuide}
-        config={config}
+        isOpen={showGuide} 
+        config={config} 
+        mode={mode}
         onProceed={(hideFuture) => {
+          if (hideFuture) onUpdateConfig({ hideImportGuide: true });
           setShowGuide(false);
-          if (hideFuture) {
-             onUpdateConfig({ hideImportGuide: true });
-          }
         }}
-        onShowToast={onShowToast as any}
+        onShowToast={onShowToast}
       />
 
       <div className="flex justify-between items-center mb-6 px-6">
@@ -778,148 +834,186 @@ export const BulkImportView: React.FC<BulkImportViewProps> = ({ users, invites, 
                             />
                           </div>
 
-                          {/* Package & Services */}
+                          {/* Package & Services or Service */}
                           <div>
-                            <span className="block text-[10px] uppercase font-bold text-slate-400 mb-1">Package & Services</span>
-                            <select 
-                               value={row.packageName || ''} 
-                               onChange={(e) => updateRowField(actualIdx, 'packageName', e.target.value)}
-                               className={cn("w-full bg-transparent font-medium border-b border-transparent hover:border-slate-300 focus:border-teal-500 outline-none transition-colors mb-2", 
-                                 (!row.packageName || !validPackages.includes(row.packageName)) ? 'bg-red-50 text-red-600' : 'text-slate-700')}
-                            >
-                               <option value="">Select Package</option>
-                               {validPackages.map(p => <option key={p} value={p}>{p}</option>)}
-                            </select>
-                            
-                            {row.packageName && (
-                              <div className="flex flex-wrap gap-1 mt-1">
-                                 {(() => {
-                                   const pkg = config.packages.find((p: any) => p.name === row.packageName);
-                                   if (!pkg) return null;
-                                   const allAvail = pkg.services;
-                                   const activeServices = row.services || [];
-                                   
-                                   return allAvail.map((sid: string) => {
-                                     const isActive = activeServices.includes(sid);
-                                     const sb = config.serviceBaselines.find(b => b.id === sid);
-                                     const sName = sb ? sb.name : sid;
-                                     
-                                     return (
-                                       <button 
-                                         key={sid}
-                                         onClick={() => {
-                                           const newSet = isActive ? activeServices.filter(x => x !== sid) : [...activeServices, sid];
-                                           updateRowField(actualIdx, 'services', newSet);
-                                         }}
-                                         className={cn(
-                                           "text-[9px] font-bold px-1.5 py-0.5 rounded transition-all",
-                                           isActive ? "bg-slate-100 text-slate-600 hover:bg-red-50 hover:text-red-500 hover:line-through" : "bg-white border border-slate-200 text-slate-400 opacity-50 hover:opacity-100"
-                                         )}
-                                         title={isActive ? `Click to remove ${sName}` : `Click to add ${sName}`}
-                                       >
-                                         {sName}
-                                       </button>
-                                     )
-                                   });
-                                 })()}
+                            <span className="block text-[10px] uppercase font-bold text-slate-400 mb-1">{isProjects ? 'Package & Services' : 'Service & Variant'}</span>
+                            {isProjects ? (
+                              <>
+                                <select 
+                                  value={row.packageName || ''} 
+                                  onChange={(e) => updateRowField(actualIdx, 'packageName', e.target.value)}
+                                  className={cn("w-full bg-transparent font-medium border-b border-transparent hover:border-slate-300 focus:border-teal-500 outline-none transition-colors mb-2", 
+                                    (!row.packageName || !validPackages.includes(row.packageName)) ? 'bg-red-50 text-red-600' : 'text-slate-700')}
+                                >
+                                  <option value="">Select Package</option>
+                                  {validPackages.map(p => <option key={p} value={p}>{p}</option>)}
+                                </select>
+                                
+                                {row.packageName && (
+                                  <div className="flex flex-wrap gap-1 mt-1">
+                                     {(() => {
+                                       const pkg = config.packages.find((p: any) => p.name === row.packageName);
+                                       if (!pkg) return null;
+                                       const allAvail = pkg.services;
+                                       const activeServices = row.services || [];
+                                       
+                                       return allAvail.map((sid: string) => {
+                                         const isActive = activeServices.includes(sid);
+                                         const sb = config.serviceBaselines.find(b => b.id === sid);
+                                         const sName = sb ? sb.name : sid;
+                                         
+                                         return (
+                                           <button 
+                                             key={sid}
+                                             onClick={() => {
+                                               const newSet = isActive ? activeServices.filter(x => x !== sid) : [...activeServices, sid];
+                                               updateRowField(actualIdx, 'services', newSet);
+                                             }}
+                                             className={cn(
+                                               "text-[9px] font-bold px-1.5 py-0.5 rounded transition-all",
+                                               isActive ? "bg-slate-100 text-slate-600 hover:bg-red-50 hover:text-red-500 hover:line-through" : "bg-white border border-slate-200 text-slate-400 opacity-50 hover:opacity-100"
+                                             )}
+                                             title={isActive ? `Click to remove ${sName}` : `Click to add ${sName}`}
+                                           >
+                                             {sName}
+                                           </button>
+                                         )
+                                       });
+                                     })()}
+                                  </div>
+                                )}
+                              </>
+                            ) : (
+                              <div className="flex flex-col gap-2">
+                                <select 
+                                  value={row.serviceName || ''} 
+                                  onChange={(e) => updateRowField(actualIdx, 'serviceName', e.target.value)}
+                                  className={cn("w-full bg-transparent font-medium border-b border-transparent hover:border-slate-300 focus:border-teal-500 outline-none transition-colors", 
+                                    (!row.serviceName || !validServices.includes(row.serviceName)) ? 'bg-red-50 text-red-600' : 'text-slate-700')}
+                                >
+                                  <option value="">Select Service</option>
+                                  {validServices.map(s => <option key={s} value={s}>{s}</option>)}
+                                </select>
+                                <input 
+                                  value={row.serviceVariant || ''} 
+                                  onChange={(e) => updateRowField(actualIdx, 'serviceVariant', e.target.value)}
+                                  placeholder="Variant (e.g. ETZ)"
+                                  className="w-full bg-slate-50 text-[10px] font-bold px-2 py-1 rounded border border-transparent hover:border-slate-200 outline-none"
+                                />
                               </div>
                             )}
                           </div>
 
-                          {/* PM */}
+                          {/* PM or IM */}
                           <div>
-                            <span className="block text-[10px] uppercase font-bold text-slate-400 mb-1">PM</span>
+                            <span className="block text-[10px] uppercase font-bold text-slate-400 mb-1">{isProjects ? 'Project Manager' : 'Implementation Manager'}</span>
                             <select 
-                               value={row.assignedPM || ''} 
-                               onChange={(e) => updateRowField(actualIdx, 'assignedPM', e.target.value)}
+                               value={isProjects ? (row.assignedPM || '') : (row.implementationManager || '')} 
+                               onChange={(e) => updateRowField(actualIdx, isProjects ? 'assignedPM' : 'implementationManager', e.target.value)}
                                className={cn("w-full bg-transparent font-medium border-b border-transparent hover:border-slate-300 focus:border-teal-500 outline-none transition-colors", 
-                                 (!row.assignedPM || !validPMs.includes(row.assignedPM)) ? 'bg-red-50 text-red-600' : 'text-slate-700')}
+                                 (isProjects ? (!row.assignedPM || !validPMs.includes(row.assignedPM)) : (!row.implementationManager || !validIMs.includes(row.implementationManager))) ? 'bg-red-50 text-red-600' : 'text-slate-700')}
                             >
-                               <option value="">Select PM</option>
-                               {validPMs.map(p => <option key={p} value={p}>{p}</option>)}
+                               <option value="">Select Manager</option>
+                               {(isProjects ? validPMs : validIMs).map(m => <option key={m} value={m}>{m}</option>)}
                             </select>
                           </div>
 
-                           {/* Cost */}
-                           <div>
-                            <span className="block text-[10px] uppercase font-bold text-slate-400 mb-1">Cost ({row.currency || '??'})</span>
-                            <div className="flex gap-2">
-                               <input 
-                                 value={row.currency || ''} 
-                                 onChange={(e) => updateRowField(actualIdx, 'currency', e.target.value)}
-                                 className={cn("w-12 bg-transparent font-mono font-bold text-xs border-b border-transparent hover:border-slate-300 outline-none", !row.currency ? 'bg-red-50' : 'text-slate-500')}
-                                 placeholder="CUR"
-                               />
-                               <input 
-                                 value={row.value || ''} 
-                                 onChange={(e) => updateRowField(actualIdx, 'value', e.target.value)}
-                                 className={cn("w-full bg-transparent font-mono font-bold border-b border-transparent hover:border-slate-300 focus:border-teal-500 outline-none transition-colors", 
-                                   (row.value === undefined || row.value === '') ? 'bg-red-50 text-red-600' : 'text-slate-900')}
-                               />
-                            </div>
-                          </div>
+                           {/* Cost & Date (Dynamic) */}
+                           {isProjects ? (
+                              <>
+                                <div>
+                                  <span className="block text-[10px] uppercase font-bold text-slate-400 mb-1">Cost / Value</span>
+                                  <div className="flex items-center gap-1">
+                                    <input 
+                                      type="text"
+                                      value={row.value || ''} 
+                                      onChange={(e) => updateRowField(actualIdx, 'value', e.target.value)}
+                                      className={cn("w-20 bg-transparent font-bold border-b border-transparent hover:border-slate-300 focus:border-teal-500 outline-none transition-colors", 
+                                        (!row.value || isNaN(parseFloat(String(row.value).replace(/[^\d.-]/g, '')))) ? 'bg-red-50 text-red-600' : 'text-slate-900')}
+                                    />
+                                    <span className="text-[10px] font-black text-slate-400">{row.currency}</span>
+                                  </div>
+                                </div>
 
-                           {/* Date */}
-                           <div>
-                            <span className="block text-[10px] uppercase font-bold text-slate-400 mb-1">Start Date</span>
-                            <input 
-                               type="date"
-                               value={row.startDate || ''} 
-                               onChange={(e) => updateRowField(actualIdx, 'startDate', e.target.value)}
-                               className={cn("w-full bg-transparent font-medium border-b border-transparent hover:border-slate-300 focus:border-teal-500 outline-none transition-colors", 
-                                !row.startDate ? 'bg-red-50 text-red-600' : 'text-slate-700')}
-                            />
-                          </div>
+                                <div>
+                                  <span className="block text-[10px] uppercase font-bold text-slate-400 mb-1">Exp. Completion</span>
+                                  <input 
+                                    type="date"
+                                    value={row.expectedCompletionDate || ''} 
+                                    onChange={(e) => updateRowField(actualIdx, 'expectedCompletionDate', e.target.value)}
+                                    className={cn(
+                                      "text-[10px] font-bold bg-slate-50 border border-slate-200 rounded-lg px-2 py-0.5 outline-none transition-all",
+                                      !row.expectedCompletionDate ? "bg-red-50 border-red-200 text-red-600" : "text-slate-700"
+                                    )}
+                                  />
+                                </div>
+                              </>
+                            ) : (
+                              <>
+                                <div>
+                                  <span className="block text-[10px] uppercase font-bold text-slate-400 mb-1">Start Date</span>
+                                  <input 
+                                    type="date"
+                                    value={row.startDate || ''} 
+                                    onChange={(e) => updateRowField(actualIdx, 'startDate', e.target.value)}
+                                    className="text-[10px] font-bold bg-slate-50 border border-slate-200 rounded-lg px-2 py-0.5 outline-none"
+                                  />
+                                </div>
+
+                                <div>
+                                  <span className="block text-[10px] uppercase font-bold text-slate-400 mb-1">Target Closure</span>
+                                  <input 
+                                    type="date"
+                                    value={row.targetClosureDate || ''} 
+                                    onChange={(e) => updateRowField(actualIdx, 'targetClosureDate', e.target.value)}
+                                    className={cn(
+                                      "text-[10px] font-bold bg-slate-50 border border-slate-200 rounded-lg px-2 py-0.5 outline-none transition-all",
+                                      !row.targetClosureDate ? "bg-red-50 border-red-200 text-red-600" : "text-slate-700"
+                                    )}
+                                  />
+                                </div>
+                              </>
+                            )}
                         </div>
 
                         {/* Legacy Details Row (Conditional) */}
                         <div className="flex items-center gap-6 pt-3 mt-3 border-t border-slate-100">
-                          <div>
-                            <span className="block text-[8px] uppercase font-black text-slate-400 tracking-tighter mb-1">Intake Type</span>
-                            <select 
-                               value={row.intakeType || 'New'} 
-                               onChange={(e) => updateRowField(actualIdx, 'intakeType', e.target.value)}
-                               className={cn(
-                                 "text-[10px] font-black uppercase tracking-wider px-2 py-1 rounded-lg outline-none transition-all",
-                                 row.intakeType === 'Old' ? "bg-amber-100 text-amber-700" : "bg-teal-100 text-teal-700"
-                               )}
-                            >
-                               <option value="New">New Intake</option>
-                               <option value="Old">Older Project</option>
-                            </select>
-                          </div>
-
-                          {row.intakeType === 'Old' && (
-                            <>
-                              <div className="h-6 w-px bg-slate-100"></div>
+                          {isProjects && (
+                             <>
                               <div>
-                                <span className="block text-[8px] uppercase font-black text-slate-400 tracking-tighter mb-1">Starting Phase</span>
+                                <span className="block text-[8px] uppercase font-black text-slate-400 tracking-tighter mb-1">Intake Type</span>
                                 <select 
-                                  value={row.currentPhase || 'Execution'} 
-                                  onChange={(e) => updateRowField(actualIdx, 'currentPhase', e.target.value)}
-                                  className="text-[10px] font-bold text-slate-700 bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 outline-none"
+                                   value={row.intakeType || 'New'} 
+                                   onChange={(e) => updateRowField(actualIdx, 'intakeType', e.target.value)}
+                                   className={cn(
+                                     "text-[10px] font-black uppercase tracking-wider px-2 py-1 rounded-lg outline-none transition-all",
+                                     row.intakeType === 'Old' ? "bg-amber-100 text-amber-700" : "bg-teal-100 text-teal-700"
+                                   )}
                                 >
-                                  <option value="Initiation">Initiation</option>
-                                  <option value="Planning">Planning</option>
-                                  <option value="Execution">Execution</option>
-                                  <option value="Closure">Closure</option>
+                                   <option value="New">New Intake</option>
+                                   <option value="Old">Older Project</option>
                                 </select>
                               </div>
 
-                              <div className="h-6 w-px bg-slate-100"></div>
-                              <div>
-                                <span className="block text-[8px] uppercase font-black text-slate-400 tracking-tighter mb-1">Expected Completion</span>
-                                <input 
-                                  type="date"
-                                  value={row.expectedCompletionDate || ''} 
-                                  onChange={(e) => updateRowField(actualIdx, 'expectedCompletionDate', e.target.value)}
-                                  className={cn(
-                                    "text-[10px] font-bold bg-slate-50 border border-slate-200 rounded-lg px-2 py-0.5 outline-none transition-all",
-                                    !row.expectedCompletionDate ? "bg-red-50 border-red-200 text-red-600" : "text-slate-700"
-                                  )}
-                                />
-                              </div>
-                            </>
+                              {row.intakeType === 'Old' && (
+                                <>
+                                  <div className="h-6 w-px bg-slate-100"></div>
+                                  <div>
+                                    <span className="block text-[8px] uppercase font-black text-slate-400 tracking-tighter mb-1">Starting Phase</span>
+                                    <select 
+                                      value={row.currentPhase || 'Execution'} 
+                                      onChange={(e) => updateRowField(actualIdx, 'currentPhase', e.target.value)}
+                                      className="text-[10px] font-bold text-slate-700 bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 outline-none"
+                                    >
+                                      <option value="Initiation">Initiation</option>
+                                      <option value="Planning">Planning</option>
+                                      <option value="Execution">Execution</option>
+                                      <option value="Closure">Closure</option>
+                                    </select>
+                                  </div>
+                                </>
+                              )}
+                             </>
                           )}
 
                           {row.errors && row.errors.length > 0 && (
@@ -943,7 +1037,7 @@ export const BulkImportView: React.FC<BulkImportViewProps> = ({ users, invites, 
                               <div className="flex flex-col gap-1 w-full">
                                 <span className="text-[10px] font-bold text-amber-600 uppercase w-full bg-amber-50 px-2 py-1 rounded-md mb-1 text-center border border-amber-200">Duplicate</span>
                                 <div className="flex gap-1 w-full">
-                                  <button onClick={() => handleDuplicateAction(actualIdx, 'overwrite')} className="flex-1 text-[10px] font-bold py-1.5 bg-white text-slate-700 hover:bg-slate-100 border border-slate-300 rounded shadow-sm">Overrite</button>
+                                  <button onClick={() => handleDuplicateAction(actualIdx, 'overwrite')} className="flex-1 text-[10px] font-bold py-1.5 bg-white text-slate-700 hover:bg-slate-100 border border-slate-300 rounded shadow-sm">Overwrite</button>
                                   <button onClick={() => handleDuplicateAction(actualIdx, 'skip')} className="flex-1 text-[10px] font-bold py-1.5 bg-white text-slate-700 hover:bg-slate-100 border border-slate-300 rounded shadow-sm">Skip</button>
                                 </div>
                               </div>
@@ -1004,34 +1098,34 @@ export const BulkImportView: React.FC<BulkImportViewProps> = ({ users, invites, 
             </div>
           )}
 
-          {step === 3 && importResult && (
-             <div className="flex-1 p-8 flex flex-col items-center justify-center bg-emerald-50 text-center animate-in zoom-in duration-500">
-                <div className="w-24 h-24 bg-emerald-100 rounded-full flex items-center justify-center mb-6 border-4 border-white shadow-xl">
-                  <Check className="w-12 h-12 text-emerald-600" />
-                </div>
-                <h3 className="text-3xl font-black text-slate-900 mb-2">Import Complete!</h3>
-                <p className="text-slate-600 font-medium mb-8">Your projects have been successfully synchronized to the database.</p>
-                
-                <div className="grid grid-cols-3 gap-6 mb-10 w-full max-w-lg">
-                   <div className="bg-white p-4 rounded-2xl shadow-sm border border-emerald-100">
-                     <p className="text-xs font-bold text-slate-400 uppercase">Created</p>
-                     <p className="text-2xl font-black text-emerald-600">{importResult.added}</p>
-                   </div>
-                   <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100">
-                     <p className="text-xs font-bold text-slate-400 uppercase">Overwritten</p>
-                     <p className="text-2xl font-black text-slate-700">{importResult.updated}</p>
-                   </div>
-                   <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100">
-                     <p className="text-xs font-bold text-slate-400 uppercase">Skipped</p>
-                     <p className="text-2xl font-black text-slate-400">{importResult.skipped}</p>
-                   </div>
-                </div>
-
-                <button onClick={onClose} className={cn("px-8 py-4 font-black rounded-xl text-white shadow-xl transition-transform hover:scale-105", theme.bg)}>
-                  Return to Dashboard
-                </button>
-             </div>
-          )}
+        {/* Step 3: Success */}
+        {step === 3 && (
+          <div className="flex-1 flex flex-col items-center justify-center p-8 space-y-6 text-center animate-in fade-in zoom-in duration-300">
+            <div className="w-20 h-20 bg-emerald-100 rounded-full flex items-center justify-center mb-2">
+              <CheckCircle2 className="w-10 h-10 text-emerald-600" />
+            </div>
+            <div>
+              <h3 className="text-2xl font-black text-slate-900">Import Complete!</h3>
+              <p className="text-slate-500 font-medium mt-1">
+                {isProjects 
+                  ? `Successfully imported ${importResult?.added} new projects and updated ${importResult?.updated}.`
+                  : `Successfully imported ${implImportResult?.added} ancillary implementations.`
+                }
+              </p>
+              {(isProjects ? (importResult?.skipped || 0) : (implImportResult?.skipped || 0)) > 0 && (
+                <p className="text-sm font-bold text-amber-600 mt-2">
+                   ({isProjects ? importResult?.skipped : implImportResult?.skipped} duplicates were skipped)
+                </p>
+              )}
+            </div>
+            <button
+              onClick={onClose}
+              className={cn("px-8 py-3 text-white font-bold rounded-xl shadow-lg transition-transform hover:scale-105", theme.bg)}
+            >
+              Back to Dashboard
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

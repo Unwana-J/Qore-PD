@@ -9,15 +9,18 @@ interface ImportGuideModalProps {
   isOpen: boolean;
   config: AppConfig;
   onProceed: (hideFuture: boolean) => void;
-  onShowToast: (message: string, type?: 'error' | 'success') => void;
+  onShowToast: (message: string, type?: 'error' | 'success' | 'info') => void;
+  mode?: 'projects' | 'implementations';
 }
 
 export const ImportGuideModal: React.FC<ImportGuideModalProps> = ({ 
   isOpen, 
   config, 
   onProceed, 
-  onShowToast 
+  onShowToast,
+  mode = 'projects'
 }) => {
+  const isProjects = mode === 'projects';
   const theme = getThemeClasses(config.brand.themeColor);
   const [hideFuture, setHideFuture] = useState(false);
 
@@ -29,33 +32,54 @@ export const ImportGuideModal: React.FC<ImportGuideModalProps> = ({
       const wb = XLSX.utils.book_new();
 
       // --- Sheet 1: Import Template ---
-      const headers = [
-        "Institution Name", "Package / Service Type", "Project Manager", 
-        "Intake Type", "Starting Phase", "Start Date", "Expected Completion Date", 
-        "Cost / Value", "Currency", "Subscription Level", "USSD", "Transfers", 
-        "Mobile / Internet Banking", "Branchless", "Cards", 
-        "Bills Payment", "API Provisioning", "Project Closure Status", 
-        "Key Updates / Notes"
-      ];
+      let headers: string[];
+      let sampleDataRow: string[];
+      let guidanceRow: string[];
 
-      const sampleDataRow = [
-        "Apex Microfinance Bank", "Digital Banking", "Sarah Jenkins",
-        "Old", "Execution", "01/01/2025", "30/06/2025", "5000000",
-        "NGN", "BIB L1", "Live", "Live",
-        "Not Started", "Out of Scope", "Not Started",
-        "Not Started", "Not Started", "Active",
-        "Legacy project. All previous phases auto-completed."
-      ];
+      if (isProjects) {
+        headers = [
+          "Institution Name", "Package / Service Type", "Project Manager", 
+          "Intake Type", "Starting Phase", "Start Date", "Expected Completion Date", 
+          "Cost / Value", "Currency", "Subscription Level", "USSD", "Transfers", 
+          "Mobile / Internet Banking", "Branchless", "Cards", 
+          "Bills Payment", "API Provisioning", "Project Closure Status", 
+          "Key Updates / Notes"
+        ];
 
-      const guidanceRow = [
-        "Required. Must be unique.", "Must match a configured service type exactly", "Must match an existing user in the system",
-        "New or Old. Use 'Old' for legacy projects.", "Initiation, Planning, Execution, or Closure", "Required. Format: DD/MM/YYYY", "Required for 'Old' projects. Optional for 'New'.",
-        "Required. Numbers only — no symbols or commas",
-        "NGN, USD, GBP, EUR, KES, GHS, or ZAR", "Optional", "Live, Not Started, Out of Scope, or Not Ready", "Live, Not Started, Out of Scope, or Not Ready",
-        "Live, Not Started, Out of Scope, or Not Ready", "Live, Not Started, Out of Scope, or Not Ready", "Live, Not Started, Out of Scope, or Not Ready",
-        "Live, Not Started, Out of Scope, or Not Ready", "Live, Not Started, Out of Scope, or Not Ready", "Active, Closed, Suspended, Signed Off, Billed",
-        "Optional. Free text."
-      ];
+        sampleDataRow = [
+          "Apex Microfinance Bank", "Digital Banking", "Sarah Jenkins",
+          "Old", "Execution", "01/01/2025", "30/06/2025", "5000000",
+          "NGN", "BIB L1", "Live", "Live",
+          "Not Started", "Out of Scope", "Not Started",
+          "Not Started", "Not Started", "Active",
+          "Legacy project. All previous phases auto-completed."
+        ];
+
+        guidanceRow = [
+          "Required. Must be unique.", "Must match a configured service type exactly", "Must match an existing user in the system",
+          "New or Old. Use 'Old' for legacy projects.", "Initiation, Planning, Execution, or Closure", "Required. Format: DD/MM/YYYY", "Required for 'Old' projects. Optional for 'New'.",
+          "Required. Numbers only — no symbols or commas",
+          "NGN, USD, GBP, EUR, KES, GHS, or ZAR", "Optional", "Live, Not Started, Out of Scope, or Not Ready", "Live, Not Started, Out of Scope, or Not Ready",
+          "Live, Not Started, Out of Scope, or Not Ready", "Live, Not Started, Out of Scope, or Not Ready", "Live, Not Started, Out of Scope, or Not Ready",
+          "Live, Not Started, Out of Scope, or Not Ready", "Live, Not Started, Out of Scope, or Not Ready", "Active, Closed, Suspended, Signed Off, Billed",
+          "Optional. Free text."
+        ];
+      } else {
+        headers = [
+          "Institution Name", "Service", "Gateway / Variant", "Implementation Manager", 
+          "Start Date", "Target Closure Date", "Project Status", "Key Updates / Notes"
+        ];
+
+        sampleDataRow = [
+          "Apex Microfinance Bank", "Transfers", "ETZ", "Feranmi",
+          "01/01/2026", "20/01/2026", "Completed", "Standard transfer setup."
+        ];
+
+        guidanceRow = [
+          "Required.", "e.g. USSD, Transfers, Cards, etc. Must match system names.", "Optional. e.g. ETZ, ISW, PRV", "Required. Must match an existing user.",
+          "Optional. DD/MM/YYYY", "Required. DD/MM/YYYY", "Not Started, In Progress, Completed, Suspended", "Optional."
+        ];
+      }
 
       const templateWs = XLSX.utils.aoa_to_sheet([headers, sampleDataRow, guidanceRow]);
       XLSX.utils.book_append_sheet(wb, templateWs, "Import Template");
@@ -94,7 +118,8 @@ export const ImportGuideModal: React.FC<ImportGuideModalProps> = ({
       XLSX.utils.book_append_sheet(wb, instructionsWs, "Instructions");
 
       // Generate File and trigger download
-      XLSX.writeFile(wb, "Qore_PD_Import_Template.xlsx");
+      const fileName = isProjects ? "Qore_PD_Projects_Import_Template.xlsx" : "Qore_PD_Implementations_Import_Template.xlsx";
+      XLSX.writeFile(wb, fileName);
     } catch (e) {
       onShowToast("Template download failed. Please try again.", "error");
     }

@@ -958,7 +958,7 @@ export function useProjects(userRole: Role, config: AppConfig, userName: string 
 
       const now = new Date();
       await api.audit.addLog({
-        action: 'Bulk Import',
+        action: 'Bulk Import (Projects)',
         user: userName,
         details: `Created: ${projectsToAdd.length} | Overwritten: ${projectsToUpdate.length} | Skipped: ${skippedCount}. Institutions: ${importedNames}`,
         timestamp: format(now, 'yyyy-MM-dd HH:mm'),
@@ -976,6 +976,33 @@ export function useProjects(userRole: Role, config: AppConfig, userName: string 
     }
   };
 
+  const importBulkExtensions = async (extensionsToAdd: Partial<ServiceExtension>[], skippedCount: number) => {
+    try {
+      if (extensionsToAdd.length === 0) return;
+      
+      await api.serviceExtensions.createBulk(extensionsToAdd);
+      
+      const importedNames = extensionsToAdd.map(e => e.clientName).join(', ');
+
+      const now = new Date();
+      await api.audit.addLog({
+        action: 'Bulk Import (Implementations)',
+        user: userName,
+        details: `Created: ${extensionsToAdd.length} | Skipped: ${skippedCount}. Institutions: ${importedNames}`,
+        timestamp: format(now, 'yyyy-MM-dd HH:mm'),
+        category: 'Project'
+      });
+
+      // Refetch projects (since extensions link to them)
+      queryClient.invalidateQueries({ queryKey: ['projects'] });
+
+      return { added: extensionsToAdd.length };
+    } catch (error) {
+      console.error('Failed to import bulk extensions', error);
+      throw error;
+    }
+  };
+
   const allRebaselineRequests = useMemo(() => {
     return projects.flatMap(p => p.rebaselineRequests || []);
   }, [projects]);
@@ -988,6 +1015,7 @@ export function useProjects(userRole: Role, config: AppConfig, userName: string 
     allRebaselineRequests,
     addProject,
     importBulkProjects,
+    importBulkExtensions,
     updateProject,
     billProject,
     rejectBilling,

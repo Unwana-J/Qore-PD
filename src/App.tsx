@@ -61,6 +61,7 @@ function AppContent() {
   const userRole = simulatedRole || actualRole;
   // IDs of projects the current IM is mapped to (via approved service_extensions)
   const [imMappedProjectIds, setImMappedProjectIds] = useState<Set<string>>(new Set());
+  const [importMode, setImportMode] = useState<'projects' | 'implementations'>('projects');
 
   const {
     filteredProjects,
@@ -69,6 +70,7 @@ function AppContent() {
     setSelectedProject,
     addProject: originalAddProject,
     importBulkProjects,
+    importBulkExtensions,
     updateProject,
     billProject,
     rejectBilling,
@@ -567,11 +569,16 @@ function AppContent() {
                     )}
                     {currentView === 'implementations' && (
                       <ImplementationsView 
-                        userRole={userRole}
-                        userName={profile?.name || 'User'}
-                        config={config}
+                        userRole={userRole || 'PM'} 
+                        userName={profile?.name || 'User'} 
+                        config={config} 
                         projects={projects}
                         users={users}
+                        onShowToast={(msg, type) => type === 'error' ? error(msg) : success(msg)}
+                        onImportExtensions={() => {
+                          setImportMode('implementations');
+                          setIsBulkImportOpen(true);
+                        }}
                         defaultTab={isRole(userRole, 'IM Lead') || isRole(userRole, 'Superadmin') ? 'all' : 'mine'}
                         mode="list"
                         onViewProject={(pid) => {
@@ -625,19 +632,22 @@ function AppContent() {
       {isBulkImportOpen && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 lg:p-10 hide-scrollbar overflow-y-auto">
           <div className="bg-white w-full h-[calc(100vh-100px)] rounded-3xl shadow-2xl relative overflow-hidden flex flex-col">
-            <BulkImportView 
+            <BulkImportView
               users={users}
               invites={invites}
               projects={projects}
               config={config}
-              userRole={userRole}
+              userRole={userRole || 'PM'}
+              mode={importMode}
               onImportBulk={importBulkProjects}
-              onShowToast={(msg, type) => type === 'error' ? notifyError(msg) : success(msg)}
-              onClose={async () => {
-                await refreshProjects();
-                setIsBulkImportOpen(false);
+              onImportExtensions={importBulkExtensions}
+              onShowToast={(msg, type) => {
+                if (type === 'error') error(msg);
+                else if (type === 'success') success(msg);
+                else info(msg);
               }}
               onUpdateConfig={handleUpdateConfig}
+              onClose={() => setIsBulkImportOpen(false)}
             />
           </div>
         </div>
@@ -693,6 +703,16 @@ function AppContent() {
               >
                 Review Now
               </button>
+              <button
+                  onClick={() => {
+                    setImportMode('projects');
+                    setIsBulkImportOpen(true);
+                  }}
+                  className="flex items-center gap-2 px-3 py-1.5 text-[11px] font-bold text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-all shadow-sm"
+                >
+                  <Upload className="w-3.5 h-3.5" />
+                  Import Projects
+                </button>
               <button 
                 onClick={() => setShowSPIAnomaly(false)}
                 className="p-2 hover:bg-white/20 rounded-xl transition-colors text-white/60 hover:text-white"

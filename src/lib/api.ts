@@ -492,6 +492,31 @@ export const api = {
       updatedAt: r.updated_at,
     }),
 
+    _toDb: (ext: Partial<ServiceExtension>) => ({
+      client_name: ext.clientName,
+      service_id: ext.serviceId,
+      service_name: ext.serviceName,
+      service_variant: ext.serviceVariant,
+      sub_service_id: ext.subServiceId,
+      baseline_days: ext.baselineDays,
+      implementation_manager: ext.implementationManager,
+      start_date: ext.startDate,
+      target_closure_date: ext.targetClosureDate,
+      status: ext.status,
+      milestones: ext.milestones,
+      linked_project_id: ext.linkedProjectId,
+      mapping_status: ext.mappingStatus,
+      mapping_requested_at: ext.mappingRequestedAt,
+      mapping_approved_at: ext.mappingApprovedAt,
+      mapping_rejection_comment: ext.mappingRejectionComment,
+      mapping_notes: ext.mappingNotes,
+      unmap_comment: ext.unmapComment,
+      extension_request: ext.extensionRequest,
+      extension_history: ext.extensionHistory,
+      assignment_history: ext.assignmentHistory,
+      suspension_request: ext.suspensionRequest,
+    }),
+
     // ── CRUD ─────────────────────────────────────────────────────────────────
     getAll: async (): Promise<ServiceExtension[]> => {
       const { data, error } = await supabase
@@ -525,26 +550,18 @@ export const api = {
     create: async (ext: Omit<ServiceExtension, 'id' | 'createdAt' | 'updatedAt'>): Promise<ServiceExtension> => {
       const { data, error } = await supabase
         .from('service_extensions')
-        .insert({
-          client_name: ext.clientName,
-          service_id: ext.serviceId,
-          service_name: ext.serviceName,
-          service_variant: ext.serviceVariant,
-          sub_service_id: ext.subServiceId,
-          baseline_days: ext.baselineDays,
-          implementation_manager: ext.implementationManager,
-          start_date: ext.startDate,
-          target_closure_date: ext.targetClosureDate,
-          status: ext.status,
-          milestones: ext.milestones,
-          linked_project_id: ext.linkedProjectId,
-          mapping_status: ext.mappingStatus,
-          mapping_notes: ext.mappingNotes,
-        })
+        .insert(api.serviceExtensions._toDb(ext))
         .select()
         .single();
       if (error) throw error;
       return api.serviceExtensions._fromDb(data);
+    },
+
+    createBulk: async (extensions: Partial<ServiceExtension>[]): Promise<void> => {
+      if (extensions.length === 0) return;
+      const dbRows = extensions.map(api.serviceExtensions._toDb);
+      const { error } = await supabase.from('service_extensions').insert(dbRows);
+      if (error) throw error;
     },
 
     updateMilestones: async (

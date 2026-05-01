@@ -1,6 +1,6 @@
 export type Role = 'Superadmin' | 'Manager' | 'Team Lead' | 'PM' | 'Finance' | 'Executive' | 'IM' | 'IM Lead';
 
-export type DeliveryTrack = 'Standard' | 'Customization' | 'Internal Initiative' | 'Ancillary';
+export type DeliveryTrack = 'Standard' | 'Customization' | 'Internal Initiative' | 'Ancillary Implementation' | 'Ancillary';
 
 export type ProjectState = 
   | 'On-Track' 
@@ -307,6 +307,20 @@ export interface User {
   avatar?: string;
   invitedAt?: string;
   lastLogin?: string;
+}
+
+export interface BulkImportViewProps {
+  users: User[];
+  invites?: any[];
+  projects: Project[];
+  config: AppConfig;
+  userRole: Role;
+  mode?: 'projects' | 'implementations';
+  onImportBulk: (add: Partial<Project>[], update: Partial<Project>[], skippedCount: number) => Promise<{ added: number, updated: number } | undefined>;
+  onImportExtensions?: (add: Partial<ServiceExtension>[], skippedCount: number) => Promise<{ added: number } | undefined>;
+  onShowToast: (message: string, type?: 'error' | 'success' | 'info') => void;
+  onUpdateConfig: (updates: Partial<AppConfig>) => void;
+  onClose: () => void;
 }
 
 export interface AuditLog {
