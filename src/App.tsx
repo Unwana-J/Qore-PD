@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Loader2, AlertCircle, RefreshCw, UserCircle, ChevronRight, X, Settings } from 'lucide-react';
+import { Loader2, AlertCircle, RefreshCw, UserCircle, ChevronRight, X, Settings, Upload } from 'lucide-react';
 import { cn, isRole, hasRole, resolveServiceIds } from './lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
 import { Sidebar } from './components/layout/Sidebar';
