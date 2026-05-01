@@ -86,10 +86,11 @@ export const BulkImportView: React.FC<BulkImportViewProps> = ({
   // Unique list of all PMs (system + invited)
   const validPMs = Array.from(new Set([...activePMNames, ...invitedNames]));
 
-  const validIMs = Array.from(new Set([
-    ...users.filter(u => u.role === 'IM' || u.role === 'IM Lead').map(u => u.name),
-    ...users.filter(u => u.role === 'Superadmin' || u.role === 'Manager').map(u => u.name)
-  ]));
+  const invitedIMNames = (invites || []).filter((i: any) => (i.role === 'IM' || i.role === 'IM Lead') && i.status === 'Pending').map((i: any) => i.name);
+  const activeIMNames = users.filter((u: any) => u.role === 'IM' || u.role === 'IM Lead').map((u: any) => u.name);
+  const adminNames = users.filter((u: any) => u.role === 'Superadmin' || u.role === 'Manager').map((u: any) => u.name);
+
+  const validIMs = Array.from(new Set([...activeIMNames, ...invitedIMNames, ...adminNames]));
 
   const validServices = config.serviceBaselines.map(s => s.name);
   
