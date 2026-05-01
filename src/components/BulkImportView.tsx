@@ -165,10 +165,11 @@ export const BulkImportView: React.FC<BulkImportViewProps> = ({
         errors.push('Implementation Manager is blank');
       }
 
-      // Target Date validation
-      if (!safeTrim(row.targetClosureDate)) {
+      // Target Date validation (Optional for APIs)
+      const isAPI = row.serviceName === 'APIs' || row.serviceName === 'API Provisioning';
+      if (!isAPI && !safeTrim(row.targetClosureDate)) {
         errors.push('Target Closure Date is missing');
-      } else {
+      } else if (safeTrim(row.targetClosureDate)) {
         try {
           let d: Date;
           const raw = safeTrim(row.targetClosureDate);
