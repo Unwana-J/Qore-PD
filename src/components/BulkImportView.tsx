@@ -981,12 +981,38 @@ export const BulkImportView: React.FC<BulkImportViewProps> = ({
                                   <option value="">Select Service</option>
                                   {validServices.map(s => <option key={s} value={s}>{s}</option>)}
                                 </select>
-                                <input 
-                                  value={row.serviceVariant || ''} 
-                                  onChange={(e) => updateRowField(actualIdx, 'serviceVariant', e.target.value)}
-                                  placeholder="Variant (e.g. ETZ)"
-                                  className="w-full bg-slate-50 text-[10px] font-bold px-2 py-1 rounded border border-transparent hover:border-slate-200 outline-none"
-                                />
+                                {(() => {
+                                  const sb = config.serviceBaselines.find(s => s.name === row.serviceName);
+                                  const variants = sb?.subServices?.map(ss => ss.name) || sb?.variants || [];
+                                  
+                                  if (variants.length > 0) {
+                                    return (
+                                      <div className="flex flex-wrap gap-1 mt-1">
+                                        {variants.map(v => (
+                                          <button
+                                            key={v}
+                                            onClick={() => updateRowField(actualIdx, 'serviceVariant', v)}
+                                            className={cn(
+                                              "text-[8px] font-black uppercase tracking-tighter px-1.5 py-0.5 rounded transition-all",
+                                              row.serviceVariant === v ? "bg-slate-800 text-white shadow-sm" : "bg-slate-100 text-slate-500 hover:bg-slate-200"
+                                            )}
+                                          >
+                                            {v}
+                                          </button>
+                                        ))}
+                                      </div>
+                                    );
+                                  }
+                                  
+                                  return (
+                                    <input 
+                                      value={row.serviceVariant || ''} 
+                                      onChange={(e) => updateRowField(actualIdx, 'serviceVariant', e.target.value)}
+                                      placeholder="Variant (e.g. ETZ)"
+                                      className="w-full bg-slate-50 text-[10px] font-bold px-2 py-1 rounded border border-transparent hover:border-slate-200 outline-none"
+                                    />
+                                  );
+                                })()}
                               </div>
                             )}
                           </div>
