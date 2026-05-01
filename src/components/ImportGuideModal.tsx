@@ -160,22 +160,22 @@ export const ImportGuideModal: React.FC<ImportGuideModalProps> = ({
                <Info className="w-4 h-4 text-teal-600" /> What this does
              </h3>
              <ul className="space-y-3 text-sm text-slate-600 font-medium">
-                <li className="flex items-start gap-2">
-                  <span className="w-1.5 h-1.5 rounded-full bg-slate-300 mt-2 shrink-0"></span>
-                  Bulk import lets you add multiple projects to the platform at once
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="w-1.5 h-1.5 rounded-full bg-slate-300 mt-2 shrink-0"></span>
-                  After uploading, you'll review every entry before anything is saved
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="w-1.5 h-1.5 rounded-full bg-slate-300 mt-2 shrink-0"></span>
-                  Incomplete or invalid rows are flagged — you can fix or remove them before confirming
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="w-1.5 h-1.5 rounded-full bg-slate-300 mt-2 shrink-0"></span>
-                  Once confirmed, all projects are created and dashboards update immediately
-                </li>
+                 <li className="flex items-start gap-2">
+                   <span className="w-1.5 h-1.5 rounded-full bg-slate-300 mt-2 shrink-0"></span>
+                   {isProjects ? "Bulk import lets you add multiple projects to the platform at once" : "Bulk import lets you add multiple service implementations at once"}
+                 </li>
+                 <li className="flex items-start gap-2">
+                   <span className="w-1.5 h-1.5 rounded-full bg-slate-300 mt-2 shrink-0"></span>
+                   After uploading, you'll review every entry before anything is saved
+                 </li>
+                 <li className="flex items-start gap-2">
+                   <span className="w-1.5 h-1.5 rounded-full bg-slate-300 mt-2 shrink-0"></span>
+                   Incomplete or invalid rows are flagged — you can fix or remove them before confirming
+                 </li>
+                 <li className="flex items-start gap-2">
+                   <span className="w-1.5 h-1.5 rounded-full bg-slate-300 mt-2 shrink-0"></span>
+                   {isProjects ? "Once confirmed, all projects are created and dashboards update immediately" : "Once confirmed, all implementations are added to the tracking system"}
+                 </li>
              </ul>
            </div>
 
@@ -186,10 +186,10 @@ export const ImportGuideModal: React.FC<ImportGuideModalProps> = ({
              </h3>
              <ol className="space-y-3 text-sm text-slate-600 font-medium list-decimal pl-4">
                <li>Download the template below</li>
-               <li>Fill in your project data — one project per row</li>
+               <li>{isProjects ? "Fill in your project data — one project per row" : "Fill in your implementation data — one per row"}</li>
                <li>Upload the completed file</li>
                <li>Review flagged entries and fix or remove them</li>
-               <li>Confirm to create all projects</li>
+               <li>Confirm to create all {isProjects ? "projects" : "implementations"}</li>
              </ol>
            </div>
         </div>
