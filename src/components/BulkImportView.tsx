@@ -165,10 +165,41 @@ export const BulkImportView: React.FC<BulkImportViewProps> = ({
         errors.push('Implementation Manager is blank');
       }
 
-      // Target Date validation (Optional for APIs)
+      // Target Date validation (Optional for APIs, Auto-calculated for others if baseline exists)
       const isAPI = row.serviceName === 'APIs' || row.serviceName === 'API Provisioning';
+      
       if (!isAPI && !safeTrim(row.targetClosureDate)) {
-        errors.push('Target Closure Date is missing');
+        // Try to auto-calculate from baseline
+        const baseline = config.serviceBaselines.find(b => b.name === row.serviceName);
+        const sDateRaw = safeTrim(row.startDate);
+        
+        if (baseline && sDateRaw) {
+          try {
+            let sDate: Date;
+            if ((row.startDate as any) instanceof Date) sDate = row.startDate as any;
+            else {
+              // Try to parse DD/MM/YYYY or standard ISO
+              const parts = sDateRaw.split(/[\/\-]/);
+              if (parts.length === 3 && parts[0].length <= 2) {
+                sDate = new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
+              } else {
+                sDate = new Date(sDateRaw);
+              }
+            }
+
+            if (!isNaN(sDate.getTime())) {
+              const targetDate = new Date(sDate);
+              targetDate.setDate(targetDate.getDate() + (baseline.baselineDays || 14));
+              row.targetClosureDate = targetDate.toISOString().split('T')[0];
+            } else {
+              errors.push('Target Closure Date is missing (Start Date invalid for calculation)');
+            }
+          } catch (e) {
+            errors.push('Target Closure Date is missing (Auto-calculation failed)');
+          }
+        } else {
+          errors.push('Target Closure Date is missing');
+        }
       } else if (safeTrim(row.targetClosureDate)) {
         try {
           let d: Date;
