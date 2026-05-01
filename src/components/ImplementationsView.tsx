@@ -188,6 +188,8 @@ export const ImplementationsView: React.FC<ImplementationsViewProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('All');
   const [managerFilter, setManagerFilter] = useState<string>('All');
+  const [serviceFilter, setServiceFilter] = useState<string>('All');
+  const [monthFilter, setMonthFilter] = useState<string>('All');
 
   // Handle initial deep-linking from digest
   useEffect(() => {
@@ -244,9 +246,23 @@ export const ImplementationsView: React.FC<ImplementationsViewProps> = ({
       if (statusFilter === 'Delayed') matchesStatus = ext.status !== 'Completed' && new Date(ext.targetClosureDate) < new Date();
 
       const matchesManager = managerFilter === 'All' || ext.implementationManager === managerFilter;
-      return matchesSearch && matchesStatus && matchesManager;
+      const matchesService = serviceFilter === 'All' || ext.serviceName === serviceFilter;
+      
+      let matchesMonth = true;
+      if (monthFilter !== 'All') {
+        const d = new Date(ext.startDate);
+        matchesMonth = d.getMonth() === parseInt(monthFilter);
+      }
+
+      return matchesSearch && matchesStatus && matchesManager && matchesService && matchesMonth;
     });
-  }, [extensions, searchTerm, statusFilter, managerFilter]);
+  }, [extensions, searchTerm, statusFilter, managerFilter, serviceFilter, monthFilter]);
+
+  const validServices = useMemo(() => {
+    return Array.from(new Set(extensions.map(e => e.serviceName))).sort();
+  }, [extensions]);
+
+  const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
   const managers = useMemo(() => {
     const ims = users.filter(u => u.role === 'IM' || u.role === 'IM Lead' || u.role === 'Superadmin');
@@ -283,6 +299,28 @@ export const ImplementationsView: React.FC<ImplementationsViewProps> = ({
             </div>
           )}
           <div className="relative group">
+            <Package className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+            <select
+              value={serviceFilter}
+              onChange={(e) => setServiceFilter(e.target.value)}
+              className="pl-11 pr-10 py-3 bg-white border border-slate-200 rounded-2xl text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 appearance-none shadow-sm cursor-pointer"
+            >
+              <option value="All">All Services</option>
+              {validServices.map(s => <option key={s} value={s}>{s}</option>)}
+            </select>
+          </div>
+          <div className="relative group">
+            <Clock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+            <select
+              value={monthFilter}
+              onChange={(e) => setMonthFilter(e.target.value)}
+              className="pl-11 pr-10 py-3 bg-white border border-slate-200 rounded-2xl text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 appearance-none shadow-sm cursor-pointer"
+            >
+              <option value="All">All Months</option>
+              {months.map((m, i) => <option key={i} value={i}>{m}</option>)}
+            </select>
+          </div>
+          <div className="relative group">
             <Filter className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
             <select
               value={statusFilter}
@@ -296,9 +334,9 @@ export const ImplementationsView: React.FC<ImplementationsViewProps> = ({
               <option value="Suspended">Suspended</option>
             </select>
           </div>
-          {(searchTerm || managerFilter !== 'All' || statusFilter !== 'All') && (
+          {(searchTerm || managerFilter !== 'All' || statusFilter !== 'All' || serviceFilter !== 'All' || monthFilter !== 'All') && (
             <button
-              onClick={() => { setSearchTerm(''); setManagerFilter('All'); setStatusFilter('All'); }}
+              onClick={() => { setSearchTerm(''); setManagerFilter('All'); setStatusFilter('All'); setServiceFilter('All'); setMonthFilter('All'); }}
               className="p-3 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-2xl transition-all"
               title="Clear Filters"
             >
