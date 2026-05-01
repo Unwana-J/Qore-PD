@@ -245,9 +245,17 @@ export function useProjects(userRole: Role, config: AppConfig, userName: string 
         const sevenDaysAgo = new Date(today); sevenDaysAgo.setDate(today.getDate() - 7);
         const mondayKey = getMondayKey();
 
-        const active = allExtensions.filter(e => e.status !== 'Completed');
-        const completedThisWeek = allExtensions.filter(e => e.status === 'Completed' && new Date(e.updatedAt) >= sevenDaysAgo).length;
+        // Role-based filtering for the Implementation Digest
+        let extensionsToDigest = allExtensions;
+        const isIndividualIM = userRole === 'IM' && !hasRole(userRole, ['Superadmin', 'Manager', 'IM Lead', 'Team Lead']);
         
+        if (isIndividualIM) {
+          const normalizedUserName = userName?.trim().toLowerCase();
+          extensionsToDigest = allExtensions.filter(e => e.implementationManager?.trim().toLowerCase() === normalizedUserName);
+        }
+
+        const active = extensionsToDigest.filter(e => e.status !== 'Completed');
+        const completedThisWeek = extensionsToDigest.filter(e => e.status === 'Completed' && new Date(e.updatedAt) >= sevenDaysAgo).length;
         const overdueCount = active.filter(e => new Date(e.targetClosureDate) < today).length;
 
         const imMap: Record<string, IMDigestActivityEntry> = {};
