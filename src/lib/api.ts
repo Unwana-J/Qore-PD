@@ -488,6 +488,7 @@ export const api = {
       extensionHistory: r.extension_history || [],
       assignmentHistory: r.assignment_history || [],
       suspensionRequest: r.suspension_request || null,
+      comments: r.comments || [],
       createdAt: r.created_at,
       updatedAt: r.updated_at,
     }),
@@ -515,6 +516,7 @@ export const api = {
       extension_history: ext.extensionHistory,
       assignment_history: ext.assignmentHistory,
       suspension_request: ext.suspensionRequest,
+      comments: ext.comments,
     }),
 
     // ── CRUD ─────────────────────────────────────────────────────────────────
