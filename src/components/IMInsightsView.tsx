@@ -56,14 +56,15 @@ export const IMInsightsView: React.FC<IMInsightsViewProps> = ({ extensions=[], u
   const theme = getThemeClasses(config.brand.themeColor);
   const today = new Date();
 
-  const fd = useMemo(() => extensions.filter(ext => {
+  const fd = useMemo(() => (extensions || []).filter(ext => {
+    if (!ext.startDate) return false;
     const d = new Date(ext.startDate), m = d.getMonth(), qr = Math.floor(m/3)+1;
     if(q!=='All' && qr!==q) return false;
     if(mo!=='All' && m!==mo) return false;
     return true;
   }), [extensions, q, mo]);
 
-  const ims = useMemo(() => users.filter(u=>u.role==='IM'||u.role==='IM Lead'), [users]);
+  const ims = useMemo(() => (users || []).filter(u=>u.role==='IM'||u.role==='IM Lead'), [users]);
 
   const kpis = useMemo(() => {
     const total=fd.length, completed=fd.filter(e=>e.status==='Completed').length;
@@ -111,10 +112,13 @@ export const IMInsightsView: React.FC<IMInsightsViewProps> = ({ extensions=[], u
 
   const trends = useMemo(() => {
     const d = MN.map(n=>({name:n,started:0,completed:0,suspended:0,rate:0}));
-    extensions.forEach(ext => {
-      d[new Date(ext.startDate).getMonth()].started++;
-      if(ext.status==='Completed') d[new Date(ext.updatedAt||ext.startDate).getMonth()].completed++;
-      if(ext.status==='Suspended') d[new Date(ext.updatedAt||ext.startDate).getMonth()].suspended++;
+    (extensions || []).forEach(ext => {
+      const month = new Date(ext.startDate).getMonth();
+      if (!isNaN(month)) {
+        d[month].started++;
+        if(ext.status==='Completed') d[new Date(ext.updatedAt||ext.startDate).getMonth()].completed++;
+        if(ext.status==='Suspended') d[new Date(ext.updatedAt||ext.startDate).getMonth()].suspended++;
+      }
     });
     return d.map(r=>({...r, rate: r.started>0 ? Math.round((r.completed/r.started)*100) : 0}));
   }, [extensions]);
@@ -127,7 +131,7 @@ export const IMInsightsView: React.FC<IMInsightsViewProps> = ({ extensions=[], u
   }, [trends]);
 
   const wp = useMemo(() => {
-    const rows = ims.map(im => {
+    const rows = (ims || []).map(im => {
       const exts = fd.filter(e => e.implementationManager === im.name);
       let ws = 0, tw = 0;
       

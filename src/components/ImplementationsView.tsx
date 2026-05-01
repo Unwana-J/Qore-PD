@@ -259,7 +259,7 @@ export const ImplementationsView: React.FC<ImplementationsViewProps> = ({
   }, [extensions, searchTerm, statusFilter, managerFilter, serviceFilter, monthFilter]);
 
   const validServices = useMemo(() => {
-    return Array.from(new Set(extensions.map(e => e.serviceName))).sort();
+    return Array.from(new Set((extensions || []).map(e => e.serviceName))).sort();
   }, [extensions]);
 
   const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
