@@ -468,7 +468,17 @@ export const ImplementationsView: React.FC<ImplementationsViewProps> = ({
           )}
 
           {activeTab === 'insights' || mode === 'dashboard' ? (
-            <IMInsightsView extensions={extensions} users={users} config={config} />
+            <IMInsightsView 
+              extensions={extensions} 
+              users={users} 
+              config={config} 
+              onFilter={(status, manager) => {
+                setActiveTab('all');
+                setStatusFilter(status);
+                if (manager) setManagerFilter(manager);
+                else setManagerFilter('All');
+              }}
+            />
           ) : activeTab === 'queue' ? (
             <div className="space-y-4">
               <div className="bg-orange-50 border border-orange-100 rounded-2xl p-4 flex items-center gap-3">

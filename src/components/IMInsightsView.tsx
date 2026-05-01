@@ -5,7 +5,12 @@ import { ServiceExtension, User, AppConfig } from '../types';
 import { cn } from '../lib/utils';
 import { getThemeClasses } from '../lib/theme';
 
-interface IMInsightsViewProps { extensions: ServiceExtension[]; users: User[]; config: AppConfig; }
+interface IMInsightsViewProps { 
+  extensions: ServiceExtension[]; 
+  users: User[]; 
+  config: AppConfig; 
+  onFilter?: (status: string, manager?: string) => void;
+}
 
 const PW: Record<string,number> = { USSD:2, Transfers:3, Mobile:4, Cards:4, ASPFEP:5, API:3 };
 const MN = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -18,14 +23,22 @@ const rating = (r: number, inv=false) => {
   return {l:'Under', c:'text-red-700 bg-red-50 border-red-200'};
 };
 
-const KPI = ({label,value,sub,rate,inv,icon,color}:any) => {
+const KPI = ({label,value,sub,rate,inv,icon,color,onClick}:any) => {
   const r = rate!=null ? rating(rate,inv) : null;
-  const cs:any = {emerald:'text-emerald-600 bg-emerald-50',blue:'text-blue-600 bg-blue-50',amber:'text-amber-600 bg-amber-50',slate:'text-slate-600 bg-slate-50',red:'text-red-600 bg-red-50',teal:'text-teal-600 bg-teal-50'};
+  const cs:any = {emerald:'text-emerald-600 bg-emerald-50',blue:'text-blue-600 bg-blue-50',amber:'text-amber-600 bg-amber-50',slate:'text-slate-600 bg-slate-50',red:'text-red-600 bg-red-50',teal:'text-teal-600 bg-teal-50',indigo:'text-indigo-600 bg-indigo-50'};
   return (
-    <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
+    <div 
+      onClick={onClick}
+      className={cn(
+        "bg-white p-5 rounded-3xl border border-slate-200 shadow-sm hover:shadow-md transition-all group",
+        onClick && "cursor-pointer hover:border-teal-300 active:scale-95"
+      )}
+    >
       <div className="flex justify-between items-start mb-3">
         <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">{label}</p>
-        <div className={cn("p-2 rounded-xl",cs[color]||cs.slate)}>{React.cloneElement(icon,{className:'w-4 h-4'})}</div>
+        <div className={cn("p-2 rounded-xl transition-colors",cs[color]||cs.slate, onClick && "group-hover:bg-teal-600 group-hover:text-white")}>
+          {React.cloneElement(icon,{className:'w-4 h-4'})}
+        </div>
       </div>
       <div className="flex items-baseline gap-2 flex-wrap">
         <h4 className="text-2xl font-black text-slate-900 tracking-tight">{value}</h4>
@@ -36,7 +49,7 @@ const KPI = ({label,value,sub,rate,inv,icon,color}:any) => {
   );
 };
 
-export const IMInsightsView: React.FC<IMInsightsViewProps> = ({ extensions=[], users=[], config }) => {
+export const IMInsightsView: React.FC<IMInsightsViewProps> = ({ extensions=[], users=[], config, onFilter }) => {
   const [q, setQ] = useState<number|'All'>('All');
   const [mo, setMo] = useState<number|'All'>('All');
   const [expandedIM, setExpandedIM] = useState<string|null>(null);
@@ -160,18 +173,26 @@ export const IMInsightsView: React.FC<IMInsightsViewProps> = ({ extensions=[], u
       </div>
 
       {/* KPI Row 1 */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
         <KPI label="Completion Rate" value={`${kpis.completionRate.toFixed(1)}%`} rate={kpis.completionRate} icon={<CheckCircle2/>} color="emerald"/>
+        <KPI 
+          label="In Progress" 
+          value={fd.filter(e => e.status === 'In Progress').length} 
+          sub="Ongoing tasks" 
+          icon={<Activity/>} 
+          color="blue"
+          onClick={() => onFilter?.('In Progress')}
+        />
         <KPI label="Active Rate" value={`${kpis.activeRate.toFixed(1)}%`} sub={`${kpis.active} active`} rate={kpis.activeRate} icon={<Activity/>} color="blue"/>
-        <KPI label="Suspension Rate" value={`${kpis.suspensionRate.toFixed(1)}%`} sub={`${kpis.suspended} frozen`} rate={kpis.suspensionRate} inv icon={<AlertTriangle/>} color="amber"/>
-        <KPI label="Pending Requests" value={kpis.pendingMappings + kpis.pendingExtensions} sub="Mappings & Extensions" icon={<Clock/>} color="indigo"/>
+        <KPI label="Suspension Rate" value={`${kpis.suspensionRate.toFixed(1)}%`} sub={`${kpis.suspended} frozen`} rate={kpis.suspensionRate} inv icon={<AlertTriangle/>} color="amber" onClick={() => onFilter?.('Suspended')}/>
+        <KPI label="Pending Requests" value={kpis.pendingMappings + kpis.pendingExtensions} sub="Mappings & Extensions" icon={<Clock/>} color="indigo" onClick={() => onFilter?.('Mapping Pending')}/>
       </div>
 
       {/* KPI Row 2 */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <KPI label="Started (Period)" value={fd.length} sub="Total in window" icon={<TrendingUp/>} color="teal"/>
-        <KPI label="Completed (Period)" value={kpis.completed} sub={`of ${fd.length} total`} rate={kpis.completionRate} icon={<CheckCircle2/>} color="emerald"/>
-        <KPI label="Overdue / At-Risk" value={kpis.overdue} sub="Past target date" icon={<Clock/>} color="red"/>
+        <KPI label="Started (Period)" value={fd.length} sub="Total in window" icon={<TrendingUp/>} color="teal" onClick={() => onFilter?.('All')}/>
+        <KPI label="Completed (Period)" value={kpis.completed} sub={`of ${fd.length} total`} rate={kpis.completionRate} icon={<CheckCircle2/>} color="emerald" onClick={() => onFilter?.('Completed')}/>
+        <KPI label="Overdue / At-Risk" value={kpis.overdue} sub="Past target date" icon={<Clock/>} color="red" onClick={() => onFilter?.('Delayed')}/>
         <KPI label="Mapping Ratio" value={`${kpis.mappingRatio.toFixed(0)}%`} sub={`${kpis.mapped} linked to projects`} icon={<Link/>} color="teal"/>
       </div>
 
@@ -201,18 +222,22 @@ export const IMInsightsView: React.FC<IMInsightsViewProps> = ({ extensions=[], u
         </div>
 
         <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
-          <div className="flex items-center gap-2 mb-5"><Users className="w-4 h-4 text-indigo-600"/><h3 className="text-xs font-black text-slate-900 uppercase tracking-widest">IM Workload</h3></div>
+          <div className="flex items-center gap-2 mb-5"><Users className="w-4 h-4 text-teal-600"/><h3 className="text-xs font-black text-slate-900 uppercase tracking-widest">IM Workload</h3></div>
           <table className="w-full text-left">
             <thead><tr className="border-b border-slate-100">{['Manager','Total','Active','Susp.','Comp.','Overdue'].map(h=><th key={h} className="pb-2 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center first:text-left">{h}</th>)}</tr></thead>
             <tbody className="divide-y divide-slate-50">
-              {(Object.entries(tm) as [string,any][]).map(([name,m])=>(
-                <tr key={name} className="group">
-                  <td className="py-2.5 text-sm font-bold text-slate-700">{name}</td>
+              {Object.entries(tm).map(([name,m])=>(
+                <tr 
+                  key={name} 
+                  className="group hover:bg-slate-50 transition-colors cursor-pointer"
+                  onClick={() => onFilter?.('All', name)}
+                >
+                  <td className="py-2.5 text-sm font-bold text-slate-700 group-hover:text-teal-600 transition-colors">{name}</td>
                   <td className="py-2.5 text-sm font-black text-slate-900 text-center">{m.total}</td>
                   <td className="py-2.5 text-sm font-bold text-blue-600 text-center">{m.active}</td>
                   <td className="py-2.5 text-sm font-bold text-amber-600 text-center">{m.suspended}</td>
                   <td className="py-2.5 text-sm font-bold text-emerald-600 text-center">{m.completed}</td>
-                  <td className="py-2.5 text-center"><span className={cn("px-1.5 py-0.5 text-[10px] font-black rounded",m.overdue>0?"bg-red-100 text-red-700":"bg-slate-100 text-slate-400")}>{m.overdue}</span></td>
+                  <td className="py-2.5 text-center"><span className={cn("px-1.5 py-0.5 text-[10px] font-black rounded",m.overdue>0?"bg-red-100 text-red-700":"bg-slate-100 text-slate-500")}>{m.overdue}</span></td>
                 </tr>
               ))}
             </tbody>
