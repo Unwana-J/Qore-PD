@@ -282,14 +282,7 @@ export const api = {
       if (error) throw error;
     }
   },
-    // Admin tool to seed the database initially
-    seed: async () => {
-      // Seeding is permanently disabled to ensure 100% clean production environment.
-      // All institutional data must be imported via CSV/Excel or created manually.
-      console.log("[API] Seeding skipped (Disabled for Production).");
-      return;
-    }
-  },
+
   users: {
     getAll: async (): Promise<User[]> => {
       const { data, error } = await supabase.from('profiles').select('*');
