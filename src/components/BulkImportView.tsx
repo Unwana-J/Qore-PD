@@ -72,22 +72,41 @@ export const BulkImportView: React.FC<BulkImportViewProps> = ({
   const [currentPage, setCurrentPage] = useState(1);
   const rowsPerPage = 50;
 
+  const [hasDraft, setHasDraft] = useState(false);
+  const [draftData, setDraftData] = useState<ImportRow[] | null>(null);
+
   // ── Draft Persistence ───────────────────────────────────────────────────────
   useEffect(() => {
     const draft = localStorage.getItem(`import_draft_${mode}`);
     if (draft) {
       try {
         const parsed = JSON.parse(draft);
-        if (parsed.rows && parsed.rows.length > 0 && step === 1) {
-          setProcessedRows(parsed.rows);
-          setStep(2);
-          onShowToast(`Resumed from saved ${mode} draft.`, 'info');
+        if (parsed.rows && parsed.rows.length > 0) {
+          setDraftData(parsed.rows);
+          setHasDraft(true);
         }
       } catch (e) {
         console.error("Failed to load draft:", e);
       }
     }
   }, [mode]);
+
+  const resumeDraft = () => {
+    if (draftData) {
+      setProcessedRows(draftData);
+      setStep(2);
+      onShowToast(`Resumed from saved ${mode} draft.`, 'info');
+    }
+  };
+
+  const abandonDraft = () => {
+    clearDraft();
+    setHasDraft(false);
+    setDraftData(null);
+    setStep(1);
+    setProcessedRows([]);
+    onShowToast(`${mode === 'projects' ? 'Project' : 'Implementation'} draft abandoned.`, 'info');
+  };
 
   useEffect(() => {
     if (processedRows.length > 0 && step === 2) {
@@ -795,6 +814,41 @@ export const BulkImportView: React.FC<BulkImportViewProps> = ({
                    onChange={handleFileUpload} 
                  />
                  
+                 {hasDraft && (
+                   <div className="mt-12 w-full max-w-md animate-in fade-in slide-in-from-bottom-4 duration-500">
+                     <div className="bg-white rounded-2xl border border-teal-100 p-6 shadow-xl shadow-teal-900/5 relative overflow-hidden group">
+                        <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity">
+                          <Archive className="w-12 h-12 text-teal-600" />
+                        </div>
+                        <h4 className="text-sm font-black text-teal-900 uppercase tracking-widest mb-2 flex items-center gap-2">
+                          <Info className="w-4 h-4" />
+                          Draft Found
+                        </h4>
+                        <p className="text-xs text-slate-500 font-medium mb-6 leading-relaxed">
+                          You have an unfinished {mode} import with <span className="font-bold text-slate-900">{draftData?.length} rows</span>. 
+                          Would you like to continue or start fresh?
+                        </p>
+                        <div className="flex gap-3">
+                          <button 
+                            onClick={resumeDraft}
+                            className={cn(
+                              "flex-1 px-4 py-3 text-xs font-black uppercase tracking-widest rounded-xl text-white shadow-lg transition-all active:scale-95",
+                              theme.bg, theme.hoverBg
+                            )}
+                          >
+                            Continue Draft
+                          </button>
+                          <button 
+                            onClick={abandonDraft}
+                            className="flex-1 px-4 py-3 text-xs font-black uppercase tracking-widest rounded-xl bg-slate-100 text-slate-500 hover:bg-red-50 hover:text-red-600 transition-all active:scale-95 border border-transparent hover:border-red-100"
+                          >
+                            Abandon
+                          </button>
+                        </div>
+                     </div>
+                   </div>
+                 )}
+
                  {isParsing && (
                    <div className="mt-6 flex items-center gap-3 text-teal-600 font-bold">
                      <span className="w-5 h-5 border-2 border-teal-600 border-t-transparent rounded-full animate-spin"></span>
@@ -873,6 +927,12 @@ export const BulkImportView: React.FC<BulkImportViewProps> = ({
                 </div>
                 
                 <div className="flex gap-3 items-center">
+                  <button 
+                    onClick={abandonDraft}
+                    className="px-4 py-3 text-slate-400 hover:text-red-500 font-bold rounded-xl transition-all text-xs"
+                  >
+                    Abandon Draft
+                  </button>
                   <button 
                     onClick={handleSaveDraftAndClose}
                     className="px-6 py-3 bg-white border border-slate-300 text-slate-600 font-bold rounded-xl hover:bg-slate-50 transition-colors shadow-sm"
