@@ -1159,6 +1159,22 @@ export const BulkImportView: React.FC<BulkImportViewProps> = ({
                               </>
                             )}
                         </div>
+                        
+                        {/* Key Updates / Last Comment Preview */}
+                        {row.notes && (
+                          <div className="mt-4 bg-slate-50/50 rounded-xl p-3 border border-slate-100 relative group/notes hover:bg-slate-50 transition-colors">
+                            <span className="block text-[8px] uppercase font-black text-slate-400 tracking-widest mb-1.5 flex items-center gap-1.5">
+                              <Edit2 className="w-2.5 h-2.5" /> Key Updates / Last Comment
+                            </span>
+                            <textarea
+                              value={row.notes}
+                              onChange={(e) => updateRowField(actualIdx, 'notes', e.target.value)}
+                              rows={1}
+                              className="w-full bg-transparent text-[11px] font-semibold text-slate-600 outline-none resize-none placeholder:text-slate-300 min-h-[1.5rem]"
+                              placeholder="Add a comment..."
+                            />
+                          </div>
+                        )}
 
                         {/* Legacy Details Row (Conditional) */}
                         <div className="flex items-center gap-6 pt-3 mt-3 border-t border-slate-100">
