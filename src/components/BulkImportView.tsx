@@ -729,9 +729,9 @@ export const BulkImportView: React.FC<BulkImportViewProps> = ({
         if (row.notes) {
           comments.push({
             id: Math.random().toString(36).substr(2, 9),
-            text: row.notes,
-            user: userName || 'System',
-            timestamp: new Date().toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })
+            content: row.notes,
+            author: userName || 'System',
+            createdAt: new Date().toISOString()
           });
         }
 
