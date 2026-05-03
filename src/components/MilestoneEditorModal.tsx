@@ -19,6 +19,13 @@ export const MilestoneEditorModal: React.FC<MilestoneEditorModalProps> = ({
 }) => {
   const [milestones, setMilestones] = useState<string[]>(initialMilestones.length > 0 ? initialMilestones : ['']);
 
+  // Sync state with props when modal opens or initialMilestones change
+  React.useEffect(() => {
+    if (isOpen) {
+      setMilestones(initialMilestones.length > 0 ? initialMilestones : ['']);
+    }
+  }, [isOpen, initialMilestones]);
+
   const handleAdd = () => setMilestones([...milestones, '']);
   const handleRemove = (index: number) => {
     const newMilestones = milestones.filter((_, i) => i !== index);
