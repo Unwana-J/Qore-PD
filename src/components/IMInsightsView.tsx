@@ -50,21 +50,40 @@ const KPI = ({label,value,sub,rate,inv,icon,color,onClick}:any) => {
 };
 
 export const IMInsightsView: React.FC<IMInsightsViewProps> = ({ extensions=[], users=[], config, onFilter }) => {
-  const [q, setQ] = useState<number|'All'>('All');
+  const [yr, setYr] = useState<number|'All'>(new Date().getFullYear());
   const [mo, setMo] = useState<number|'All'>('All');
+  const [q, setQ] = useState<number|'All'>('All');
+  const [isCustom, setIsCustom] = useState(false);
+  const [customRange, setCustomRange] = useState({ start: '', end: '' });
   const [expandedIM, setExpandedIM] = useState<string|null>(null);
   const theme = getThemeClasses(config.brand.themeColor);
   const today = new Date();
 
+  const years = useMemo(() => {
+    const ys = new Set<number>();
+    extensions.forEach(e => {
+      if (e.startDate) ys.add(new Date(e.startDate).getFullYear());
+    });
+    return Array.from(ys).sort((a,b) => b - a);
+  }, [extensions]);
+
   const fd = useMemo(() => (extensions || []).filter(ext => {
-    // Only filter by date if q or mo are set
-    if (q === 'All' && mo === 'All') return true;
     if (!ext.startDate) return false;
-    const d = new Date(ext.startDate), m = d.getMonth(), qr = Math.floor(m/3)+1;
+    const d = new Date(ext.startDate);
+    
+    if (isCustom && customRange.start && customRange.end) {
+      const start = new Date(customRange.start);
+      const end = new Date(customRange.end);
+      end.setHours(23, 59, 59, 999);
+      return d >= start && d <= end;
+    }
+
+    const y = d.getFullYear(), m = d.getMonth(), qr = Math.floor(m/3)+1;
+    if(yr!=='All' && y!==yr) return false;
     if(q!=='All' && qr!==q) return false;
     if(mo!=='All' && m!==mo) return false;
     return true;
-  }), [extensions, q, mo]);
+  }), [extensions, yr, q, mo, isCustom, customRange]);
 
   const ims = useMemo(() => {
     // Get known IMs from users list
@@ -127,7 +146,7 @@ export const IMInsightsView: React.FC<IMInsightsViewProps> = ({ extensions=[], u
 
   const trends = useMemo(() => {
     const d = MN.map(n=>({name:n,started:0,completed:0,suspended:0,rate:0}));
-    (extensions || []).forEach(ext => {
+    fd.forEach(ext => {
       const month = new Date(ext.startDate).getMonth();
       if (!isNaN(month)) {
         d[month].started++;
@@ -140,7 +159,7 @@ export const IMInsightsView: React.FC<IMInsightsViewProps> = ({ extensions=[], u
       }
     });
     return d.map(r=>({...r, rate: r.started>0 ? Math.round((r.completed/r.started)*100) : 0}));
-  }, [extensions]);
+  }, [fd]);
 
   const ytd = useMemo(() => {
     const s=trends.reduce((a,m)=>a+m.started,0);
@@ -227,18 +246,62 @@ export const IMInsightsView: React.FC<IMInsightsViewProps> = ({ extensions=[], u
           <div><h3 className="text-base font-black text-slate-900 uppercase tracking-tight">Operational Filters</h3><p className="text-xs font-bold text-slate-500">Slice data by reporting period</p></div>
         </div>
         <div className="flex items-center gap-3">
-          <div className="flex flex-col gap-1">
-            <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Quarter</label>
-            <select value={q} onChange={e=>setQ(e.target.value==='All'?'All':Number(e.target.value))} className="px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold outline-none">
-              <option value="All">All Quarters</option>{[1,2,3,4].map(n=><option key={n} value={n}>Q{n}</option>)}
-            </select>
-          </div>
-          <div className="flex flex-col gap-1">
-            <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Month</label>
-            <select value={mo} onChange={e=>setMo(e.target.value==='All'?'All':Number(e.target.value))} className="px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold outline-none">
-              <option value="All">All Months</option>{MN.map((n,i)=><option key={i} value={i}>{n}</option>)}
-            </select>
-          </div>
+          {!isCustom ? (
+            <>
+              <div className="flex flex-col gap-1">
+                <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Year</label>
+                <select value={yr} onChange={e=>setYr(e.target.value==='All'?'All':Number(e.target.value))} className="px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold outline-none">
+                  <option value="All">All Years</option>
+                  {years.map(y => <option key={y} value={y}>{y}</option>)}
+                </select>
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Quarter</label>
+                <select value={q} onChange={e=>setQ(e.target.value==='All'?'All':Number(e.target.value))} className="px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold outline-none">
+                  <option value="All">All Quarters</option>{[1,2,3,4].map(n=><option key={n} value={n}>Q{n}</option>)}
+                </select>
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Month</label>
+                <select value={mo} onChange={e=>setMo(e.target.value==='All'?'All':Number(e.target.value))} className="px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold outline-none">
+                  <option value="All">All Months</option>{MN.map((n,i)=><option key={i} value={i}>{n}</option>)}
+                </select>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="flex flex-col gap-1">
+                <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">From</label>
+                <input 
+                  type="date" 
+                  value={customRange.start} 
+                  onChange={e => setCustomRange(prev => ({ ...prev, start: e.target.value }))}
+                  className="px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold outline-none" 
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">To</label>
+                <input 
+                  type="date" 
+                  value={customRange.end} 
+                  onChange={e => setCustomRange(prev => ({ ...prev, end: e.target.value }))}
+                  className="px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold outline-none" 
+                />
+              </div>
+            </>
+          )}
+          
+          <div className="h-10 w-px bg-slate-100 mx-2" />
+          
+          <button 
+            onClick={() => setIsCustom(!isCustom)}
+            className={cn(
+              "px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all",
+              isCustom ? "bg-teal-600 text-white shadow-lg" : "bg-slate-100 text-slate-500 hover:bg-slate-200"
+            )}
+          >
+            {isCustom ? 'Standard Period' : 'Custom Period'}
+          </button>
         </div>
       </div>
 
