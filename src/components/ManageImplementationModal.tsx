@@ -3,9 +3,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   X, CheckCircle2, Circle, MapPin, Unlink, AlertCircle,
   ExternalLink, Loader2, Lock, Clock, Calendar, UserPlus,
-  RefreshCw, Briefcase, Check
+  RefreshCw, Briefcase, Check, Shield, AlertTriangle
 } from 'lucide-react';
-import { ServiceExtension, IMilestone, AppConfig, User } from '../types';
+import { ServiceExtension, IMilestone, AppConfig, User, ImplementationIssue } from '../types';
 import { api } from '../lib/api';
 import { cn, isRole } from '../lib/utils';
 import { MapToProjectModal } from './MapToProjectModal';
@@ -53,6 +53,9 @@ export const ManageImplementationModal: React.FC<ManageImplementationModalProps>
   const [isReassigning, setIsReassigning] = useState(false);
   const [newIM, setNewIM] = useState(extension.implementationManager);
   const [processingReassign, setProcessingReassign] = useState(false);
+
+  const [isAddingIssue, setIsAddingIssue] = useState(false);
+  const [newIssue, setNewIssue] = useState({ description: '', impact: 'Medium' as ImplementationIssue['impact'], category: 'General' });
 
   React.useEffect(() => {
     const loadUsers = async () => {
@@ -206,6 +209,43 @@ export const ManageImplementationModal: React.FC<ManageImplementationModalProps>
       onShowToast(err.message, 'error');
     } finally {
       setProcessingReassign(false);
+    }
+  };
+
+  const handleAddIssue = async () => {
+    if (!newIssue.description.trim()) return;
+    setSaving(true);
+    try {
+      const result = await api.serviceExtensions.addIssue(
+        extension.id,
+        newIssue.description,
+        newIssue.impact,
+        newIssue.category
+      );
+      onUpdated(result);
+      setNewIssue({ description: '', impact: 'Medium', category: 'General' });
+      setIsAddingIssue(false);
+      onShowToast('Issue logged successfully');
+    } catch (err: any) {
+      onShowToast(err.message, 'error');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleIssueStatusChange = async (issueId: string, status: ImplementationIssue['status']) => {
+    setSaving(true);
+    try {
+      const result = await api.serviceExtensions.updateIssue(extension.id, issueId, {
+        status,
+        resolvedAt: status === 'Closed' ? new Date().toISOString() : undefined
+      });
+      onUpdated(result);
+      onShowToast(`Issue marked as ${status}`);
+    } catch (err: any) {
+      onShowToast(err.message, 'error');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -666,6 +706,130 @@ export const ManageImplementationModal: React.FC<ManageImplementationModalProps>
                   </div>
                 </div>
               )}
+
+              <div className="px-8 pb-10">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-xs font-black uppercase text-slate-400 tracking-widest flex items-center gap-2">
+                    <Shield className="w-3.5 h-3.5" /> Issue Log
+                  </h3>
+                  <button
+                    onClick={() => setIsAddingIssue(!isAddingIssue)}
+                    className="text-[10px] font-black uppercase tracking-widest text-teal-600 hover:text-teal-700 flex items-center gap-1"
+                  >
+                    <Plus className="w-3 h-3" /> Log New Issue
+                  </button>
+                </div>
+
+                {isAddingIssue && (
+                  <div className="mb-6 p-5 bg-slate-50 rounded-2xl border border-slate-100 space-y-4 animate-in slide-in-from-top-2">
+                    <textarea
+                      value={newIssue.description}
+                      onChange={e => setNewIssue({ ...newIssue, description: e.target.value })}
+                      placeholder="Describe the issue or blocker..."
+                      className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-teal-500/20 transition-all resize-none"
+                      rows={2}
+                    />
+                    <div className="flex items-center gap-4">
+                      <div className="flex-1">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1.5 ml-1">Impact</label>
+                        <select
+                          value={newIssue.impact}
+                          onChange={e => setNewIssue({ ...newIssue, impact: e.target.value as any })}
+                          className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-bold outline-none"
+                        >
+                          <option value="Low">Low Impact</option>
+                          <option value="Medium">Medium Impact</option>
+                          <option value="High">High Impact</option>
+                        </select>
+                      </div>
+                      <div className="flex-1">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1.5 ml-1">Category</label>
+                        <select
+                          value={newIssue.category}
+                          onChange={e => setNewIssue({ ...newIssue, category: e.target.value })}
+                          className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-bold outline-none"
+                        >
+                          <option value="General">General</option>
+                          <option value="Client">Client Side</option>
+                          <option value="Technical">Technical</option>
+                          <option value="Third-Party">Third-Party</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div className="flex justify-end gap-2 pt-2">
+                      <button onClick={() => setIsAddingIssue(false)} className="px-4 py-2 text-[10px] font-black text-slate-400 uppercase tracking-widest">Cancel</button>
+                      <button
+                        onClick={handleAddIssue}
+                        disabled={saving || !newIssue.description.trim()}
+                        className="px-6 py-2 bg-teal-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-teal-700 shadow-lg shadow-teal-600/10 transition-all"
+                      >
+                        {saving ? 'Logging...' : 'Log Issue'}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                <div className="space-y-3">
+                  {(extension.issues || []).length === 0 ? (
+                    <p className="text-center text-xs font-bold text-slate-300 py-6 italic bg-slate-50/50 rounded-2xl border border-dashed border-slate-200">No issues logged.</p>
+                  ) : (
+                    (extension.issues || []).map(issue => (
+                      <div key={issue.id} className="p-4 bg-white border border-slate-100 rounded-2xl shadow-sm hover:border-slate-200 transition-all group">
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1.5">
+                              <span className={cn(
+                                "px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-widest",
+                                issue.impact === 'High' ? 'bg-red-50 text-red-600 border border-red-100' :
+                                issue.impact === 'Medium' ? 'bg-amber-50 text-amber-600 border border-amber-100' :
+                                'bg-blue-50 text-blue-600 border border-blue-100'
+                              )}>
+                                {issue.impact}
+                              </span>
+                              <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">{issue.category || 'General'}</span>
+                              <span className="text-[9px] font-bold text-slate-300 uppercase tracking-widest ml-auto">{new Date(issue.createdAt).toLocaleDateString()}</span>
+                            </div>
+                            <p className={cn("text-sm font-bold leading-relaxed", issue.status === 'Closed' ? 'text-slate-400 line-through' : 'text-slate-700')}>
+                              {issue.description}
+                            </p>
+                          </div>
+                          <div className="flex flex-col gap-2">
+                            {issue.status !== 'Closed' ? (
+                              <>
+                                <button
+                                  onClick={() => handleIssueStatusChange(issue.id, 'Closed')}
+                                  className="p-1.5 bg-emerald-50 text-emerald-600 rounded-lg hover:bg-emerald-600 hover:text-white transition-all shadow-sm"
+                                  title="Mark as Resolved"
+                                >
+                                  <Check className="w-3.5 h-3.5" />
+                                </button>
+                                {issue.status === 'Open' && (
+                                  <button
+                                    onClick={() => handleIssueStatusChange(issue.id, 'Addressing')}
+                                    className="p-1.5 bg-amber-50 text-amber-600 rounded-lg hover:bg-amber-600 hover:text-white transition-all shadow-sm"
+                                    title="Mark as Addressing"
+                                  >
+                                    <Clock className="w-3.5 h-3.5" />
+                                  </button>
+                                )}
+                              </>
+                            ) : (
+                              <div className="p-1.5 bg-slate-50 text-slate-400 rounded-lg">
+                                <CheckCircle2 className="w-3.5 h-3.5" />
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        {issue.status === 'Closed' && issue.resolvedAt && (
+                          <div className="mt-3 pt-3 border-t border-slate-50 flex items-center gap-1.5 text-[9px] font-bold text-emerald-500 uppercase tracking-widest">
+                            <Check className="w-2.5 h-2.5" /> Resolved on {new Date(issue.resolvedAt).toLocaleDateString()}
+                          </div>
+                        )}
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
 
               <div className="px-8 pb-12">
                 <h3 className="text-xs font-black uppercase text-slate-400 tracking-widest mb-4">Implementation Trail & Comments</h3>

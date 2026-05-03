@@ -59,6 +59,17 @@ export interface Risk {
   createdAt: string;
 }
 
+export interface ImplementationIssue {
+  id: string;
+  description: string;
+  impact: 'Low' | 'Medium' | 'High';
+  status: 'Open' | 'Addressing' | 'Closed';
+  category?: string;
+  createdAt: string;
+  resolvedAt?: string;
+  notes?: string;
+}
+
 export interface Currency {
   code: string;
   symbol: string;
@@ -122,6 +133,7 @@ export interface ImplementationDigestData {
   suspensionRequestsPending: number;
   dateExtensionRequestsPending: number;
   overdueCount: number;
+  openIssuesCount: number;
   imActivity: IMDigestActivityEntry[];
   upcomingDeadlines: { 
     id: string;
@@ -304,6 +316,7 @@ export interface ServiceExtension {
   assignmentHistory: AssignmentHistoryEntry[];
   suspensionRequest: SuspensionRequest | null;
   comments: ServiceComment[];
+  issues: ImplementationIssue[];
   // Metadata
   createdAt: string;
   updatedAt: string;

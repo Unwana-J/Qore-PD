@@ -59,8 +59,6 @@ function AppContent() {
   const [simulatedRole, setSimulatedRole] = useState<Role | null>(null);
   const actualRole = profile?.role;
   const userRole = simulatedRole || actualRole;
-  // IDs of projects the current IM is mapped to (via approved service_extensions)
-  const [imMappedProjectIds, setImMappedProjectIds] = useState<Set<string>>(new Set());
   const [importMode, setImportMode] = useState<'projects' | 'implementations'>('projects');
 
   const {
@@ -134,18 +132,6 @@ function AppContent() {
       }
     };
     init();
-
-    // Load IM's mapped projects separately
-    if (hasRole(userRole, ['IM', 'IM Lead']) && profile?.name) {
-      api.serviceExtensions.getByIM(profile.name).then(exts => {
-        const approvedIds = new Set(
-          exts
-            .filter(e => e.mappingStatus === 'Approved' && e.linkedProjectId)
-            .map(e => e.linkedProjectId!)
-        );
-        setImMappedProjectIds(approvedIds);
-      }).catch(console.error);
-    }
   }, [user?.id, userRole]); // Depend on user and userRole to re-fetch if they change
 
   const handleUpdateConfig = async (updates: Partial<AppConfig>) => {
@@ -500,12 +486,7 @@ function AppContent() {
                     )}
                     {currentView === 'projects' && (
                       <ProjectList
-                        projects={
-                          // IMs see only projects they are mapped to (read-only)
-                          hasRole(userRole, ['IM']) && !hasRole(userRole, ['IM Lead'])
-                            ? projects.filter(p => imMappedProjectIds.has(p.id))
-                            : filteredProjects
-                        }
+                        projects={filteredProjects}
                         initialStateFilter={projectListFilter}
                         initialPMFilter={projectListPMFilter || undefined}
                         onBackToDigest={openedFromDigest ? () => setIsDigestOpen(true) : undefined}

@@ -257,6 +257,7 @@ export function useProjects(userRole: Role, config: AppConfig, userName: string 
         const active = extensionsToDigest.filter(e => e.status !== 'Completed');
         const completedThisWeek = extensionsToDigest.filter(e => e.status === 'Completed' && new Date(e.updatedAt) >= sevenDaysAgo).length;
         const overdueCount = active.filter(e => new Date(e.targetClosureDate) < today).length;
+        const openIssuesCount = extensionsToDigest.reduce((acc, e) => acc + (e.issues || []).filter(i => i.status !== 'Closed').length, 0);
 
         const imMap: Record<string, IMDigestActivityEntry> = {};
         allExtensions.forEach(e => {
@@ -306,6 +307,7 @@ export function useProjects(userRole: Role, config: AppConfig, userName: string 
           suspensionRequestsPending: allExtensions.filter(e => e.suspensionRequest?.status === 'Pending').length,
           dateExtensionRequestsPending: allExtensions.filter(e => e.extensionRequest?.status === 'Pending').length,
           overdueCount,
+          openIssuesCount,
           imActivity,
           upcomingDeadlines
         };

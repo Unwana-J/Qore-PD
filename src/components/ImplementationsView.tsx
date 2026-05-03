@@ -35,8 +35,9 @@ const IMPersonalDashboard: React.FC<{ extensions: ServiceExtension[]; userName: 
     const frozen = extensions.filter(e => e.status === 'Suspended').length;
     const overdue = extensions.filter(e => e.status !== 'Completed' && new Date(e.targetClosureDate) < today).length;
     const mapped = extensions.filter(e => e.mappingStatus === 'Approved').length;
+    const openIssues = extensions.reduce((acc, e) => acc + (e.issues || []).filter(i => i.status !== 'Closed').length, 0);
     const completionRate = total > 0 ? Math.round((completed / total) * 100) : 0;
-    return { total, completed, inProgress, notStarted, frozen, overdue, mapped, completionRate };
+    return { total, completed, inProgress, notStarted, frozen, overdue, mapped, openIssues, completionRate };
   }, [extensions]);
 
   const upcoming = useMemo(() =>
@@ -82,7 +83,7 @@ const IMPersonalDashboard: React.FC<{ extensions: ServiceExtension[]; userName: 
       )}
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
         <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
           <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Total Assigned</p>
           <p className="text-4xl font-black text-slate-900">{stats.total}</p>
@@ -95,6 +96,10 @@ const IMPersonalDashboard: React.FC<{ extensions: ServiceExtension[]; userName: 
         <div className={cn("rounded-2xl border p-5 shadow-sm", stats.overdue > 0 ? "bg-red-50 border-red-200" : "bg-white border-slate-200")}>
           <p className={cn("text-[10px] font-black uppercase tracking-widest mb-2", stats.overdue > 0 ? "text-red-500" : "text-slate-400")}>Overdue</p>
           <p className={cn("text-4xl font-black", stats.overdue > 0 ? "text-red-600" : "text-slate-300")}>{stats.overdue}</p>
+        </div>
+        <div className={cn("rounded-2xl border p-5 shadow-sm", stats.openIssues > 0 ? "bg-amber-50 border-amber-200" : "bg-white border-slate-200")}>
+          <p className={cn("text-[10px] font-black uppercase tracking-widest mb-2", stats.openIssues > 0 ? "text-amber-500" : "text-slate-400")}>Open Issues</p>
+          <p className={cn("text-4xl font-black", stats.openIssues > 0 ? "text-amber-600" : "text-slate-300")}>{stats.openIssues}</p>
         </div>
         <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
           <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Mapped to Projects</p>

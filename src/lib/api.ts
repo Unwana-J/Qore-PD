@@ -542,6 +542,7 @@ export const api = {
       assignmentHistory: r.assignment_history || [],
       suspensionRequest: r.suspension_request || null,
       comments: r.comments || [],
+      issues: r.issues || [],
       createdAt: r.created_at,
       updatedAt: r.updated_at,
     }),
@@ -570,6 +571,7 @@ export const api = {
       assignment_history: ext.assignmentHistory,
       suspension_request: ext.suspensionRequest,
       comments: ext.comments,
+      issues: ext.issues,
     }),
 
     // ── CRUD ─────────────────────────────────────────────────────────────────
@@ -605,7 +607,7 @@ export const api = {
     create: async (ext: Omit<ServiceExtension, 'id' | 'createdAt' | 'updatedAt'>): Promise<ServiceExtension> => {
       const { data, error } = await supabase
         .from('service_extensions')
-        .insert(api.serviceExtensions._toDb(ext))
+        .insert(api.serviceExtensions._toDb({ ...ext, issues: [] }))
         .select()
         .single();
       if (error) throw error;
@@ -833,6 +835,59 @@ export const api = {
       } catch (notifErr) {
         console.error("[API] Failed to dispatch comment notifications:", notifErr);
       }
+
+      return api.serviceExtensions._fromDb(updated);
+    },
+
+    addIssue: async (id: string, description: string, impact: ImplementationIssue['impact'], category?: string): Promise<ServiceExtension> => {
+      const { data: ext, error: fetchErr } = await supabase
+        .from('service_extensions')
+        .select('issues')
+        .eq('id', id)
+        .single();
+      if (fetchErr) throw fetchErr;
+
+      const newIssue: ImplementationIssue = {
+        id: Math.random().toString(36).substr(2, 9),
+        description,
+        impact,
+        category: category || 'General',
+        status: 'Open',
+        createdAt: new Date().toISOString()
+      };
+
+      const newIssues = [newIssue, ...(ext.issues || [])];
+
+      const { data: updated, error } = await supabase
+        .from('service_extensions')
+        .update({ issues: newIssues })
+        .eq('id', id)
+        .select('*')
+        .single();
+      if (error) throw error;
+
+      return api.serviceExtensions._fromDb(updated);
+    },
+
+    updateIssue: async (id: string, issueId: string, updates: Partial<ImplementationIssue>): Promise<ServiceExtension> => {
+      const { data: ext, error: fetchErr } = await supabase
+        .from('service_extensions')
+        .select('issues')
+        .eq('id', id)
+        .single();
+      if (fetchErr) throw fetchErr;
+
+      const newIssues = (ext.issues || []).map((i: ImplementationIssue) => 
+        i.id === issueId ? { ...i, ...updates } : i
+      );
+
+      const { data: updated, error } = await supabase
+        .from('service_extensions')
+        .update({ issues: newIssues })
+        .eq('id', id)
+        .select('*')
+        .single();
+      if (error) throw error;
 
       return api.serviceExtensions._fromDb(updated);
     },

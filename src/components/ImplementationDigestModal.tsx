@@ -105,11 +105,12 @@ export const ImplementationDigestModal: React.FC<ImplementationDigestModalProps>
                 </span>
               )}
             </div>
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               {[
                 { label: 'Active', value: displayDigest.totalActive, icon: <TrendingUp className="w-4 h-4" />, colour: 'text-slate-900', bg: 'bg-slate-50 border-slate-200', action: () => onNavigate('implementations', 'All') },
                 { label: 'Completed', value: displayDigest.completedThisWeek, icon: <CheckCircle2 className="w-4 h-4" />, colour: 'text-emerald-700', bg: 'bg-emerald-50 border-emerald-200', action: () => onNavigate('implementations', 'Completed') },
                 { label: 'Overdue', value: displayDigest.overdueCount, icon: <AlertCircle className="w-4 h-4" />, colour: 'text-red-700', bg: 'bg-red-50 border-red-200', action: () => onNavigate('implementations', 'Delayed') },
+                { label: 'Open Issues', value: displayDigest.openIssuesCount || 0, icon: <AlertTriangle className="w-4 h-4" />, colour: 'text-amber-700', bg: 'bg-amber-50 border-amber-200', action: () => onNavigate('implementations', 'All') },
               ].map(stat => (
                 <button
                   key={stat.label}
