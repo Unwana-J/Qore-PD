@@ -341,6 +341,7 @@ export interface BulkImportViewProps {
   projects: Project[];
   config: AppConfig;
   userRole: Role;
+  userName?: string;
   mode?: 'projects' | 'implementations';
   onImportBulk: (add: Partial<Project>[], update: Partial<Project>[], skippedCount: number) => Promise<{ added: number, updated: number } | undefined>;
   onImportExtensions?: (add: Partial<ServiceExtension>[], skippedCount: number) => Promise<{ added: number } | undefined>;

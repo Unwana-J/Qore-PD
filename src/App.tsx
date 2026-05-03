@@ -619,6 +619,7 @@ function AppContent() {
               projects={projects}
               config={config}
               userRole={userRole || 'PM'}
+              userName={profile?.name || 'User'}
               mode={importMode}
               onImportBulk={importBulkProjects}
               onImportExtensions={importBulkExtensions}

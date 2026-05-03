@@ -44,7 +44,7 @@ const OPTIONAL_FIELDS_IMPLEMENTATIONS = [
 ];
 
 export const BulkImportView: React.FC<BulkImportViewProps> = ({ 
-  users, invites, projects, config, userRole, mode = 'projects',
+  users, invites, projects, config, userRole, userName, mode = 'projects',
   onImportBulk, onImportExtensions, onShowToast, onUpdateConfig, onClose 
 }) => {
   const isProjects = mode === 'projects';
@@ -725,6 +725,16 @@ export const BulkImportView: React.FC<BulkImportViewProps> = ({
         const sb = config.serviceBaselines.find(s => s.name === row.serviceName);
         const variant = row.serviceVariant || 'Standard';
         
+        const comments = [];
+        if (row.notes) {
+          comments.push({
+            id: Math.random().toString(36).substr(2, 9),
+            text: row.notes,
+            user: userName || 'System',
+            timestamp: new Date().toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })
+          });
+        }
+
         const ext: Partial<ServiceExtension> = {
           clientName: row.clientName,
           serviceId: sb?.id || 'unknown',
@@ -736,7 +746,8 @@ export const BulkImportView: React.FC<BulkImportViewProps> = ({
           status: (row.closureStatus as any) || 'Not Started',
           baselineDays: sb?.baselineDays || 14,
           milestones: sb?.milestones?.map(m => ({ name: m, completed: false, completedAt: null, completedBy: null })) || [],
-          mappingStatus: 'None'
+          mappingStatus: 'None',
+          comments
         };
         toAdd.push(ext);
       });
