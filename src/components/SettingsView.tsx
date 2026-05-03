@@ -1367,14 +1367,26 @@ const PackageServiceConfig = ({ config, setConfig, theme, showToast }: any) => {
     showToast("Service added successfully.");
   };
 
-  const handleSaveMilestones = (milestones: string[]) => {
+  const handleSaveMilestones = async (milestones: string[]) => {
     if (!milestoneModal.serviceId) return;
     const updated = config.serviceBaselines.map((s: any) => 
       s.id === milestoneModal.serviceId ? { ...s, milestones } : s
     );
     setConfig({ ...config, serviceBaselines: updated });
     setMilestoneModal({ ...milestoneModal, isOpen: false, serviceId: null, serviceName: '', initialMilestones: [] });
-    showToast("Milestones updated successfully.");
+    showToast("Milestones updated in baseline.");
+
+    // Offer to sync with active implementations
+    if (window.confirm(`Would you like to sync these updated milestones to all ACTIVE implementations of "${milestoneModal.serviceName}"?\n\nThis will add new milestones and update the order, but will NOT lose existing completion progress.`)) {
+      try {
+        const count = await api.serviceExtensions.syncMilestones(milestoneModal.serviceName, milestones);
+        if (count > 0) showToast(`Successfully synced milestones with ${count} active implementations.`, 'success');
+        else showToast("No active implementations required synchronization.");
+      } catch (err) {
+        console.error("Sync error:", err);
+        showToast("Failed to sync milestones with existing implementations.", "error");
+      }
+    }
   };
 
   const handleSavePackage = (id: string) => {

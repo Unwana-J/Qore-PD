@@ -604,6 +604,39 @@ export const api = {
       return (data || []).map(api.serviceExtensions._fromDb);
     },
 
+    syncMilestones: async (serviceName: string, newMilestoneNames: string[]): Promise<number> => {
+      const { data, error } = await supabase
+        .from('service_extensions')
+        .select('*')
+        .eq('service_name', serviceName)
+        .neq('status', 'Completed');
+      
+      if (error) throw error;
+      if (!data || data.length === 0) return 0;
+
+      let updatedCount = 0;
+      for (const r of data) {
+        const currentMilestones = r.milestones || [];
+        const updatedMilestones = newMilestoneNames.map(name => {
+          const existing = currentMilestones.find((m: any) => m.name === name);
+          if (existing) return existing;
+          return { name, completed: false, completedAt: null, completedBy: null };
+        });
+
+        const isDifferent = updatedMilestones.length !== currentMilestones.length || 
+                           updatedMilestones.some((m, i) => m.name !== currentMilestones[i]?.name);
+
+        if (isDifferent) {
+          await supabase
+            .from('service_extensions')
+            .update({ milestones: updatedMilestones })
+            .eq('id', r.id);
+          updatedCount++;
+        }
+      }
+      return updatedCount;
+    },
+
     create: async (ext: Omit<ServiceExtension, 'id' | 'createdAt' | 'updatedAt'>): Promise<ServiceExtension> => {
       const { data, error } = await supabase
         .from('service_extensions')
