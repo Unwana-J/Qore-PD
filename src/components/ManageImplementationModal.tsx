@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   X, CheckCircle2, Circle, MapPin, Unlink, AlertCircle,
   ExternalLink, Loader2, Lock, Clock, Calendar, UserPlus,
-  RefreshCw, Briefcase, Check, Shield, AlertTriangle
+  RefreshCw, Briefcase, Check, Shield, AlertTriangle, Plus
 } from 'lucide-react';
 import { ServiceExtension, IMilestone, AppConfig, User, ImplementationIssue } from '../types';
 import { api } from '../lib/api';
