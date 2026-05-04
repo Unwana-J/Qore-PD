@@ -1117,7 +1117,7 @@ export const api = {
 
     // Check for duplicate active extension (warn before create)
     checkDuplicate: async (clientName: string, serviceId: string, serviceVariant: string): Promise<boolean> => {
-      const { data } = await supabase
+      const { data } = await api.supabase
         .from('service_extensions')
         .select('id')
         .eq('client_name', clientName)
@@ -1127,5 +1127,13 @@ export const api = {
         .limit(1);
       return (data || []).length > 0;
     },
+
+    delete: async (id: string): Promise<void> => {
+      const { error } = await api.supabase
+        .from('service_extensions')
+        .delete()
+        .eq('id', id);
+      if (error) throw error;
+    }
   }
 };
