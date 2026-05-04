@@ -1,17 +1,22 @@
 import React, { useState, useMemo } from 'react';
 import { ServiceExtension, ImplementationIssue } from '../types';
 import { cn } from '../lib/utils';
-import { AlertTriangle, Shield, Clock, CheckCircle, Filter, Search } from 'lucide-react';
-import { format, parseISO } from 'date-fns';
+import { AlertTriangle, Shield, Clock, CheckCircle, Filter, Search, Users, Calendar, X } from 'lucide-react';
+import { format, parseISO, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
 
 interface ImplementationIssuesLogProps {
   extensions: ServiceExtension[];
   onManage: (ext: ServiceExtension) => void;
+  isLead?: boolean;
 }
 
-export const ImplementationIssuesLog: React.FC<ImplementationIssuesLogProps> = ({ extensions, onManage }) => {
+export const ImplementationIssuesLog: React.FC<ImplementationIssuesLogProps> = ({ extensions, onManage, isLead }) => {
   const [filterStatus, setFilterStatus] = useState<string>('All');
   const [filterCategory, setFilterCategory] = useState<string>('All');
+  const [filterIM, setFilterIM] = useState<string>('All');
+  const [filterMonth, setFilterMonth] = useState<string>('All');
+  const [startDate, setStartDate] = useState<string>('');
+  const [endDate, setEndDate] = useState<string>('');
   const [searchTerm, setSearchTerm] = useState('');
 
   const allIssues = useMemo(() => {
@@ -32,15 +37,50 @@ export const ImplementationIssuesLog: React.FC<ImplementationIssuesLogProps> = (
     return Array.from(new Set(cats)).sort();
   }, [allIssues]);
 
+  const managers = useMemo(() => {
+    const ims = allIssues.map(i => i.manager).filter(Boolean);
+    return Array.from(new Set(ims)).sort();
+  }, [allIssues]);
+
+  const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
   const filteredIssues = useMemo(() => {
     return allIssues.filter(issue => {
+      // Multiple filters check
       if (filterStatus !== 'All' && issue.status !== filterStatus) return false;
+      
       const cat = issue.category || 'General';
       if (filterCategory !== 'All' && cat !== filterCategory) return false;
-      if (searchTerm && !issue.description.toLowerCase().includes(searchTerm.toLowerCase()) && !issue.clientName.toLowerCase().includes(searchTerm.toLowerCase())) return false;
+      
+      if (filterIM !== 'All' && issue.manager !== filterIM) return false;
+      
+      const loggedDate = parseISO(issue.createdAt);
+      
+      if (filterMonth !== 'All') {
+        if (loggedDate.getMonth() !== parseInt(filterMonth)) return false;
+      }
+      
+      if (startDate || endDate) {
+        try {
+          const start = startDate ? startOfDay(parseISO(startDate)) : new Date(0);
+          const end = endDate ? endOfDay(parseISO(endDate)) : new Date(8640000000000000);
+          if (!isWithinInterval(loggedDate, { start, end })) return false;
+        } catch (e) {
+          // Ignore invalid dates
+        }
+      }
+      
+      if (searchTerm) {
+        const search = searchTerm.toLowerCase();
+        const inDesc = issue.description.toLowerCase().includes(search);
+        const inClient = issue.clientName.toLowerCase().includes(search);
+        const inService = issue.serviceName.toLowerCase().includes(search);
+        if (!inDesc && !inClient && !inService) return false;
+      }
+      
       return true;
     });
-  }, [allIssues, filterStatus, filterCategory, searchTerm]);
+  }, [allIssues, filterStatus, filterCategory, filterIM, filterMonth, startDate, endDate, searchTerm]);
 
   const impactColors = {
     High: 'bg-rose-100 text-rose-700',
@@ -53,6 +93,18 @@ export const ImplementationIssuesLog: React.FC<ImplementationIssuesLogProps> = (
     Addressing: 'text-amber-600 bg-amber-50 border-amber-100',
     Closed: 'text-emerald-600 bg-emerald-50 border-emerald-100'
   };
+
+  const clearFilters = () => {
+    setFilterStatus('All');
+    setFilterCategory('All');
+    setFilterIM('All');
+    setFilterMonth('All');
+    setStartDate('');
+    setEndDate('');
+    setSearchTerm('');
+  };
+
+  const hasFilters = filterStatus !== 'All' || filterCategory !== 'All' || filterIM !== 'All' || filterMonth !== 'All' || startDate || endDate || searchTerm;
 
   return (
     <div className="space-y-6">
@@ -76,40 +128,109 @@ export const ImplementationIssuesLog: React.FC<ImplementationIssuesLogProps> = (
         </div>
       </div>
 
-      <div className="flex flex-col md:flex-row items-center gap-4 bg-white p-3 rounded-2xl border border-slate-200 shadow-sm">
-        <div className="relative flex-1 group">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-teal-500 transition-colors" />
-          <input
-            type="text"
-            placeholder="Search issues or clients..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-11 pr-4 py-2 bg-slate-50 border border-slate-100 rounded-xl text-xs font-bold text-slate-600 outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all"
-          />
-        </div>
-        
-        <div className="flex items-center gap-2">
-          <select 
-            className="px-4 py-2 bg-slate-50 border border-slate-100 rounded-xl text-xs font-bold text-slate-600 outline-none focus:ring-2 focus:ring-teal-500/20 transition-all cursor-pointer"
-            value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value)}
-          >
-            <option value="All">All Statuses</option>
-            <option value="Open">Open</option>
-            <option value="Addressing">Addressing</option>
-            <option value="Closed">Closed</option>
-          </select>
+      <div className="bg-white p-4 rounded-3xl border border-slate-200 shadow-sm space-y-4">
+        {/* Row 1: Search & Status/Category */}
+        <div className="flex flex-col md:flex-row items-center gap-4">
+          <div className="relative flex-1 group">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-teal-500 transition-colors" />
+            <input
+              type="text"
+              placeholder="Search issues, clients, or services..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-11 pr-4 py-2.5 bg-slate-50 border border-slate-100 rounded-2xl text-xs font-bold text-slate-600 outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all"
+            />
+          </div>
+          
+          <div className="flex items-center gap-3">
+            <div className="relative group">
+              <Filter className="absolute left-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none" />
+              <select 
+                className="pl-10 pr-8 py-2.5 bg-slate-50 border border-slate-100 rounded-2xl text-xs font-bold text-slate-600 outline-none focus:ring-2 focus:ring-teal-500/20 transition-all cursor-pointer appearance-none"
+                value={filterStatus}
+                onChange={(e) => setFilterStatus(e.target.value)}
+              >
+                <option value="All">All Statuses</option>
+                <option value="Open">Open</option>
+                <option value="Addressing">Addressing</option>
+                <option value="Closed">Closed</option>
+              </select>
+            </div>
 
-          <select 
-            className="px-4 py-2 bg-slate-50 border border-slate-100 rounded-xl text-xs font-bold text-slate-600 outline-none focus:ring-2 focus:ring-teal-500/20 transition-all cursor-pointer"
-            value={filterCategory}
-            onChange={(e) => setFilterCategory(e.target.value)}
-          >
-            <option value="All">All Categories</option>
-            {categories.map(cat => (
-              <option key={cat} value={cat}>{cat}</option>
-            ))}
-          </select>
+            <div className="relative group">
+              <Shield className="absolute left-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none" />
+              <select 
+                className="pl-10 pr-8 py-2.5 bg-slate-50 border border-slate-100 rounded-2xl text-xs font-bold text-slate-600 outline-none focus:ring-2 focus:ring-teal-500/20 transition-all cursor-pointer appearance-none"
+                value={filterCategory}
+                onChange={(e) => setFilterCategory(e.target.value)}
+              >
+                <option value="All">All Categories</option>
+                {categories.map(cat => (
+                  <option key={cat} value={cat}>{cat}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+        </div>
+
+        {/* Row 2: IM & Time Filters */}
+        <div className="flex flex-wrap items-center gap-4 pt-4 border-t border-slate-50">
+          {isLead && (
+            <div className="relative group min-w-[180px]">
+              <Users className="absolute left-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none" />
+              <select 
+                className="w-full pl-10 pr-8 py-2.5 bg-slate-50 border border-slate-100 rounded-2xl text-xs font-bold text-slate-600 outline-none focus:ring-2 focus:ring-teal-500/20 transition-all cursor-pointer appearance-none"
+                value={filterIM}
+                onChange={(e) => setFilterIM(e.target.value)}
+              >
+                <option value="All">All Managers</option>
+                {managers.map(im => (
+                  <option key={im} value={im}>{im}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          <div className="relative group min-w-[150px]">
+            <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none" />
+            <select 
+              className="w-full pl-10 pr-8 py-2.5 bg-slate-50 border border-slate-100 rounded-2xl text-xs font-bold text-slate-600 outline-none focus:ring-2 focus:ring-teal-500/20 transition-all cursor-pointer appearance-none"
+              value={filterMonth}
+              onChange={(e) => setFilterMonth(e.target.value)}
+            >
+              <option value="All">All Months</option>
+              {months.map((m, i) => (
+                <option key={m} value={i}>{m}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2">Period:</span>
+            <input 
+              type="date" 
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              className="px-3 py-2.5 bg-slate-50 border border-slate-100 rounded-2xl text-[10px] font-black text-slate-600 outline-none focus:ring-2 focus:ring-teal-500/20"
+            />
+            <span className="text-slate-300">to</span>
+            <input 
+              type="date" 
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              className="px-3 py-2.5 bg-slate-50 border border-slate-100 rounded-2xl text-[10px] font-black text-slate-600 outline-none focus:ring-2 focus:ring-teal-500/20"
+            />
+          </div>
+
+          {hasFilters && (
+            <button 
+              onClick={clearFilters}
+              className="ml-auto flex items-center gap-2 px-4 py-2.5 text-rose-600 hover:bg-rose-50 rounded-2xl text-xs font-black uppercase tracking-widest transition-all"
+            >
+              <X className="w-4 h-4" />
+              Clear All
+            </button>
+          )}
         </div>
       </div>
 
@@ -120,7 +241,7 @@ export const ImplementationIssuesLog: React.FC<ImplementationIssuesLogProps> = (
               <tr>
                 <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Issue Description</th>
                 <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Category</th>
-                <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Institution</th>
+                <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Institution & Manager</th>
                 <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Impact</th>
                 <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Status</th>
                 <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Logged</th>
@@ -151,7 +272,11 @@ export const ImplementationIssuesLog: React.FC<ImplementationIssuesLogProps> = (
                     <td className="px-6 py-4">
                       <div>
                         <p className="text-xs font-black text-slate-800">{issue.clientName}</p>
-                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">{issue.serviceName}</p>
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{issue.serviceName}</p>
+                          <span className="text-slate-300">·</span>
+                          <p className="text-[10px] font-black text-teal-600 uppercase tracking-widest">{issue.manager}</p>
+                        </div>
                       </div>
                     </td>
                     <td className="px-6 py-4">

@@ -637,6 +637,7 @@ export const ImplementationsView: React.FC<ImplementationsViewProps> = ({
             <ImplementationIssuesLog 
               extensions={extensions}
               onManage={setManagingExtension}
+              isLead={isLead}
             />
           ) : renderTable()}
         </>
@@ -654,6 +655,7 @@ export const ImplementationsView: React.FC<ImplementationsViewProps> = ({
             <ImplementationIssuesLog 
               extensions={extensions}
               onManage={setManagingExtension}
+              isLead={isLead}
             />
           ) : (
             <>
