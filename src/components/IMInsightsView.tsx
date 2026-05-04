@@ -103,7 +103,7 @@ export const IMInsightsView: React.FC<IMInsightsViewProps> = ({ extensions=[], u
   const kpis = useMemo(() => {
     const total=fd.length, completed=fd.filter(e=>e.status==='Completed').length;
     const suspended=fd.filter(e=>e.status==='Suspended').length, active=total-completed-suspended;
-    const overdue=fd.filter(e=>e.status!=='Completed'&&new Date(e.targetClosureDate)<today).length;
+    const overdue=fd.filter(e=>e.status!=='Completed'&&e.status!=='Suspended'&&new Date(e.targetClosureDate)<today).length;
     const mapped=fd.filter(e=>e.mappingStatus==='Approved').length;
     return {
       total, completed, suspended, active, overdue, mapped,
@@ -139,7 +139,7 @@ export const IMInsightsView: React.FC<IMInsightsViewProps> = ({ extensions=[], u
       if(ext.status==='Completed') t.completed++;
       else if(ext.status==='Suspended') t.suspended++;
       else t.active++;
-      if(ext.status!=='Completed'&&new Date(ext.targetClosureDate)<today) t.overdue++;
+      if(ext.status!=='Completed'&&ext.status!=='Suspended'&&new Date(ext.targetClosureDate)<today) t.overdue++;
     });
     return m;
   }, [fd, ims]);

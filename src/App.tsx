@@ -560,6 +560,8 @@ function AppContent() {
                           setImportMode('implementations');
                           setIsBulkImportOpen(true);
                         }}
+                        initialFilter={implementationsFilter}
+                        initialIM={implementationsIMFilter}
                         defaultTab={isRole(userRole, 'IM Lead') || isRole(userRole, 'Superadmin') ? 'all' : 'mine'}
                         mode="list"
                         onViewProject={(pid) => {
