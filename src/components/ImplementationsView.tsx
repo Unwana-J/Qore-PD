@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Plus, Layers, Clock, Search, Users, Filter, X, CheckCircle2, AlertTriangle, TrendingUp, MapPin, Upload, Package } from 'lucide-react';
+import { Plus, Layers, Clock, Search, Users, Filter, X, CheckCircle2, AlertTriangle, TrendingUp, MapPin, Upload, Package, Trash2 } from 'lucide-react';
 import { cn, isRole } from '../lib/utils';
 import { ServiceExtension, Role, AppConfig } from '../types';
 import { api } from '../lib/api';
@@ -7,6 +7,7 @@ import { NewImplementationModal } from './NewImplementationModal';
 import { ManageImplementationModal } from './ManageImplementationModal';
 import { IMInsightsView } from './IMInsightsView';
 import { ImplementationIssuesLog } from './ImplementationIssuesLog';
+import { ConfirmationModal } from './common/ConfirmationModal';
 import { Project, User } from '../types';
 
 interface ImplementationsViewProps {
@@ -186,6 +187,7 @@ export const ImplementationsView: React.FC<ImplementationsViewProps> = ({
   const [loading, setLoading] = useState(true);
   const [isNewModalOpen, setIsNewModalOpen] = useState(false);
   const [managingExtension, setManagingExtension] = useState<ServiceExtension | null>(null);
+  const [extensionToDelete, setExtensionToDelete] = useState<ServiceExtension | null>(null);
 
   const isLead = isRole(userRole, 'IM Lead') || isRole(userRole, 'Superadmin');
   const [activeTab, setActiveTab] = useState<'mine' | 'all' | 'insights' | 'queue' | 'issues'>(defaultTab || (isLead ? 'insights' : 'mine'));
@@ -217,10 +219,12 @@ export const ImplementationsView: React.FC<ImplementationsViewProps> = ({
     try {
       setLoading(true);
       let data;
-      if ((activeTab === 'all' || activeTab === 'insights' || activeTab === 'queue' || activeTab === 'issues') && isLead) {
+      // IM Leads / Superadmins always get all extensions
+      if (isLead) {
         data = await api.serviceExtensions.getAll();
       } else if (activeTab === 'issues') {
-        data = await api.serviceExtensions.getAll(); // Shared issues log
+        // Plain IMs see the shared issue log (all extensions) so they can view cross-team issues
+        data = await api.serviceExtensions.getAll();
       } else {
         data = await api.serviceExtensions.getByIM(userName);
       }
@@ -277,9 +281,30 @@ export const ImplementationsView: React.FC<ImplementationsViewProps> = ({
   const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
   const managers = useMemo(() => {
-    const ims = users.filter(u => u.role === 'IM' || u.role === 'IM Lead' || u.role === 'Superadmin');
-    return Array.from(new Set(ims.map(u => u.name))).sort();
-  }, [users]);
+    // Pull from users table (role-based) — catches correctly configured IMs
+    const imUserNames = users
+      .filter(u => u.role === 'IM' || u.role === 'IM Lead' || u.role === 'Superadmin')
+      .map(u => u.name);
+    // Also pull from extensions data directly — catches IMs whose DB role is misconfigured
+    // This ensures Feyi (and anyone like her) always appears in the filter
+    const extensionManagerNames = extensions.map(e => e.implementationManager).filter(Boolean);
+    return Array.from(new Set([...imUserNames, ...extensionManagerNames])).sort();
+  }, [users, extensions]);
+
+  const handleDelete = async () => {
+    if (!extensionToDelete) return;
+    
+    try {
+      await api.serviceExtensions.delete(extensionToDelete.id);
+      onShowToast('Implementation deleted successfully.');
+      loadExtensions();
+    } catch (error) {
+      console.error('Error deleting extension:', error);
+      onShowToast('Failed to delete implementation.');
+    } finally {
+      setExtensionToDelete(null);
+    }
+  };
 
   const renderTable = () => {
     const statusColors: Record<string, string> = {
@@ -468,12 +493,23 @@ export const ImplementationsView: React.FC<ImplementationsViewProps> = ({
                             </span>
                           </td>
                           <td className="px-6 py-4 text-right">
-                            <button
-                              onClick={() => setManagingExtension(ext)}
-                              className="px-4 py-2 bg-teal-600 text-white text-xs font-black uppercase tracking-widest rounded-xl hover:bg-teal-700 transition-all active:scale-95 shadow-md shadow-teal-600/10"
-                            >
-                              Manage
-                            </button>
+                            <div className="flex items-center justify-end gap-2">
+                              <button
+                                onClick={() => setManagingExtension(ext)}
+                                className="px-4 py-2 bg-teal-600 text-white text-xs font-black uppercase tracking-widest rounded-xl hover:bg-teal-700 transition-all active:scale-95 shadow-md shadow-teal-600/10"
+                              >
+                                Manage
+                              </button>
+                              {isLead && (
+                                <button
+                                  onClick={() => setExtensionToDelete(ext)}
+                                  className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all active:scale-95"
+                                  title="Delete Implementation"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              )}
+                            </div>
                           </td>
                         </tr>
                       );
@@ -708,6 +744,18 @@ export const ImplementationsView: React.FC<ImplementationsViewProps> = ({
           userName={userName}
           config={config}
           onShowToast={onShowToast}
+        />
+      )}
+
+      {extensionToDelete && (
+        <ConfirmationModal
+          isOpen={!!extensionToDelete}
+          onClose={() => setExtensionToDelete(null)}
+          onConfirm={handleDelete}
+          title="Delete Implementation"
+          message={`Are you sure you want to permanently delete the implementation for ${extensionToDelete.client_name}? This action cannot be undone.`}
+          confirmText="Delete"
+          type="danger"
         />
       )}
     </div>

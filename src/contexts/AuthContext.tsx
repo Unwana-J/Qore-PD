@@ -95,7 +95,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       };
     },
     enabled: !!user?.id,
-    staleTime: 60000, // 1 minute stale-while-revalidate
+    staleTime: 10000, // 10 second stale-while-revalidate — keeps role changes snappy
     retry: 2,
     retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 30000), // Exponential backoff max 30s
   });
