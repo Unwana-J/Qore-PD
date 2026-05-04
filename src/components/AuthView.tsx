@@ -8,27 +8,42 @@ import {
   EyeOff, 
   ArrowRight,
   AlertTriangle,
-  Fingerprint
+  Fingerprint,
+  CheckCircle2
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { cn } from '../lib/utils';
 
 export const AuthView: React.FC = () => {
   const [isLogin, setIsLogin] = useState(true);
+  const [isReset, setIsReset] = useState(window.location.search.includes('reset=true'));
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [name, setName] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
+    setSuccess(null);
 
     try {
-      if (isLogin) {
+      if (isReset) {
+        if (password !== confirmPassword) throw new Error("Passwords do not match");
+        const { error } = await supabase.auth.updateUser({ password });
+        if (error) throw error;
+        setSuccess('Password updated successfully! Redirecting...');
+        setTimeout(() => {
+          window.history.replaceState({}, '', window.location.pathname);
+          setIsReset(false);
+          setIsLogin(true);
+        }, 2000);
+      } else if (isLogin) {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
       } else {
@@ -40,14 +55,29 @@ export const AuthView: React.FC = () => {
           }
         });
         if (error) throw error;
-        
-        // Profiles are usually handled by Supabase triggers (SQL function)
-        // But for this simple implementation, if the sign up was successful,
-        // we assume a database function is handling the profile creation.
-        alert('Check your email for the confirmation link!');
+        setSuccess('Check your email for the confirmation link!');
       }
     } catch (err: any) {
       setError(err.message || 'Authentication failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleForgotPassword = async () => {
+    if (!email) {
+      setError('Please enter your email address first.');
+      return;
+    }
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/auth?reset=true`,
+      });
+      if (error) throw error;
+      setSuccess('Password reset link sent! Check your email.');
+    } catch (err: any) {
+      setError(err.message);
     } finally {
       setLoading(false);
     }
@@ -80,19 +110,19 @@ export const AuthView: React.FC = () => {
         >
           <div className="flex bg-slate-50 p-1.5 rounded-2xl mb-8">
             <button 
-              onClick={() => setIsLogin(true)}
+              onClick={() => { setIsLogin(true); setIsReset(false); }}
               className={cn(
                 "flex-1 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all",
-                isLogin ? "bg-white text-slate-900 shadow-sm" : "text-slate-400 hover:text-slate-600"
+                (isLogin && !isReset) ? "bg-white text-slate-900 shadow-sm" : "text-slate-400 hover:text-slate-600"
               )}
             >
               Sign In
             </button>
             <button 
-              onClick={() => setIsLogin(false)}
+              onClick={() => { setIsLogin(false); setIsReset(false); }}
               className={cn(
                 "flex-1 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all",
-                !isLogin ? "bg-white text-slate-900 shadow-sm" : "text-slate-400 hover:text-slate-600"
+                (!isLogin && !isReset) ? "bg-white text-slate-900 shadow-sm" : "text-slate-400 hover:text-slate-600"
               )}
             >
               Create Account
@@ -100,8 +130,12 @@ export const AuthView: React.FC = () => {
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">
+            <h2 className="text-xl font-black text-slate-900 text-center mb-2">
+              {isReset ? 'Set New Password' : isLogin ? 'Welcome Back' : 'Create Account'}
+            </h2>
+
             <AnimatePresence mode="wait">
-              {!isLogin && (
+              {!isLogin && !isReset && (
                 <motion.div 
                   initial={{ height: 0, opacity: 0 }}
                   animate={{ height: 'auto', opacity: 1 }}
@@ -124,25 +158,37 @@ export const AuthView: React.FC = () => {
               )}
             </AnimatePresence>
 
-            <div className="space-y-2">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Email Address</label>
-              <div className="relative">
-                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300" />
-                <input 
-                  type="email" 
-                  required
-                  className="w-full pl-11 pr-5 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl font-bold focus:outline-none focus:border-teal-500 transition-all"
-                  placeholder="name@company.com"
-                  value={email}
-                  onChange={e => setEmail(e.target.value)}
-                />
+            {!isReset && (
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Email Address</label>
+                <div className="relative">
+                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300" />
+                  <input 
+                    type="email" 
+                    required
+                    className="w-full pl-11 pr-5 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl font-bold focus:outline-none focus:border-teal-500 transition-all"
+                    placeholder="name@company.com"
+                    value={email}
+                    onChange={e => setEmail(e.target.value)}
+                  />
+                </div>
               </div>
-            </div>
+            )}
 
             <div className="space-y-2">
               <div className="flex items-center justify-between pl-1">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Password</label>
-                {isLogin && <button type="button" className="text-[10px] font-black text-teal-600 hover:text-teal-700 uppercase tracking-widest">Forgot?</button>}
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                  {isReset ? 'New Password' : 'Password'}
+                </label>
+                {isLogin && !isReset && (
+                  <button 
+                    type="button" 
+                    onClick={handleForgotPassword}
+                    className="text-[10px] font-black text-teal-600 hover:text-teal-700 uppercase tracking-widest"
+                  >
+                    Forgot?
+                  </button>
+                )}
               </div>
               <div className="relative">
                 <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300" />
@@ -163,6 +209,34 @@ export const AuthView: React.FC = () => {
                 </button>
               </div>
             </div>
+
+            {isReset && (
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Confirm New Password</label>
+                <div className="relative">
+                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300" />
+                  <input 
+                    type={showPassword ? 'text' : 'password'} 
+                    required
+                    className="w-full pl-11 pr-12 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl font-bold focus:outline-none focus:border-teal-500 transition-all"
+                    placeholder="••••••••"
+                    value={confirmPassword}
+                    onChange={e => setConfirmPassword(e.target.value)}
+                  />
+                </div>
+              </div>
+            )}
+
+            {success && (
+              <motion.div 
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="p-4 bg-emerald-50 border border-emerald-100 rounded-2xl flex items-center gap-3 text-emerald-600"
+              >
+                <CheckCircle2 className="w-4 h-4 shrink-0" />
+                <p className="text-xs font-bold leading-tight">{success}</p>
+              </motion.div>
+            )}
 
             {error && (
               <motion.div 
