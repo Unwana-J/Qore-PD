@@ -1780,6 +1780,7 @@ const IntegrationsSettings = ({ config, setConfig, theme }: any) => {
 const TaxonomiesSettings = ({ config, setConfig, theme, showToast }: any) => {
   const [newTag, setNewTag] = useState({ name: '', color: 'indigo' });
   const [newRiskCategory, setNewRiskCategory] = useState('');
+  const [newIssueCategory, setNewIssueCategory] = useState('');
 
   const colors = ['indigo', 'amber', 'rose', 'emerald', 'sky', 'violet', 'fuchsia'];
 
@@ -1812,6 +1813,21 @@ const TaxonomiesSettings = ({ config, setConfig, theme, showToast }: any) => {
 
   const handleRemoveRiskCategory = (category: string) => {
     setConfig({ ...config, riskCategories: (config.riskCategories || []).filter((c: string) => c !== category) });
+  };
+
+  const handleAddIssueCategory = () => {
+    if (!newIssueCategory.trim()) return;
+    if ((config.issueCategories || []).includes(newIssueCategory.trim())) {
+      showToast('Category already exists.', 'error');
+      return;
+    }
+    setConfig({ ...config, issueCategories: [...(config.issueCategories || []), newIssueCategory.trim()] });
+    setNewIssueCategory('');
+    showToast('Issue category added.', 'success');
+  };
+
+  const handleRemoveIssueCategory = (category: string) => {
+    setConfig({ ...config, issueCategories: (config.issueCategories || []).filter((c: string) => c !== category) });
   };
 
   return (
@@ -1925,6 +1941,50 @@ const TaxonomiesSettings = ({ config, setConfig, theme, showToast }: any) => {
               ))}
               {(config.riskCategories || []).length === 0 && (
                 <p className="text-xs text-slate-400 font-medium italic">No risk categories created yet.</p>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Issue Categories */}
+        <div className="space-y-4">
+          <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100 h-full flex flex-col">
+            <h4 className="text-sm font-black text-slate-900 mb-1">Issue Categories</h4>
+            <p className="text-xs font-bold text-slate-500 mb-6">Manage categories for the Implementation Issue Log blockers.</p>
+            
+            <div className="flex gap-2 mb-6">
+              <input 
+                placeholder="New Category..."
+                className="flex-1 px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm font-bold outline-none"
+                value={newIssueCategory}
+                onChange={e => setNewIssueCategory(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && handleAddIssueCategory()}
+              />
+              <button
+                onClick={handleAddIssueCategory}
+                className={cn("px-4 py-2 rounded-xl text-white font-bold transition-all active:scale-95", theme.bg)}
+              >
+                Add
+              </button>
+            </div>
+
+            <div className="space-y-2 flex-1 content-start overflow-y-auto max-h-[300px] pr-2 custom-scrollbar">
+              {(config.issueCategories || []).map((category: string) => (
+                <div 
+                  key={category}
+                  className="group flex flex-col justify-center px-4 py-2 bg-white border border-slate-200 rounded-xl relative overflow-hidden transition-all"
+                >
+                  <p className="text-sm font-bold text-slate-900 z-10">{category}</p>
+                  <button 
+                    onClick={() => handleRemoveIssueCategory(category)}
+                    className="absolute right-2 p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg opacity-0 group-hover:opacity-100 transition-all z-20"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              ))}
+              {(config.issueCategories || []).length === 0 && (
+                <p className="text-xs text-slate-400 font-medium italic">No issue categories created yet.</p>
               )}
             </div>
           </div>

@@ -400,6 +400,7 @@ export interface AppConfig {
   maintenanceMode?: boolean;
   customTags?: { id: string; name: string; color: string }[];
   riskCategories?: string[];
+  issueCategories?: string[];
 }
 
 export interface WeightHistory {

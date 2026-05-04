@@ -510,7 +510,8 @@ export const INITIAL_CONFIG: AppConfig = {
       { id: 't2', name: 'Compliance', color: 'amber' },
       { id: 't3', name: 'Critical SLA', color: 'rose' }
     ],
-    riskCategories: ['Technical', 'Financial', 'Operational', 'Resourcing', 'Vendor', 'Compliance']
+    riskCategories: ['Technical', 'Financial', 'Operational', 'Resourcing', 'Vendor', 'Compliance'],
+    issueCategories: ['Technical', 'Client', 'Process', 'Access', 'Data', 'Other']
 };
 
 export const MOCK_WEIGHT_HISTORY: WeightHistory[] = [

@@ -638,6 +638,7 @@ export const ImplementationsView: React.FC<ImplementationsViewProps> = ({
               extensions={extensions}
               onManage={setManagingExtension}
               isLead={isLead}
+              config={config}
             />
           ) : renderTable()}
         </>
@@ -656,6 +657,7 @@ export const ImplementationsView: React.FC<ImplementationsViewProps> = ({
               extensions={extensions}
               onManage={setManagingExtension}
               isLead={isLead}
+              config={config}
             />
           ) : (
             <>

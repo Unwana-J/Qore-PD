@@ -8,9 +8,10 @@ interface ImplementationIssuesLogProps {
   extensions: ServiceExtension[];
   onManage: (ext: ServiceExtension) => void;
   isLead?: boolean;
+  config?: any;
 }
 
-export const ImplementationIssuesLog: React.FC<ImplementationIssuesLogProps> = ({ extensions, onManage, isLead }) => {
+export const ImplementationIssuesLog: React.FC<ImplementationIssuesLogProps> = ({ extensions, onManage, isLead, config }) => {
   const [filterStatus, setFilterStatus] = useState<string>('All');
   const [filterCategory, setFilterCategory] = useState<string>('All');
   const [filterIM, setFilterIM] = useState<string>('All');
@@ -33,14 +34,17 @@ export const ImplementationIssuesLog: React.FC<ImplementationIssuesLogProps> = (
   }, [extensions]);
 
   const categories = useMemo(() => {
-    const cats = allIssues.map(i => i.category || 'General');
-    return Array.from(new Set(cats)).sort();
-  }, [allIssues]);
+    if (config?.issueCategories && config.issueCategories.length > 0) {
+      return [...config.issueCategories].sort();
+    }
+    const defaultCats = ['Technical', 'Client', 'Process', 'Access', 'Data', 'Other'];
+    return defaultCats.sort();
+  }, [config?.issueCategories]);
 
   const managers = useMemo(() => {
-    const ims = allIssues.map(i => i.manager).filter(Boolean);
+    const ims = extensions.map(ext => ext.implementationManager).filter(Boolean);
     return Array.from(new Set(ims)).sort();
-  }, [allIssues]);
+  }, [extensions]);
 
   const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
