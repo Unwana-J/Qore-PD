@@ -753,9 +753,9 @@ export const ImplementationsView: React.FC<ImplementationsViewProps> = ({
           onClose={() => setExtensionToDelete(null)}
           onConfirm={handleDelete}
           title="Delete Implementation"
-          message={`Are you sure you want to permanently delete the implementation for ${extensionToDelete.client_name}? This action cannot be undone.`}
-          confirmText="Delete"
-          type="danger"
+          message={`Are you sure you want to permanently delete the implementation for ${extensionToDelete.clientName}? This action cannot be undone.`}
+          confirmLabel="Delete"
+          variant="danger"
         />
       )}
     </div>
