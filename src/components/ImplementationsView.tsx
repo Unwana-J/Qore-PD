@@ -6,6 +6,7 @@ import { api } from '../lib/api';
 import { NewImplementationModal } from './NewImplementationModal';
 import { ManageImplementationModal } from './ManageImplementationModal';
 import { IMInsightsView } from './IMInsightsView';
+import { ImplementationIssuesLog } from './ImplementationIssuesLog';
 import { Project, User } from '../types';
 
 interface ImplementationsViewProps {
@@ -17,7 +18,7 @@ interface ImplementationsViewProps {
   onShowToast: (msg: string, type?: 'success' | 'error') => void;
   initialFilter?: string;
   initialIM?: string;
-  defaultTab?: 'mine' | 'all' | 'insights' | 'queue';
+  defaultTab?: 'mine' | 'all' | 'insights' | 'queue' | 'issues';
   mode?: 'dashboard' | 'list';
   onImportExtensions?: () => void;
 }
@@ -187,7 +188,7 @@ export const ImplementationsView: React.FC<ImplementationsViewProps> = ({
   const [managingExtension, setManagingExtension] = useState<ServiceExtension | null>(null);
 
   const isLead = isRole(userRole, 'IM Lead') || isRole(userRole, 'Superadmin');
-  const [activeTab, setActiveTab] = useState<'mine' | 'all' | 'insights' | 'queue'>(defaultTab || (isLead ? 'insights' : 'mine'));
+  const [activeTab, setActiveTab] = useState<'mine' | 'all' | 'insights' | 'queue' | 'issues'>(defaultTab || (isLead ? 'insights' : 'mine'));
 
   // Filter state
   const [searchTerm, setSearchTerm] = useState('');
@@ -216,8 +217,10 @@ export const ImplementationsView: React.FC<ImplementationsViewProps> = ({
     try {
       setLoading(true);
       let data;
-      if ((activeTab === 'all' || activeTab === 'insights' || activeTab === 'queue') && isLead) {
+      if ((activeTab === 'all' || activeTab === 'insights' || activeTab === 'queue' || activeTab === 'issues') && isLead) {
         data = await api.serviceExtensions.getAll();
+      } else if (activeTab === 'issues') {
+        data = await api.serviceExtensions.getAll(); // Shared issues log
       } else {
         data = await api.serviceExtensions.getByIM(userName);
       }
@@ -578,6 +581,7 @@ export const ImplementationsView: React.FC<ImplementationsViewProps> = ({
                 )}
               </button>
               <button onClick={() => setActiveTab('mine')} className={cn("px-4 py-2 text-sm font-bold rounded-lg transition-all", activeTab === 'mine' ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700")}>My Implementations</button>
+              <button onClick={() => setActiveTab('issues')} className={cn("px-4 py-2 text-sm font-bold rounded-lg transition-all", activeTab === 'issues' ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700")}>Issue Log</button>
             </div>
           )}
 
@@ -629,23 +633,44 @@ export const ImplementationsView: React.FC<ImplementationsViewProps> = ({
                 </div>
               )}
             </div>
+          ) : activeTab === 'issues' ? (
+            <ImplementationIssuesLog 
+              extensions={extensions}
+              onManage={setManagingExtension}
+            />
           ) : renderTable()}
         </>
       ) : (
         /* IMs: unified dashboard + table */
         <>
-          {!loading && extensions.length > 0 && (
-            <IMPersonalDashboard
+          {mode !== 'dashboard' && (
+            <div className="flex gap-2 p-1 bg-slate-100 rounded-xl w-fit mb-6">
+              <button onClick={() => setActiveTab('mine')} className={cn("px-4 py-2 text-sm font-bold rounded-lg transition-all", activeTab === 'mine' ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700")}>My Implementations</button>
+              <button onClick={() => setActiveTab('issues')} className={cn("px-4 py-2 text-sm font-bold rounded-lg transition-all", activeTab === 'issues' ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700")}>Issue Log</button>
+            </div>
+          )}
+
+          {activeTab === 'issues' ? (
+            <ImplementationIssuesLog 
               extensions={extensions}
-              userName={userName}
               onManage={setManagingExtension}
             />
-          )}
-          {mode !== 'dashboard' && (
-            <div>
-              <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-3">All My Implementations</h3>
-              {renderTable()}
-            </div>
+          ) : (
+            <>
+              {!loading && extensions.length > 0 && (
+                <IMPersonalDashboard
+                  extensions={extensions}
+                  userName={userName}
+                  onManage={setManagingExtension}
+                />
+              )}
+              {mode !== 'dashboard' && (
+                <div className="mt-8">
+                  <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-3">All My Implementations</h3>
+                  {renderTable()}
+                </div>
+              )}
+            </>
           )}
         </>
       )}
