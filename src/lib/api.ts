@@ -604,14 +604,21 @@ export const api = {
       return (data || []).map(api.serviceExtensions._fromDb);
     },
 
-    syncMilestones: async (serviceName: string, newMilestoneNames: string[]): Promise<number> => {
-      const { data, error } = await supabase
+    syncMilestones: async (serviceName: string, newMilestoneNames: string[], subServiceId?: string | null): Promise<number> => {
+      let query = supabase
         .from('service_extensions')
         .select('*')
         .eq('service_name', serviceName)
         .neq('status', 'Completed');
       
-      if (error) throw error;
+      if (subServiceId) {
+        query = query.eq('sub_service_id', subServiceId);
+      } else {
+        // Only target those without a specific sub-service id (main baseline)
+        query = query.is('sub_service_id', null);
+      }
+
+      const { data, error } = await query;
       if (!data || data.length === 0) return 0;
 
       let updatedCount = 0;

@@ -724,6 +724,8 @@ export const BulkImportView: React.FC<BulkImportViewProps> = ({
         
         const sb = config.serviceBaselines.find(s => s.name === row.serviceName);
         const variant = row.serviceVariant || 'Standard';
+        const subService = sb?.subServices?.find((ss: any) => ss.name === variant);
+        const milestonesRaw = (subService?.milestones?.length ? subService.milestones : sb?.milestones) || [];
         
         const comments = [];
         if (row.notes) {
@@ -734,18 +736,19 @@ export const BulkImportView: React.FC<BulkImportViewProps> = ({
             createdAt: new Date().toISOString()
           });
         }
-
+        
         const ext: Partial<ServiceExtension> = {
           clientName: row.clientName,
           serviceId: sb?.id || 'unknown',
           serviceName: row.serviceName,
           serviceVariant: variant,
+          subServiceId: subService?.id || null,
           implementationManager: row.implementationManager,
           startDate: row.startDate || new Date().toISOString().split('T')[0],
           targetClosureDate: row.targetClosureDate,
           status: (row.closureStatus as any) || 'Not Started',
-          baselineDays: sb?.baselineDays || 14,
-          milestones: sb?.milestones?.map(m => ({ name: m, completed: false, completedAt: null, completedBy: null })) || [],
+          baselineDays: subService?.baselineDays || sb?.baselineDays || 14,
+          milestones: milestonesRaw.map((m: string) => ({ name: m, completed: false, completedAt: null, completedBy: null })),
           mappingStatus: 'None',
           comments
         };

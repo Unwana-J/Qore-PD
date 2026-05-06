@@ -215,6 +215,7 @@ export interface ServiceSubService {
   name: string;
   baselineDays: number;
   complexityWeight?: number; // default 1.0
+  milestones?: string[];     // specific milestones for this sub-service
 }
 
 export interface ServiceBaseline {

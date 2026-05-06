@@ -1273,9 +1273,10 @@ const PackageServiceConfig = ({ config, setConfig, theme, showToast }: any) => {
   const [editForm, setEditForm] = useState<any>(null);
   const [isAdding, setIsAdding] = useState(false);
   const [newForm, setNewForm] = useState<any>(null);
-  const [milestoneModal, setMilestoneModal] = useState<{ isOpen: boolean; serviceId: string | null; serviceName: string; initialMilestones: string[] }>({
+  const [milestoneModal, setMilestoneModal] = useState<{ isOpen: boolean; serviceId: string | null; subServiceId?: string | null; serviceName: string; initialMilestones: string[] }>({
     isOpen: false,
     serviceId: null,
+    subServiceId: null,
     serviceName: '',
     initialMilestones: []
   });
@@ -1369,17 +1370,37 @@ const PackageServiceConfig = ({ config, setConfig, theme, showToast }: any) => {
 
   const handleSaveMilestones = async (milestones: string[]) => {
     if (!milestoneModal.serviceId) return;
-    const updated = config.serviceBaselines.map((s: any) => 
-      s.id === milestoneModal.serviceId ? { ...s, milestones } : s
-    );
-    setConfig({ ...config, serviceBaselines: updated });
-    setMilestoneModal({ ...milestoneModal, isOpen: false, serviceId: null, serviceName: '', initialMilestones: [] });
-    showToast("Milestones updated in baseline.");
+    
+    let updated;
+    if (milestoneModal.subServiceId) {
+      updated = config.serviceBaselines.map((s: any) => {
+        if (s.id === milestoneModal.serviceId) {
+          const updatedSubServices = (s.subServices || []).map((ss: any) => 
+            ss.id === milestoneModal.subServiceId ? { ...ss, milestones } : ss
+          );
+          return { ...s, subServices: updatedSubServices };
+        }
+        return s;
+      });
+    } else {
+      updated = config.serviceBaselines.map((s: any) => 
+        s.id === milestoneModal.serviceId ? { ...s, milestones } : s
+      );
+    }
 
-    // Offer to sync with active implementations
-    if (window.confirm(`Would you like to sync these updated milestones to all ACTIVE implementations of "${milestoneModal.serviceName}"?\n\nThis will add new milestones and update the order, but will NOT lose existing completion progress.`)) {
+    setConfig({ ...config, serviceBaselines: updated });
+    setMilestoneModal({ ...milestoneModal, isOpen: false, serviceId: null, subServiceId: null, serviceName: '', initialMilestones: [] });
+    showToast("Milestones updated.");
+
+    // Sync with active implementations
+    const syncTargetName = milestoneModal.subServiceId ? milestoneModal.serviceName : `all "${milestoneModal.serviceName}"`;
+    if (window.confirm(`Would you like to sync these updated milestones to active implementations of ${syncTargetName}?\n\nThis will add new milestones and update the order, but will NOT lose existing completion progress.`)) {
       try {
-        const count = await api.serviceExtensions.syncMilestones(milestoneModal.serviceName, milestones);
+        const count = await api.serviceExtensions.syncMilestones(
+          milestoneModal.subServiceId ? milestoneModal.serviceName.split(' (')[0] : milestoneModal.serviceName, 
+          milestones,
+          milestoneModal.subServiceId
+        );
         if (count > 0) showToast(`Successfully synced milestones with ${count} active implementations.`, 'success');
         else showToast("No active implementations required synchronization.");
       } catch (err) {
@@ -1649,6 +1670,7 @@ const PackageServiceConfig = ({ config, setConfig, theme, showToast }: any) => {
                         <th className="px-5 py-2.5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Sub-Service / Gateway</th>
                         <th className="px-5 py-2.5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Duration (Days)</th>
                         <th className="px-5 py-2.5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Complexity Weight</th>
+                        <th className="px-5 py-2.5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Custom Milestones</th>
                         {isEditing && <th className="px-5 py-2.5 text-right"></th>}
                       </tr>
                     </thead>
@@ -1675,6 +1697,24 @@ const PackageServiceConfig = ({ config, setConfig, theme, showToast }: any) => {
                             ) : (
                               <span className="text-xs font-bold text-slate-500">x{ss.complexityWeight || 1.0}</span>
                             )}
+                          </td>
+                          <td className="px-5 py-2.5 text-center">
+                            <button 
+                              onClick={() => setMilestoneModal({ 
+                                isOpen: true, 
+                                serviceId: service.id, 
+                                subServiceId: ss.id,
+                                serviceName: `${service.name} (${ss.name})`, 
+                                initialMilestones: ss.milestones || [] 
+                              })}
+                              className={cn(
+                                "px-2 py-0.5 rounded text-[10px] font-black transition-colors flex items-center gap-1 mx-auto",
+                                ss.milestones?.length ? "bg-teal-50 text-teal-700 hover:bg-teal-100" : "bg-slate-50 text-slate-400 hover:bg-slate-100"
+                              )}
+                            >
+                              <ListChecks className="w-3 h-3" />
+                              {ss.milestones?.length || 0} Set
+                            </button>
                           </td>
                           {isEditing && (
                             <td className="px-5 py-2.5 text-right">
