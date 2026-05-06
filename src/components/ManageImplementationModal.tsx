@@ -4,11 +4,11 @@ import {
   X, CheckCircle2, Circle, MapPin, Unlink, AlertCircle,
   ExternalLink, Loader2, Lock, Clock, Calendar, UserPlus,
   RefreshCw, Briefcase, Check, Shield, AlertTriangle, Plus,
-  Pencil, Trash2
+  Pencil, Trash2, Edit2
 } from 'lucide-react';
 import { ServiceExtension, IMilestone, AppConfig, User, ImplementationIssue } from '../types';
 import { api } from '../lib/api';
-import { cn, isRole } from '../lib/utils';
+import { cn, isRole, calculateWorkingDays } from '../lib/utils';
 import { MapToProjectModal } from './MapToProjectModal';
 import { ReassignModal, ExtensionRequestModal } from './IMWorkflowModals';
 
