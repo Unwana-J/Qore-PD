@@ -91,7 +91,7 @@ function AppContent() {
     dismissImplementationDigest,
     loading: projectsLoading,
     refreshProjects
-  } = useProjects(userRole || 'PM', config, profile?.name || 'User', profile?.id);
+  } = useProjects(userRole || 'PM', config, profile?.name || 'User', user?.id);
 
 
   useEffect(() => {
