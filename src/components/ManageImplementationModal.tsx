@@ -350,6 +350,26 @@ export const ManageImplementationModal: React.FC<ManageImplementationModalProps>
                 </div>
               </div>
 
+              {/* Timeline Section */}
+              <div className="px-8 mb-6 grid grid-cols-2 gap-3">
+                <div className="p-3.5 bg-slate-50 border border-slate-100 rounded-2xl flex flex-col gap-1">
+                  <div className="flex items-center gap-1.5 text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                    <Calendar className="w-3 h-3" /> Start Date
+                  </div>
+                  <div className="text-xs font-black text-slate-700">
+                    {extension.startDate ? new Date(extension.startDate).toLocaleDateString(undefined, { dateStyle: 'medium' }) : 'Not set'}
+                  </div>
+                </div>
+                <div className="p-3.5 bg-slate-50 border border-slate-100 rounded-2xl flex flex-col gap-1">
+                  <div className="flex items-center gap-1.5 text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                    <Clock className="w-3 h-3" /> Target Closure
+                  </div>
+                  <div className="text-xs font-black text-slate-700">
+                    {extension.targetClosureDate ? new Date(extension.targetClosureDate).toLocaleDateString(undefined, { dateStyle: 'medium' }) : 'Not set'}
+                  </div>
+                </div>
+              </div>
+
               {extension.extensionRequest ? (
                 <div className="mx-8 mb-6 p-5 bg-amber-50 border border-amber-200 rounded-2xl animate-in zoom-in-95">
                   <div className="flex items-center justify-between mb-3">
