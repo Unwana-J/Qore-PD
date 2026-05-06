@@ -472,7 +472,7 @@ function AppContent() {
                         config={config}
                         projects={projects}
                         users={users}
-                        defaultTab={isRole(userRole, 'PM') ? "mapping-queue" : "insights"}
+                        defaultTab={isRole(userRole, 'PM') ? "pm-dashboard" : "insights"}
                         mode="dashboard"
                         onViewProject={(pid) => {
                           const proj = projects.find(p => p.id === pid);
@@ -561,7 +561,7 @@ function AppContent() {
                         }}
                         initialFilter={implementationsFilter}
                         initialIM={implementationsIMFilter}
-                        defaultTab={isRole(userRole, 'IM Lead') || isRole(userRole, 'Superadmin') ? 'all' : (isRole(userRole, 'PM') ? 'mapping-queue' : 'mine')}
+                        defaultTab={isRole(userRole, 'IM Lead') || isRole(userRole, 'Superadmin') ? 'all' : (isRole(userRole, 'PM') ? 'pm-dashboard' : 'mine')}
                         mode="list"
                         onViewProject={(pid) => {
                           const proj = projects.find(p => p.id === pid);
