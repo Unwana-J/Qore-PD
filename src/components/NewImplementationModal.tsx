@@ -39,6 +39,7 @@ export const NewImplementationModal: React.FC<NewImplementationModalProps> = ({
   }, [users, userName]);
 
   // Step 2
+  const [startDate, setStartDate] = useState<string>(new Date().toISOString().split('T')[0]);
   const [targetDate, setTargetDate] = useState<string>('');
 
   const hasSubServices = (selectedService?.subServices?.length ?? 0) > 0;
@@ -46,9 +47,8 @@ export const NewImplementationModal: React.FC<NewImplementationModalProps> = ({
   const effectiveMilestones: string[] = (selectedSubService?.milestones?.length ? selectedSubService.milestones : selectedService?.milestones) ?? [];
 
   // Auto-suggest target date when sub-service/service is selected
-  const suggestDate = (baselineDays: number) => {
-    const today = new Date().toISOString().split('T')[0];
-    const suggested = calculateWorkingDays(today, baselineDays);
+  const suggestDate = (baselineDays: number, fromDate: string = startDate) => {
+    const suggested = calculateWorkingDays(fromDate, baselineDays);
     setTargetDate(suggested);
   };
 
@@ -108,7 +108,7 @@ export const NewImplementationModal: React.FC<NewImplementationModalProps> = ({
         subServiceId: selectedSubService?.id ?? null,
         baselineDays: effectiveBaseline,
         implementationManager: implementationManager,
-        startDate: new Date().toISOString().split('T')[0],
+        startDate: startDate,
         targetClosureDate: targetDate,
         status: 'Not Started',
         milestones,
@@ -294,30 +294,49 @@ export const NewImplementationModal: React.FC<NewImplementationModalProps> = ({
                   <button onClick={() => setStep(1)} className="text-[10px] font-black uppercase tracking-widest text-teal-500 hover:text-teal-700 underline mt-1">Edit</button>
                 </div>
 
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between mb-2">
-                    <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Target Closure Date</label>
-                    {effectiveBaseline > 0 && (
-                      <button
-                        onClick={() => suggestDate(effectiveBaseline)}
-                        className="text-[10px] font-black uppercase tracking-widest text-teal-600 hover:text-teal-700"
-                      >
-                        Auto-suggest ({effectiveBaseline}d)
-                      </button>
-                    )}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Start Date</label>
+                    <input
+                      type="date"
+                      value={startDate}
+                      onChange={e => {
+                        setStartDate(e.target.value);
+                        if (effectiveBaseline > 0) {
+                          const suggested = calculateWorkingDays(e.target.value, effectiveBaseline);
+                          setTargetDate(suggested);
+                        }
+                      }}
+                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-900 outline-none focus:bg-white focus:ring-4 focus:ring-teal-500/10 focus:border-teal-500 transition-all"
+                    />
                   </div>
-                  <input
-                    type="date"
-                    value={targetDate}
-                    onChange={e => setTargetDate(e.target.value)}
-                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-900 outline-none focus:bg-white focus:ring-4 focus:ring-teal-500/10 focus:border-teal-500 transition-all"
-                  />
-                  {effectiveBaseline > 0 && (
-                    <p className="text-[10px] text-slate-400 font-bold px-2">
-                      Baseline is {effectiveBaseline} working days. Click "Auto-suggest" to fill from today.
-                    </p>
-                  )}
+
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Target Closure Date</label>
+                      {effectiveBaseline > 0 && (
+                        <button
+                          onClick={() => suggestDate(effectiveBaseline)}
+                          className="text-[10px] font-black uppercase tracking-widest text-teal-600 hover:text-teal-700"
+                        >
+                          Reset ({effectiveBaseline}d)
+                        </button>
+                      )}
+                    </div>
+                    <input
+                      type="date"
+                      value={targetDate}
+                      onChange={e => setTargetDate(e.target.value)}
+                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-900 outline-none focus:bg-white focus:ring-4 focus:ring-teal-500/10 focus:border-teal-500 transition-all"
+                    />
+                  </div>
                 </div>
+
+                {effectiveBaseline > 0 && (
+                  <p className="text-[10px] text-slate-400 font-bold px-2">
+                    Baseline is {effectiveBaseline} working days. Target date is automatically adjusted when Start Date changes.
+                  </p>
+                )}
               </div>
             )}
           </div>
