@@ -1396,10 +1396,14 @@ const PackageServiceConfig = ({ config, setConfig, theme, showToast }: any) => {
     const syncTargetName = milestoneModal.subServiceId ? milestoneModal.serviceName : `all "${milestoneModal.serviceName}"`;
     if (window.confirm(`Would you like to sync these updated milestones to active implementations of ${syncTargetName}?\n\nThis will add new milestones and update the order, but will NOT lose existing completion progress.`)) {
       try {
+        const mainServiceName = milestoneModal.subServiceId ? milestoneModal.serviceName.split(' (')[0] : milestoneModal.serviceName;
+        const subServiceName = milestoneModal.subServiceId ? milestoneModal.serviceName.match(/\((.*)\)/)?.[1] : null;
+
         const count = await api.serviceExtensions.syncMilestones(
-          milestoneModal.subServiceId ? milestoneModal.serviceName.split(' (')[0] : milestoneModal.serviceName, 
+          mainServiceName, 
           milestones,
-          milestoneModal.subServiceId
+          milestoneModal.subServiceId,
+          subServiceName
         );
         if (count > 0) showToast(`Successfully synced milestones with ${count} active implementations.`, 'success');
         else showToast("No active implementations required synchronization.");

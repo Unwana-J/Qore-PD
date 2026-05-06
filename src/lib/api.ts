@@ -604,18 +604,24 @@ export const api = {
       return (data || []).map(api.serviceExtensions._fromDb);
     },
 
-    syncMilestones: async (serviceName: string, newMilestoneNames: string[], subServiceId?: string | null): Promise<number> => {
+    syncMilestones: async (serviceName: string, newMilestoneNames: string[], subServiceId?: string | null, subServiceName?: string | null): Promise<number> => {
       let query = supabase
         .from('service_extensions')
         .select('*')
         .eq('service_name', serviceName)
         .neq('status', 'Completed');
       
-      if (subServiceId) {
-        query = query.eq('sub_service_id', subServiceId);
+      if (subServiceId || subServiceName) {
+        if (subServiceId && subServiceName) {
+          query = query.or(`sub_service_id.eq.${subServiceId},service_variant.eq.${subServiceName}`);
+        } else if (subServiceId) {
+          query = query.eq('sub_service_id', subServiceId);
+        } else {
+          query = query.eq('service_variant', subServiceName);
+        }
       } else {
-        // Only target those without a specific sub-service id (main baseline)
-        query = query.is('sub_service_id', null);
+        // Main baseline: target those with 'Standard' variant or null ID
+        query = query.or(`sub_service_id.is.null,service_variant.eq.Standard`);
       }
 
       const { data, error } = await query;
