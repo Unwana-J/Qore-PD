@@ -111,6 +111,7 @@ export function useProjects(userRole: Role, config: AppConfig, userName: string 
       });
     },
     staleTime: 5 * 60 * 1000, // 5 minutes fresh
+    enabled: !!userId, // Prevent fetching until profile is fully loaded
   });
 
   // ── Weekly Digest ─────────────────────────────────────────────────────────
@@ -124,13 +125,12 @@ export function useProjects(userRole: Role, config: AppConfig, userName: string 
 
   // Fetch historical digests
   useEffect(() => {
-    if (!hasRole(userRole, ['Superadmin', 'Manager', 'IM Lead'])) return;
+    if (!userId || !hasRole(userRole, ['Superadmin', 'Manager', 'IM Lead'])) return;
     const fetchHistory = async () => {
       try {
-        const [projHistory, implHistory] = await Promise.all([
-          api.digests.getHistorical(),
-          api.implementationDigests.getHistorical()
-        ]);
+        const projHistory = await api.digests.getHistorical();
+        const implHistory = await api.implementationDigests.getHistorical();
+        
         setHistoricalDigests(projHistory);
         setImplementationHistoricalDigests(implHistory);
       } catch (err) {
@@ -138,7 +138,7 @@ export function useProjects(userRole: Role, config: AppConfig, userName: string 
       }
     };
     fetchHistory();
-  }, [userRole]);
+  }, [userRole, userId]);
 
   const getMondayKey = () => {
     const d = new Date();

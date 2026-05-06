@@ -95,16 +95,14 @@ function AppContent() {
 
 
   useEffect(() => {
-    if (!user) return;
+    if (!user || !profile) return;
     
     // Load config and user/invite data
     const init = async () => {
       try {
-        const [cloudConfig, fetchedUsers, fetchedInvites] = await Promise.all([
-          api.config.get(),
-          api.users.getAll().catch(e => { console.error(e); return []; }),
-          api.invites.getAll().catch(e => { console.error(e); return []; })
-        ]);
+        const cloudConfig = await api.config.get();
+        const fetchedUsers = await api.users.getAll().catch(e => { console.error(e); return []; });
+        const fetchedInvites = await api.invites.getAll().catch(e => { console.error(e); return []; });
 
         setUsers(fetchedUsers);
         setInvites(fetchedInvites);
@@ -132,7 +130,7 @@ function AppContent() {
       }
     };
     init();
-  }, [user?.id, userRole]); // Depend on user and userRole to re-fetch if they change
+  }, [user?.id, userRole, profile?.id]); // Depend on user, profile, and userRole
 
   const handleUpdateConfig = async (updates: Partial<AppConfig>) => {
     const newConfig = { ...config, ...updates };
