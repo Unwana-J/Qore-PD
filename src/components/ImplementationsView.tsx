@@ -642,6 +642,10 @@ export const ImplementationsView: React.FC<ImplementationsViewProps> = ({
                 if (manager) setManagerFilter(manager);
                 else setManagerFilter('All');
               }}
+              onManage={(id) => {
+                const ext = extensions.find(e => e.id === id);
+                if (ext) setManagingExtension(ext);
+              }}
             />
           ) : activeTab === 'queue' ? (
             <div className="space-y-4">

@@ -10,6 +10,7 @@ interface IMInsightsViewProps {
   users: User[]; 
   config: AppConfig; 
   onFilter?: (status: string, manager?: string) => void;
+  onManage?: (projectId: string) => void;
 }
 
 // Product Weights moved to dynamic config
@@ -49,7 +50,7 @@ const KPI = ({label,value,sub,rate,inv,icon,color,onClick}:any) => {
   );
 };
 
-export const IMInsightsView: React.FC<IMInsightsViewProps> = ({ extensions=[], users=[], config, onFilter }) => {
+export const IMInsightsView: React.FC<IMInsightsViewProps> = ({ extensions=[], users=[], config, onFilter, onManage }) => {
   const [yr, setYr] = useState<number|'All'>(new Date().getFullYear());
   const [mo, setMo] = useState<number|'All'>('All');
   const [q, setQ] = useState<number|'All'>('All');
@@ -407,7 +408,14 @@ export const IMInsightsView: React.FC<IMInsightsViewProps> = ({ extensions=[], u
                 {overdue.slice(0,3).map(ext=>{
                   const days = Math.floor((today.getTime()-new Date(ext.targetClosureDate).getTime())/(1000*60*60*24));
                   return (
-                    <div key={ext.id} className="bg-white rounded-2xl p-4 border border-red-100 shadow-sm flex items-center justify-between">
+                    <div 
+                      key={ext.id} 
+                      className={cn(
+                        "bg-white rounded-2xl p-4 border border-red-100 shadow-sm flex items-center justify-between",
+                        onManage && "cursor-pointer hover:border-red-300 hover:shadow-md transition-all active:scale-[0.98]"
+                      )}
+                      onClick={() => onManage?.(ext.id)}
+                    >
                       <div>
                         <p className="text-sm font-black text-slate-900 truncate">{ext.clientName}</p>
                         <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-0.5">{ext.serviceName} · {ext.implementationManager}</p>
