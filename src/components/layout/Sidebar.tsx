@@ -142,7 +142,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             )}
           </div>
             <NavItem icon={Briefcase} label="Projects" view="projects" />
-            {(isRole(userRole, 'IM') || isRole(userRole, 'IM Lead') || hasRole(userRole, ['Superadmin', 'Manager'])) && (
+            {(isRole(userRole, 'IM') || isRole(userRole, 'IM Lead') || isRole(userRole, 'PM') || hasRole(userRole, ['Superadmin', 'Manager'])) && (
               <NavItem icon={Layers} label="Ancillary Implementations" view="implementations" />
             )}
             {!isRole(userRole, 'Executive') && !isRole(userRole, 'Finance') && !isRole(userRole, 'IM') && !isRole(userRole, 'IM Lead') && (

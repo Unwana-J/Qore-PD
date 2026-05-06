@@ -248,10 +248,20 @@ export function useProjects(userRole: Role, config: AppConfig, userName: string 
         // Role-based filtering for the Implementation Digest
         let extensionsToDigest = allExtensions;
         const isIndividualIM = userRole === 'IM' && !hasRole(userRole, ['Superadmin', 'Manager', 'IM Lead', 'Team Lead']);
+        const isPM = userRole === 'PM';
         
         if (isIndividualIM) {
           const normalizedUserName = userName?.trim().toLowerCase();
           extensionsToDigest = allExtensions.filter(e => e.implementationManager?.trim().toLowerCase() === normalizedUserName);
+        } else if (isPM) {
+          const normalizedUserName = userName?.trim().toLowerCase();
+          const myProjectIds = rawProjects
+            .filter(p => p.assignedPM?.trim().toLowerCase() === normalizedUserName)
+            .map(p => p.id);
+          extensionsToDigest = allExtensions.filter(e => 
+            e.implementationManager?.trim().toLowerCase() === normalizedUserName || 
+            (e.mappingStatus === 'Pending' && myProjectIds.includes(e.linkedProjectId!))
+          );
         }
 
         const active = extensionsToDigest.filter(e => e.status !== 'Completed');
@@ -307,7 +317,9 @@ export function useProjects(userRole: Role, config: AppConfig, userName: string 
           generatedAt: today,
           totalActive: active.length,
           completedThisWeek,
-          mappingRequestsPending: allExtensions.filter(e => e.mappingStatus === 'Pending').length,
+          mappingRequestsPending: isPM 
+            ? extensionsToDigest.filter(e => e.mappingStatus === 'Pending' && !isRole(userRole, 'IM')).length
+            : allExtensions.filter(e => e.mappingStatus === 'Pending').length,
           suspensionRequestsPending: allExtensions.filter(e => e.suspensionRequest?.status === 'Pending').length,
           dateExtensionRequestsPending: allExtensions.filter(e => e.extensionRequest?.status === 'Pending').length,
           overdueCount,
@@ -443,6 +455,54 @@ export function useProjects(userRole: Role, config: AppConfig, userName: string 
       }
     });
   }, [rawProjects, userRole, userName]);
+
+  // ── Mapping Request Notifications for PM ──────────────────────────────
+  useEffect(() => {
+    if (userRole !== 'PM' || !rawProjects.length) return;
+    
+    const checkMappingRequests = async () => {
+      try {
+        const allExtensions = await api.serviceExtensions.getAll();
+        const myProjectIds = rawProjects
+          .filter(p => p.assignedPM?.trim().toLowerCase() === userName?.trim().toLowerCase())
+          .map(p => p.id);
+        
+        const pendingForMe = allExtensions.filter(e => 
+          e.mappingStatus === 'Pending' && 
+          myProjectIds.includes(e.linkedProjectId!)
+        );
+        
+        pendingForMe.forEach(ext => {
+          const key = `mapping-pending-${ext.id}`;
+          if (!notifKeysRef.current.has(key)) {
+            notifKeysRef.current.add(key);
+            addNotification(
+              `New mapping request: IM ${ext.implementationManager} wants to link "${ext.clientName}" to your project.`, 
+              ext.linkedProjectId!, 
+              key
+            );
+          }
+        });
+      } catch (err) {
+        console.error("Mapping request check failed", err);
+      }
+    };
+
+    checkMappingRequests();
+    
+    // Subscribe to mapping status changes
+    const channel = supabase
+      .channel('mapping-status-pm-notif')
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'service_extensions' }, payload => {
+        const ext = payload.new as any;
+        if (ext.mapping_status === 'Pending') {
+          checkMappingRequests();
+        }
+      })
+      .subscribe();
+      
+    return () => { supabase.removeChannel(channel); };
+  }, [userRole, userName, rawProjects, addNotification]);
 
   // ── No PM Assigned — Manager / Superadmin alert ───────────────────────────
   useMemo(() => {

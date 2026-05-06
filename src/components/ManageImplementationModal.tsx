@@ -22,10 +22,11 @@ interface ManageImplementationModalProps {
   config: AppConfig;
   onShowToast: (msg: string, type?: 'success' | 'error') => void;
   onViewProject?: (projectId: string) => void;
+  projects?: Project[];
 }
 
 export const ManageImplementationModal: React.FC<ManageImplementationModalProps> = ({
-  extension, isOpen, onClose, onUpdated, userRole, userName, config, onShowToast, onViewProject
+  extension, isOpen, onClose, onUpdated, userRole, userName, config, onShowToast, onViewProject, projects = []
 }) => {
   const [milestones, setMilestones] = useState<IMilestone[]>(extension.milestones);
   const [saving, setSaving] = useState(false);
@@ -296,6 +297,37 @@ export const ManageImplementationModal: React.FC<ManageImplementationModalProps>
       onShowToast(err.message, 'error');
     } finally {
       setSavingTimeline(false);
+    }
+  };
+
+  const handleApproveMapping = async () => {
+    setSaving(true);
+    try {
+      await api.serviceExtensions.approveMapping(extension.id, userName);
+      onShowToast('Mapping approved successfully. Statuses synchronized.');
+      onClose();
+    } catch (err: any) {
+      onShowToast(err.message, 'error');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleRejectMapping = async () => {
+    if (!rejectionReason.trim()) {
+      onShowToast('Please provide a reason for rejection.', 'error');
+      return;
+    }
+    setSaving(true);
+    try {
+      await api.serviceExtensions.rejectMapping(extension.id, rejectionReason);
+      onShowToast('Mapping request rejected.');
+      onClose();
+    } catch (err: any) {
+      onShowToast(err.message, 'error');
+    } finally {
+      setSaving(false);
+      setIsRejecting(false);
     }
   };
 
@@ -835,11 +867,74 @@ export const ManageImplementationModal: React.FC<ManageImplementationModalProps>
                 )}
 
                 {extension.mappingStatus === 'Pending' && (
-                  <div className="flex items-center gap-3 p-3 bg-amber-50 border border-amber-100 rounded-xl">
-                    <AlertCircle className="w-4 h-4 text-amber-500 flex-shrink-0" />
-                    <p className="text-sm font-medium text-amber-800">
-                      Mapping request pending PM approval. You can submit a new request once this is resolved.
-                    </p>
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-3 p-3 bg-amber-50 border border-amber-100 rounded-xl">
+                      <AlertCircle className="w-4 h-4 text-amber-500 flex-shrink-0" />
+                      <p className="text-sm font-medium text-amber-800">
+                        Mapping request pending PM approval.
+                      </p>
+                    </div>
+                    
+                    {(() => {
+                      const linkedProject = projects.find(p => p.id === extension.linkedProjectId);
+                      const isAssignedPM = linkedProject?.assignedPM?.trim().toLowerCase() === userName?.trim().toLowerCase();
+                      
+                      if (isAssignedPM || isLead) {
+                        return (
+                          <div className="space-y-3 animate-in slide-in-from-top-2">
+                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">PM Action Required</p>
+                            {!isRejecting ? (
+                              <div className="flex gap-2">
+                                <button
+                                  onClick={handleApproveMapping}
+                                  disabled={saving}
+                                  className="flex-1 py-2.5 bg-emerald-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-emerald-700 shadow-lg shadow-emerald-600/10 flex items-center justify-center gap-2"
+                                >
+                                  {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
+                                  Approve Mapping
+                                </button>
+                                <button
+                                  onClick={() => setIsRejecting(true)}
+                                  className="flex-1 py-2.5 bg-red-50 text-red-600 border border-red-100 text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-red-100 transition-all"
+                                >
+                                  Reject
+                                </button>
+                              </div>
+                            ) : (
+                              <div className="space-y-3 p-4 bg-red-50 border border-red-100 rounded-2xl animate-in zoom-in-95">
+                                <textarea
+                                  value={rejectionReason}
+                                  onChange={e => setRejectionReason(e.target.value)}
+                                  placeholder="Reason for rejection (mandatory)..."
+                                  className="w-full px-4 py-3 bg-white border border-red-200 rounded-xl text-sm font-medium outline-none focus:ring-4 focus:ring-red-500/10 focus:border-red-400 transition-all resize-none"
+                                  rows={2}
+                                />
+                                <div className="flex gap-2">
+                                  <button
+                                    onClick={() => { setIsRejecting(false); setRejectionReason(''); }}
+                                    className="px-4 py-2 text-slate-500 text-xs font-bold rounded-lg hover:bg-slate-100 transition-colors"
+                                  >
+                                    Cancel
+                                  </button>
+                                  <button
+                                    onClick={handleRejectMapping}
+                                    disabled={saving || !rejectionReason.trim()}
+                                    className="flex-1 py-2 bg-red-600 text-white text-xs font-bold rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50"
+                                  >
+                                    {saving ? 'Processing...' : 'Confirm Rejection'}
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      }
+                      return (
+                        <p className="text-[10px] font-bold text-amber-500 text-center uppercase tracking-widest bg-amber-50/50 py-2 rounded-lg">
+                          Awaiting approval from {linkedProject?.assignedPM || 'Project PM'}
+                        </p>
+                      );
+                    })()}
                   </div>
                 )}
 

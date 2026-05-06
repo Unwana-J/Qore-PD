@@ -19,7 +19,7 @@ interface ImplementationsViewProps {
   onShowToast: (msg: string, type?: 'success' | 'error') => void;
   initialFilter?: string;
   initialIM?: string;
-  defaultTab?: 'mine' | 'all' | 'insights' | 'queue' | 'issues';
+  defaultTab?: 'mine' | 'all' | 'insights' | 'suspension-queue' | 'mapping-queue' | 'issues';
   mode?: 'dashboard' | 'list';
   onImportExtensions?: () => void;
 }
@@ -200,7 +200,7 @@ export const ImplementationsView: React.FC<ImplementationsViewProps> = ({
   const [extensionToDelete, setExtensionToDelete] = useState<ServiceExtension | null>(null);
 
   const isLead = isRole(userRole, 'IM Lead') || isRole(userRole, 'Superadmin');
-  const [activeTab, setActiveTab] = useState<'mine' | 'all' | 'insights' | 'queue' | 'issues'>(defaultTab || (isLead ? 'insights' : 'mine'));
+  const [activeTab, setActiveTab] = useState<'mine' | 'all' | 'insights' | 'suspension-queue' | 'mapping-queue' | 'issues'>(defaultTab || (isLead ? 'insights' : 'mine'));
 
   // Filter state
   const [searchTerm, setSearchTerm] = useState('');
@@ -216,7 +216,11 @@ export const ImplementationsView: React.FC<ImplementationsViewProps> = ({
   useEffect(() => {
     if (initialFilter && initialFilter !== 'All') {
       setStatusFilter(initialFilter);
-      if (isLead && activeTab === 'mine') setActiveTab('all');
+      if (initialFilter === 'Mapping Pending') {
+        setActiveTab('mapping-queue');
+      } else if (isLead && activeTab === 'mine') {
+        setActiveTab('all');
+      }
     }
     if (initialIM && initialIM !== 'All') {
       setManagerFilter(initialIM);
@@ -229,8 +233,8 @@ export const ImplementationsView: React.FC<ImplementationsViewProps> = ({
     try {
       setLoading(true);
       let data;
-      // IM Leads / Superadmins always get all extensions
-      if (isLead) {
+      // IM Leads / Superadmins / PMs in queue get all extensions to filter relevant ones
+      if (isLead || activeTab === 'mapping-queue' || activeTab === 'suspension-queue') {
         data = await api.serviceExtensions.getAll();
       } else if (activeTab === 'issues') {
         // Plain IMs see the shared issue log (all extensions) so they can view cross-team issues
@@ -618,12 +622,19 @@ export const ImplementationsView: React.FC<ImplementationsViewProps> = ({
         <>
           {mode !== 'dashboard' && (
             <div className="flex gap-2 p-1 bg-slate-100 rounded-xl w-fit">
+              <button onClick={loadExtensions} className="p-2 text-slate-400 hover:text-teal-600 transition-colors" title="Refresh Feed"><RefreshCw className={cn("w-4 h-4", loading && "animate-spin")} /></button>
               <button onClick={() => setActiveTab('insights')} className={cn("px-4 py-2 text-sm font-bold rounded-lg transition-all", activeTab === 'insights' ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700")}>Team Insights</button>
               <button onClick={() => setActiveTab('all')} className={cn("px-4 py-2 text-sm font-bold rounded-lg transition-all", activeTab === 'all' ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700")}>Team Dashboard</button>
-              <button onClick={() => setActiveTab('queue')} className={cn("px-4 py-2 text-sm font-bold rounded-lg transition-all flex items-center gap-2", activeTab === 'queue' ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700")}>
+              <button onClick={() => setActiveTab('suspension-queue')} className={cn("px-4 py-2 text-sm font-bold rounded-lg transition-all flex items-center gap-2", activeTab === 'suspension-queue' ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700")}>
                 Suspension Queue
                 {extensions.filter(e => e.suspensionRequest?.status === 'Pending').length > 0 && (
                   <span className="w-2 h-2 bg-orange-500 rounded-full animate-pulse" />
+                )}
+              </button>
+              <button onClick={() => setActiveTab('mapping-queue')} className={cn("px-4 py-2 text-sm font-bold rounded-lg transition-all flex items-center gap-2", activeTab === 'mapping-queue' ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700")}>
+                Mapping Queue
+                {extensions.filter(e => e.mappingStatus === 'Pending').length > 0 && (
+                  <span className="w-2 h-2 bg-amber-500 rounded-full animate-pulse" />
                 )}
               </button>
               <button onClick={() => setActiveTab('mine')} className={cn("px-4 py-2 text-sm font-bold rounded-lg transition-all", activeTab === 'mine' ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700")}>My Implementations</button>
@@ -647,7 +658,7 @@ export const ImplementationsView: React.FC<ImplementationsViewProps> = ({
                 if (ext) setManagingExtension(ext);
               }}
             />
-          ) : activeTab === 'queue' ? (
+          ) : activeTab === 'suspension-queue' ? (
             <div className="space-y-4">
               <div className="bg-orange-50 border border-orange-100 rounded-2xl p-4 flex items-center gap-3">
                 <Clock className="w-5 h-5 text-orange-500" />
@@ -683,6 +694,51 @@ export const ImplementationsView: React.FC<ImplementationsViewProps> = ({
                 </div>
               )}
             </div>
+          ) : activeTab === 'mapping-queue' ? (
+            <div className="space-y-4">
+              <div className="bg-amber-50 border border-amber-100 rounded-2xl p-4 flex items-center gap-3">
+                <MapPin className="w-5 h-5 text-amber-500" />
+                <p className="text-sm font-medium text-amber-800">Review and approve requests from IMs to link implementations to your projects.</p>
+              </div>
+              {extensions.filter(e => e.mappingStatus === 'Pending').length === 0 ? (
+                <div className="bg-white rounded-3xl border border-slate-200 border-dashed p-12 text-center">
+                  <CheckCircle2 className="w-10 h-10 text-emerald-400 mx-auto mb-3" />
+                  <p className="text-slate-500 font-bold">No pending mapping requests.</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {extensions.filter(e => e.mappingStatus === 'Pending').map(ext => {
+                    const linkedProject = projects.find(p => p.id === ext.linkedProjectId);
+                    const isForUser = linkedProject?.assignedPM === userName;
+                    
+                    if (!isLead && !isForUser) return null;
+
+                    return (
+                      <div key={ext.id} className={cn("bg-white rounded-2xl border border-slate-200 p-5 shadow-sm hover:border-amber-200 transition-colors", isForUser && "border-l-4 border-l-amber-500")}>
+                        <div className="flex justify-between items-start mb-3">
+                          <div>
+                            <h4 className="font-black text-slate-900">{ext.clientName}</h4>
+                            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{ext.serviceName}</p>
+                          </div>
+                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">IM: {ext.implementationManager}</span>
+                        </div>
+                        <div className="bg-amber-50/50 p-3 rounded-xl border border-amber-100 mb-4 space-y-2">
+                          <p className="text-[10px] font-black text-amber-600 uppercase tracking-widest">Target Project</p>
+                          <p className="text-sm font-bold text-slate-700">{linkedProject?.clientName || 'Unknown Project'}</p>
+                          {ext.mappingNotes && <p className="text-xs text-amber-700 italic">"{ext.mappingNotes}"</p>}
+                        </div>
+                        <div className="flex gap-2">
+                          <button 
+                            onClick={() => setManagingExtension(ext)}
+                            className="flex-1 py-2 bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-slate-800"
+                          >Review & Approve</button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           ) : activeTab === 'issues' ? (
             <ImplementationIssuesLog 
               extensions={extensions}
@@ -697,7 +753,16 @@ export const ImplementationsView: React.FC<ImplementationsViewProps> = ({
         <>
           {mode !== 'dashboard' && (
             <div className="flex gap-2 p-1 bg-slate-100 rounded-xl w-fit mb-6">
-              <button onClick={() => setActiveTab('mine')} className={cn("px-4 py-2 text-sm font-bold rounded-lg transition-all", activeTab === 'mine' ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700")}>My Implementations</button>
+              <button onClick={loadExtensions} className="p-2 text-slate-400 hover:text-teal-600 transition-colors" title="Refresh Feed"><RefreshCw className={cn("w-4 h-4", loading && "animate-spin")} /></button>
+              {isRole(userRole, 'IM') && <button onClick={() => setActiveTab('mine')} className={cn("px-4 py-2 text-sm font-bold rounded-lg transition-all", activeTab === 'mine' ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700")}>My Implementations</button>}
+              {isRole(userRole, 'PM') && (
+                <button onClick={() => setActiveTab('mapping-queue')} className={cn("px-4 py-2 text-sm font-bold rounded-lg transition-all flex items-center gap-2", activeTab === 'mapping-queue' ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700")}>
+                  Mapping Queue
+                  {extensions.some(e => e.mappingStatus === 'Pending' && projects.find(p => p.id === e.linkedProjectId)?.assignedPM === userName) && (
+                    <span className="w-2 h-2 bg-amber-500 rounded-full animate-pulse" />
+                  )}
+                </button>
+              )}
               <button onClick={() => setActiveTab('issues')} className={cn("px-4 py-2 text-sm font-bold rounded-lg transition-all", activeTab === 'issues' ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700")}>Issue Log</button>
             </div>
           )}
@@ -758,6 +823,7 @@ export const ImplementationsView: React.FC<ImplementationsViewProps> = ({
           userName={userName}
           config={config}
           onShowToast={onShowToast}
+          projects={projects}
         />
       )}
 

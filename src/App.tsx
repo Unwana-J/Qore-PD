@@ -423,14 +423,14 @@ function AppContent() {
                   />
                 ) : (
                   <>
-                    {currentView === 'dashboard' && (hasRole(userRole, ['IM', 'IM Lead'])) && (
+                    {currentView === 'dashboard' && (hasRole(userRole, ['IM', 'IM Lead', 'PM'])) && (
                       <ImplementationsView
                         userRole={userRole}
                         userName={profile?.name || ''}
                         config={config}
                         projects={projects}
                         users={users}
-                        defaultTab="insights"
+                        defaultTab={isRole(userRole, 'PM') ? "mapping-queue" : "insights"}
                         mode="dashboard"
                         onViewProject={(pid) => {
                           const proj = projects.find(p => p.id === pid);
