@@ -212,6 +212,7 @@ export const IMInsightsView: React.FC<IMInsightsViewProps> = ({ extensions=[], u
           const completedMilestones = ext.milestones?.filter(m => m.completed).length || 0;
           progress = totalMilestones > 0 ? (completedMilestones / totalMilestones) : 0.1;
         }
+        let penalty = 0;
         if (ext.status !== 'Completed' && !ext.serviceName.toLowerCase().includes('api') && new Date(ext.targetClosureDate) < today) penalty = 0.15; 
         ws += (progress - penalty) * baseWeight;
         tw += baseWeight;
