@@ -289,6 +289,18 @@ export interface SuspensionRequest {
   requestedAt: string;
   requestedBy: string;
   status: 'Pending' | 'Approved' | 'Rejected';
+  resolvedAt?: string;
+  resolvedBy?: string;
+  rejectionComment?: string;
+}
+
+export interface ReactivationRequest {
+  reason: string;
+  requestedAt: string;
+  requestedBy: string;
+  status: 'Pending' | 'Approved' | 'Rejected';
+  resolvedAt?: string;
+  resolvedBy?: string;
   rejectionComment?: string;
 }
 
@@ -317,6 +329,7 @@ export interface ServiceExtension {
   extensionHistory: ExtensionHistoryEntry[];
   assignmentHistory: AssignmentHistoryEntry[];
   suspensionRequest: SuspensionRequest | null;
+  reactivationRequest: ReactivationRequest | null;
   comments: ServiceComment[];
   issues: ImplementationIssue[];
   // Metadata

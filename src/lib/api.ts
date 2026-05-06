@@ -541,6 +541,7 @@ export const api = {
       extensionHistory: r.extension_history || [],
       assignmentHistory: r.assignment_history || [],
       suspensionRequest: r.suspension_request || null,
+      reactivationRequest: r.reactivation_request || null,
       comments: r.comments || [],
       issues: r.issues || [],
       createdAt: r.created_at,
@@ -570,6 +571,7 @@ export const api = {
       extension_history: ext.extensionHistory,
       assignment_history: ext.assignmentHistory,
       suspension_request: ext.suspensionRequest,
+      reactivation_request: ext.reactivationRequest,
       comments: ext.comments,
       issues: ext.issues,
     }),
@@ -814,6 +816,43 @@ export const api = {
       const { error } = await supabase
         .from('service_extensions')
         .update({ suspension_request: updated })
+        .eq('id', id);
+      if (error) throw error;
+    },
+
+    // ── Reactivation Workflow ────────────────────────────────────────────────
+    requestReactivation: async (id: string, reason: string, requestedBy: string): Promise<void> => {
+      const pendingRequest: ReactivationRequest = {
+        reason,
+        requestedAt: new Date().toISOString(),
+        requestedBy,
+        status: 'Pending',
+      };
+      const { error } = await supabase
+        .from('service_extensions')
+        .update({ reactivation_request: pendingRequest })
+        .eq('id', id);
+      if (error) throw error;
+    },
+
+    approveReactivation: async (id: string, resolvedBy: string): Promise<void> => {
+      const { data: ext } = await supabase.from('service_extensions').select('reactivation_request').eq('id', id).single();
+      const updated = { ...ext?.reactivation_request, status: 'Approved', resolvedAt: new Date().toISOString(), resolvedBy };
+      
+      const { error } = await supabase
+        .from('service_extensions')
+        .update({ status: 'In Progress', reactivation_request: updated })
+        .eq('id', id);
+      if (error) throw error;
+    },
+
+    rejectReactivation: async (id: string, rejectionReason: string, resolvedBy: string): Promise<void> => {
+      const { data: ext } = await supabase.from('service_extensions').select('reactivation_request').eq('id', id).single();
+      const updated = { ...ext?.reactivation_request, status: 'Rejected', rejectionComment: rejectionReason, resolvedAt: new Date().toISOString(), resolvedBy };
+
+      const { error } = await supabase
+        .from('service_extensions')
+        .update({ reactivation_request: updated })
         .eq('id', id);
       if (error) throw error;
     },
