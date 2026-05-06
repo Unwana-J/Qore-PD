@@ -44,6 +44,7 @@ export function useProjects(userRole: Role, config: AppConfig, userName: string 
 
   // UI-only transient notifications (retained for backward compatibility or flash messages)
   const [transientNotifications, setTransientNotifications] = useState<any[]>([]);
+  const notifKeysRef = useRef(new Set<string>());
   
   const addNotification = useCallback((message: string, projectId: string, key?: string) => {
     // This now only adds to local state, for real notifications use api.notifications.create
