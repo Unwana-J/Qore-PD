@@ -421,24 +421,7 @@ function AppContent() {
                   />
                 ) : (
                   <>
-                    {currentView === 'dashboard' && (hasRole(userRole, ['IM', 'IM Lead', 'PM'])) && (
-                      <ImplementationsView
-                        userRole={userRole}
-                        userName={profile?.name || ''}
-                        config={config}
-                        projects={projects}
-                        users={users}
-                        defaultTab={isRole(userRole, 'PM') ? "mapping-queue" : "insights"}
-                        mode="dashboard"
-                        onViewProject={(pid) => {
-                          const proj = projects.find(p => p.id === pid);
-                          if (proj) {
-                            setViewingProject(proj);
-                            setCurrentView('projects');
-                          }
-                        }}
-                      />
-                    )}
+
                     {currentView === 'dashboard' && !hasRole(userRole, ['IM', 'IM Lead']) && (
                       userRole === 'Finance' ? (
                         <FinanceDashboard
@@ -481,6 +464,24 @@ function AppContent() {
                           }}
                         />
                       )
+                    )}
+                    {currentView === 'dashboard' && (hasRole(userRole, ['IM', 'IM Lead', 'PM'])) && (
+                      <ImplementationsView
+                        userRole={userRole}
+                        userName={profile?.name || ''}
+                        config={config}
+                        projects={projects}
+                        users={users}
+                        defaultTab={isRole(userRole, 'PM') ? "mapping-queue" : "insights"}
+                        mode="dashboard"
+                        onViewProject={(pid) => {
+                          const proj = projects.find(p => p.id === pid);
+                          if (proj) {
+                            setViewingProject(proj);
+                            setCurrentView('projects');
+                          }
+                        }}
+                      />
                     )}
                     {currentView === 'projects' && (
                       <ProjectList
@@ -560,7 +561,7 @@ function AppContent() {
                         }}
                         initialFilter={implementationsFilter}
                         initialIM={implementationsIMFilter}
-                        defaultTab={isRole(userRole, 'IM Lead') || isRole(userRole, 'Superadmin') ? 'all' : 'mine'}
+                        defaultTab={isRole(userRole, 'IM Lead') || isRole(userRole, 'Superadmin') ? 'all' : (isRole(userRole, 'PM') ? 'mapping-queue' : 'mine')}
                         mode="list"
                         onViewProject={(pid) => {
                           const proj = projects.find(p => p.id === pid);

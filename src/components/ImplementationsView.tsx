@@ -639,7 +639,8 @@ export const ImplementationsView: React.FC<ImplementationsViewProps> = ({
   return (
     <div className="p-8 space-y-6 animate-in fade-in duration-300">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      {!(mode === 'dashboard' && isRole(userRole, 'PM')) && (
+        <div className="flex items-center justify-between">
         <div>
           <h2 className="text-3xl font-black text-slate-900 tracking-tight flex items-center gap-3">
             <Layers className="w-8 h-8 text-teal-600" />
@@ -659,17 +660,19 @@ export const ImplementationsView: React.FC<ImplementationsViewProps> = ({
               Import Bulk
             </button>
           )}
-          <button
-            onClick={() => setIsNewModalOpen(true)}
-            className="px-6 py-2.5 bg-teal-600 text-white font-bold rounded-xl shadow-lg shadow-teal-600/20 hover:bg-teal-700 hover:shadow-teal-700/30 transition-all flex items-center gap-2"
-          >
-            <Plus className="w-5 h-5" />
-            New Implementation
-          </button>
+          {!isRole(userRole, 'PM') && (
+            <button
+              onClick={() => setIsNewModalOpen(true)}
+              className="px-6 py-2.5 bg-teal-600 text-white font-bold rounded-xl shadow-lg shadow-teal-600/20 hover:bg-teal-700 hover:shadow-teal-700/30 transition-all flex items-center gap-2"
+            >
+              <Plus className="w-5 h-5" />
+              New Implementation
+            </button>
+          )}
         </div>
-      </div>
+      )}
       
-      {mode === 'dashboard' && (
+      {mode === 'dashboard' && !isRole(userRole, 'PM') && (
         <div className="bg-teal-50 border border-teal-100 rounded-2xl p-4 flex items-center gap-3 mb-6">
           <TrendingUp className="w-5 h-5 text-teal-600" />
           <p className="text-sm font-medium text-teal-800">Your implementation performance and portfolio insights.</p>
