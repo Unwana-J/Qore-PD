@@ -404,7 +404,8 @@ export const ManageImplementationModal: React.FC<ManageImplementationModalProps>
                 </div>
               </div>
 
-              {extension.extensionRequest ? (
+              {/* Pending Requests Section */}
+              {extension.extensionRequest && (
                 <div className="mx-8 mb-6 p-5 bg-amber-50 border border-amber-200 rounded-2xl animate-in zoom-in-95">
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-2">
@@ -448,8 +449,110 @@ export const ManageImplementationModal: React.FC<ManageImplementationModalProps>
                     )}
                   </div>
                 </div>
+              )}
+
+              {extension.reactivationRequest && (
+                <div className="mx-8 mb-6 p-5 bg-teal-50 border border-teal-200 rounded-2xl animate-in zoom-in-95">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <RefreshCw className={cn("w-4 h-4 text-teal-600", processingReactivation && "animate-spin")} />
+                      <span className="text-[10px] font-black uppercase text-teal-600 tracking-widest">Pending Reactivation Request</span>
+                    </div>
+                    <span className="text-[10px] font-bold text-teal-500">Requested {new Date(extension.reactivationRequest.requestedAt).toLocaleDateString()}</span>
+                  </div>
+                  <div className="space-y-3">
+                    <p className="text-xs text-teal-700 bg-white/50 p-3 rounded-xl border border-teal-100 italic">
+                      "{extension.reactivationRequest.reason}"
+                    </p>
+                    {isLead ? (
+                      <div className="space-y-3">
+                        {!isRejecting ? (
+                          <div className="flex gap-2">
+                            <button onClick={handleApproveReactivation} disabled={processingReactivation} className="flex-1 py-2 bg-teal-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-teal-700 shadow-lg shadow-teal-600/10">Approve & Reactivate</button>
+                            <button onClick={() => setIsRejecting(true)} disabled={processingReactivation} className="flex-1 py-2 bg-red-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-red-700 shadow-lg shadow-red-600/10">Reject</button>
+                          </div>
+                        ) : (
+                          <div className="space-y-2 animate-in slide-in-from-top-1">
+                            <textarea
+                              value={rejectionReason}
+                              onChange={e => setRejectionReason(e.target.value)}
+                              placeholder="Reason for rejection (required)..."
+                              className="w-full p-3 bg-white border border-red-200 rounded-xl text-xs outline-none focus:ring-2 focus:ring-red-500/20"
+                              rows={2}
+                            />
+                            <div className="flex gap-2">
+                              <button onClick={() => { setIsRejecting(false); setRejectionReason(''); }} className="px-3 py-1.5 text-slate-500 text-[10px] font-bold uppercase">Cancel</button>
+                              <button onClick={handleRejectReactivation} disabled={processingReactivation || !rejectionReason.trim()} className="flex-1 py-1.5 bg-red-600 text-white text-[10px] font-black uppercase tracking-widest rounded-lg">Confirm Reject</button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <p className="text-[10px] font-bold text-teal-500 text-center uppercase tracking-widest">Awaiting IM Lead Approval</p>
+                    )}
+                  </div>
                 </div>
-              ) : null}
+              )}
+
+              {extension.suspensionRequest?.status === 'Pending' && (
+                <div className="mx-8 mb-6 p-4 bg-orange-50 border border-orange-200 rounded-2xl space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Clock className="w-4 h-4 text-orange-600" />
+                    <p className="text-[10px] font-black text-orange-700 uppercase tracking-widest">Pending Suspension Request</p>
+                  </div>
+                  <p className="text-sm text-orange-800 font-medium">"{extension.suspensionRequest.reason}"</p>
+                  <p className="text-[10px] text-orange-500">Requested by {extension.suspensionRequest.requestedBy}</p>
+                  {isLead ? (
+                    <div className="space-y-3">
+                       {!isRejecting ? (
+                        <div className="flex gap-2 mt-2">
+                          <button
+                            onClick={async () => {
+                              setProcessingSuspension(true);
+                              try { await api.serviceExtensions.approveSuspension(extension.id, userName); onShowToast('Suspension approved.'); onClose(); }
+                              catch (err: any) { onShowToast(err.message, 'error'); }
+                              finally { setProcessingSuspension(false); }
+                            }}
+                            disabled={processingSuspension}
+                            className="flex-1 py-2 bg-orange-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-orange-700 shadow-lg shadow-orange-600/10"
+                          >Approve Suspension</button>
+                          <button
+                            onClick={() => setIsRejecting(true)}
+                            disabled={processingSuspension}
+                            className="flex-1 py-2 bg-slate-200 text-slate-700 text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-slate-300"
+                          >Reject</button>
+                        </div>
+                      ) : (
+                        <div className="space-y-2 animate-in slide-in-from-top-1">
+                          <textarea
+                            value={rejectionReason}
+                            onChange={e => setRejectionReason(e.target.value)}
+                            placeholder="Reason for rejection (required)..."
+                            className="w-full p-3 bg-white border border-orange-200 rounded-xl text-xs outline-none focus:ring-2 focus:ring-orange-500/20"
+                            rows={2}
+                          />
+                          <div className="flex gap-2">
+                            <button onClick={() => { setIsRejecting(false); setRejectionReason(''); }} className="px-3 py-1.5 text-slate-500 text-[10px] font-bold uppercase">Cancel</button>
+                            <button 
+                              onClick={async () => {
+                                if (!rejectionReason.trim()) return;
+                                setProcessingSuspension(true);
+                                try { await api.serviceExtensions.rejectSuspension(extension.id, rejectionReason, userName); onShowToast('Suspension request rejected.'); onClose(); }
+                                catch (err: any) { onShowToast(err.message, 'error'); }
+                                finally { setProcessingSuspension(false); setIsRejecting(false); }
+                              }}
+                              disabled={processingSuspension || !rejectionReason.trim()}
+                              className="flex-1 py-1.5 bg-red-600 text-white text-[10px] font-black uppercase tracking-widest rounded-lg"
+                            >Confirm Reject</button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <p className="text-[10px] font-bold text-orange-500 text-center uppercase tracking-widest">Awaiting IM Lead Approval</p>
+                  )}
+                </div>
+              )}
 
               {/* Action Buttons Section */}
               {extension.status !== 'Completed' && (
@@ -559,68 +662,6 @@ export const ManageImplementationModal: React.FC<ManageImplementationModalProps>
                       </div>
                     )
                   )}
-                </div>
-              )}
-
-              {extension.suspensionRequest?.status === 'Pending' && (
-                <div className="px-8 mb-6">
-                  <div className="p-4 bg-orange-50 border border-orange-200 rounded-2xl space-y-2">
-                    <div className="flex items-center gap-2">
-                      <Clock className="w-4 h-4 text-orange-600" />
-                      <p className="text-[10px] font-black text-orange-700 uppercase tracking-widest">Pending Suspension Request</p>
-                    </div>
-                    <p className="text-sm text-orange-800 font-medium">"{extension.suspensionRequest.reason}"</p>
-                    <p className="text-[10px] text-orange-500">Requested by {extension.suspensionRequest.requestedBy}</p>
-                    {isLead ? (
-                      <div className="space-y-3">
-                         {!isRejecting ? (
-                          <div className="flex gap-2 mt-2">
-                            <button
-                              onClick={async () => {
-                                setProcessingSuspension(true);
-                                try { await api.serviceExtensions.approveSuspension(extension.id, userName); onShowToast('Suspension approved.'); onClose(); }
-                                catch (err: any) { onShowToast(err.message, 'error'); }
-                                finally { setProcessingSuspension(false); }
-                              }}
-                              disabled={processingSuspension}
-                              className="flex-1 py-2 bg-orange-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-orange-700 shadow-lg shadow-orange-600/10"
-                            >Approve Suspension</button>
-                            <button
-                              onClick={() => setIsRejecting(true)}
-                              disabled={processingSuspension}
-                              className="flex-1 py-2 bg-slate-200 text-slate-700 text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-slate-300"
-                            >Reject</button>
-                          </div>
-                        ) : (
-                          <div className="space-y-2 animate-in slide-in-from-top-1">
-                            <textarea
-                              value={rejectionReason}
-                              onChange={e => setRejectionReason(e.target.value)}
-                              placeholder="Reason for rejection (required)..."
-                              className="w-full p-3 bg-white border border-orange-200 rounded-xl text-xs outline-none focus:ring-2 focus:ring-orange-500/20"
-                              rows={2}
-                            />
-                            <div className="flex gap-2">
-                              <button onClick={() => { setIsRejecting(false); setRejectionReason(''); }} className="px-3 py-1.5 text-slate-500 text-[10px] font-bold uppercase">Cancel</button>
-                              <button 
-                                onClick={async () => {
-                                  if (!rejectionReason.trim()) return;
-                                  setProcessingSuspension(true);
-                                  try { await api.serviceExtensions.rejectSuspension(extension.id, rejectionReason, userName); onShowToast('Suspension request rejected.'); onClose(); }
-                                  catch (err: any) { onShowToast(err.message, 'error'); }
-                                  finally { setProcessingSuspension(false); setIsRejecting(false); }
-                                }}
-                                disabled={processingSuspension || !rejectionReason.trim()}
-                                className="flex-1 py-1.5 bg-red-600 text-white text-[10px] font-black uppercase tracking-widest rounded-lg"
-                              >Confirm Reject</button>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    ) : (
-                      <p className="text-[10px] font-bold text-orange-500 text-center uppercase tracking-widest">Awaiting IM Lead Approval</p>
-                    )}
-                  </div>
                 </div>
               )}
 
