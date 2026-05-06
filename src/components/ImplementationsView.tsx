@@ -332,6 +332,53 @@ export const ImplementationsView: React.FC<ImplementationsViewProps> = ({
     }
   };
 
+  const renderMappingQueue = () => (
+    <div className="space-y-4">
+      <div className="bg-amber-50 border border-amber-100 rounded-2xl p-4 flex items-center gap-3">
+        <MapPin className="w-5 h-5 text-amber-500" />
+        <p className="text-sm font-medium text-amber-800">Review and approve requests from IMs to link implementations to your projects.</p>
+      </div>
+      {extensions.filter(e => e.mappingStatus === 'Pending').length === 0 ? (
+        <div className="bg-white rounded-3xl border border-slate-200 border-dashed p-12 text-center">
+          <CheckCircle2 className="w-10 h-10 text-emerald-400 mx-auto mb-3" />
+          <p className="text-slate-500 font-bold">No pending mapping requests.</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {extensions.filter(e => e.mappingStatus === 'Pending').map(ext => {
+            const linkedProject = projects.find(p => p.id === ext.linkedProjectId);
+            const isForUser = linkedProject?.assignedPM?.trim().toLowerCase() === userName?.trim().toLowerCase();
+            
+            if (!isLead && !isForUser) return null;
+
+            return (
+              <div key={ext.id} className={cn("bg-white rounded-2xl border border-slate-200 p-5 shadow-sm hover:border-amber-200 transition-colors", isForUser && "border-l-4 border-l-amber-500")}>
+                <div className="flex justify-between items-start mb-3">
+                  <div>
+                    <h4 className="font-black text-slate-900">{ext.clientName}</h4>
+                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{ext.serviceName}</p>
+                  </div>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">IM: {ext.implementationManager}</span>
+                </div>
+                <div className="bg-amber-50/50 p-3 rounded-xl border border-amber-100 mb-4 space-y-2">
+                  <p className="text-[10px] font-black text-amber-600 uppercase tracking-widest">Target Project</p>
+                  <p className="text-sm font-bold text-slate-700">{linkedProject?.clientName || 'Unknown Project'}</p>
+                  {ext.mappingNotes && <p className="text-xs text-amber-700 italic">"{ext.mappingNotes}"</p>}
+                </div>
+                <div className="flex gap-2">
+                  <button 
+                    onClick={() => setManagingExtension(ext)}
+                    className="flex-1 py-2 bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-slate-800"
+                  >Review & Approve</button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+
   const renderTable = () => {
     const statusColors: Record<string, string> = {
       'Not Started': 'bg-slate-100 text-slate-500',
@@ -348,53 +395,6 @@ export const ImplementationsView: React.FC<ImplementationsViewProps> = ({
       Rejected: 'bg-red-100 text-red-600',
       Unmapped: 'bg-slate-200 text-slate-500',
     };
-
-    const renderMappingQueue = () => (
-      <div className="space-y-4">
-        <div className="bg-amber-50 border border-amber-100 rounded-2xl p-4 flex items-center gap-3">
-          <MapPin className="w-5 h-5 text-amber-500" />
-          <p className="text-sm font-medium text-amber-800">Review and approve requests from IMs to link implementations to your projects.</p>
-        </div>
-        {extensions.filter(e => e.mappingStatus === 'Pending').length === 0 ? (
-          <div className="bg-white rounded-3xl border border-slate-200 border-dashed p-12 text-center">
-            <CheckCircle2 className="w-10 h-10 text-emerald-400 mx-auto mb-3" />
-            <p className="text-slate-500 font-bold">No pending mapping requests.</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {extensions.filter(e => e.mappingStatus === 'Pending').map(ext => {
-              const linkedProject = projects.find(p => p.id === ext.linkedProjectId);
-              const isForUser = linkedProject?.assignedPM?.trim().toLowerCase() === userName?.trim().toLowerCase();
-              
-              if (!isLead && !isForUser) return null;
-
-              return (
-                <div key={ext.id} className={cn("bg-white rounded-2xl border border-slate-200 p-5 shadow-sm hover:border-amber-200 transition-colors", isForUser && "border-l-4 border-l-amber-500")}>
-                  <div className="flex justify-between items-start mb-3">
-                    <div>
-                      <h4 className="font-black text-slate-900">{ext.clientName}</h4>
-                      <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{ext.serviceName}</p>
-                    </div>
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">IM: {ext.implementationManager}</span>
-                  </div>
-                  <div className="bg-amber-50/50 p-3 rounded-xl border border-amber-100 mb-4 space-y-2">
-                    <p className="text-[10px] font-black text-amber-600 uppercase tracking-widest">Target Project</p>
-                    <p className="text-sm font-bold text-slate-700">{linkedProject?.clientName || 'Unknown Project'}</p>
-                    {ext.mappingNotes && <p className="text-xs text-amber-700 italic">"{ext.mappingNotes}"</p>}
-                  </div>
-                  <div className="flex gap-2">
-                    <button 
-                      onClick={() => setManagingExtension(ext)}
-                      className="flex-1 py-2 bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-slate-800"
-                    >Review & Approve</button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
-    );
 
     const paginatedItems = filteredExtensions.slice((currentPage - 1) * pageSize, currentPage * pageSize);
     const totalPages = Math.ceil(filteredExtensions.length / pageSize);
