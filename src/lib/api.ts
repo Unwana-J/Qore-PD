@@ -968,6 +968,21 @@ export const api = {
       return api.serviceExtensions._fromDb(updated);
     },
 
+    updateTimeline: async (id: string, startDate: string, targetDate: string, updatedBy: string): Promise<ServiceExtension> => {
+      const { data, error } = await supabase
+        .from('service_extensions')
+        .update({
+          start_date: startDate,
+          target_closure_date: targetDate,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', id)
+        .select()
+        .single();
+      if (error) throw error;
+      return api.serviceExtensions._fromDb(data);
+    },
+
     addIssue: async (id: string, description: string, impact: ImplementationIssue['impact'], category?: string): Promise<ServiceExtension> => {
       const { data: ext, error: fetchErr } = await supabase
         .from('service_extensions')

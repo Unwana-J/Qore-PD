@@ -61,6 +61,11 @@ export const ManageImplementationModal: React.FC<ManageImplementationModalProps>
   const [isAddingIssue, setIsAddingIssue] = useState(false);
   const [newIssue, setNewIssue] = useState({ description: '', impact: 'Medium' as ImplementationIssue['impact'], category: 'General' });
 
+  const [isEditingTimeline, setIsEditingTimeline] = useState(false);
+  const [tempStartDate, setTempStartDate] = useState(extension.startDate);
+  const [tempTargetDate, setTempTargetDate] = useState(extension.targetClosureDate);
+  const [savingTimeline, setSavingTimeline] = useState(false);
+
   const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
   const [editingContent, setEditingContent] = useState('');
 
@@ -280,6 +285,20 @@ export const ManageImplementationModal: React.FC<ManageImplementationModalProps>
     }
   };
 
+  const handleUpdateTimeline = async () => {
+    setSavingTimeline(true);
+    try {
+      const updated = await api.serviceExtensions.updateTimeline(extension.id, tempStartDate, tempTargetDate, userName);
+      onUpdated(updated);
+      onShowToast('Timeline updated successfully.');
+      setIsEditingTimeline(false);
+    } catch (err: any) {
+      onShowToast(err.message, 'error');
+    } finally {
+      setSavingTimeline(false);
+    }
+  };
+
   const handleAddIssue = async () => {
     if (!newIssue.description.trim()) return;
     setSaving(true);
@@ -385,23 +404,87 @@ export const ManageImplementationModal: React.FC<ManageImplementationModalProps>
               </div>
 
               {/* Timeline Section */}
-              <div className="px-8 mb-6 grid grid-cols-2 gap-3">
-                <div className="p-3.5 bg-slate-50 border border-slate-100 rounded-2xl flex flex-col gap-1">
-                  <div className="flex items-center gap-1.5 text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                    <Calendar className="w-3 h-3" /> Start Date
-                  </div>
-                  <div className="text-xs font-black text-slate-700">
-                    {extension.startDate ? new Date(extension.startDate).toLocaleDateString(undefined, { dateStyle: 'medium' }) : 'Not set'}
-                  </div>
+              <div className="px-8 mb-6">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Timeline</span>
+                  {((new Date().getTime() - new Date(extension.createdAt).getTime()) / (1000 * 60 * 60) <= 48) && !isEditingTimeline && (
+                    <button 
+                      onClick={() => {
+                        setTempStartDate(extension.startDate);
+                        setTempTargetDate(extension.targetClosureDate);
+                        setIsEditingTimeline(true);
+                      }}
+                      className="text-[10px] font-black text-teal-600 uppercase tracking-widest hover:text-teal-700 flex items-center gap-1"
+                    >
+                      <Edit2 className="w-3 h-3" /> Adjust
+                    </button>
+                  )}
                 </div>
-                <div className="p-3.5 bg-slate-50 border border-slate-100 rounded-2xl flex flex-col gap-1">
-                  <div className="flex items-center gap-1.5 text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                    <Clock className="w-3 h-3" /> Target Closure
+                
+                {isEditingTimeline ? (
+                  <div className="p-4 bg-teal-50 border border-teal-100 rounded-2xl space-y-4 animate-in slide-in-from-top-2">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black text-teal-600 uppercase tracking-widest ml-1">Start Date</label>
+                        <input 
+                          type="date"
+                          value={tempStartDate}
+                          onChange={e => {
+                            const newStart = e.target.value;
+                            setTempStartDate(newStart);
+                            if (extension.baselineDays > 0) {
+                              setTempTargetDate(calculateWorkingDays(newStart, extension.baselineDays));
+                            }
+                          }}
+                          className="w-full px-3 py-2 bg-white border border-teal-200 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-teal-500/20"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black text-teal-600 uppercase tracking-widest ml-1">Target Closure</label>
+                        <input 
+                          type="date"
+                          value={tempTargetDate}
+                          onChange={e => setTempTargetDate(e.target.value)}
+                          className="w-full px-3 py-2 bg-white border border-teal-200 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-teal-500/20"
+                        />
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <button 
+                        onClick={() => setIsEditingTimeline(false)}
+                        className="px-4 py-2 text-slate-500 text-xs font-bold rounded-lg hover:bg-slate-100 transition-colors"
+                      >
+                        Cancel
+                      </button>
+                      <button 
+                        onClick={handleUpdateTimeline}
+                        disabled={savingTimeline}
+                        className="flex-1 px-4 py-2 bg-teal-600 text-white text-xs font-bold rounded-lg hover:bg-teal-700 transition-colors flex items-center justify-center gap-1.5"
+                      >
+                        {savingTimeline ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Save Changes'}
+                      </button>
+                    </div>
                   </div>
-                  <div className="text-xs font-black text-slate-700">
-                    {extension.targetClosureDate ? new Date(extension.targetClosureDate).toLocaleDateString(undefined, { dateStyle: 'medium' }) : 'Not set'}
+                ) : (
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="p-3.5 bg-slate-50 border border-slate-100 rounded-2xl flex flex-col gap-1">
+                      <div className="flex items-center gap-1.5 text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                        <Calendar className="w-3 h-3" /> Start Date
+                      </div>
+                      <div className="text-xs font-black text-slate-700">
+                        {extension.startDate ? new Date(extension.startDate).toLocaleDateString(undefined, { dateStyle: 'medium' }) : 'Not set'}
+                      </div>
+                    </div>
+                    <div className="p-3.5 bg-slate-50 border border-slate-100 rounded-2xl flex flex-col gap-1">
+                      <div className="flex items-center gap-1.5 text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                        <Clock className="w-3 h-3" /> Target Closure
+                      </div>
+                      <div className="text-xs font-black text-slate-700">
+                        {extension.targetClosureDate ? new Date(extension.targetClosureDate).toLocaleDateString(undefined, { dateStyle: 'medium' }) : 'Not set'}
+                      </div>
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
 
               {/* Pending Requests Section */}
