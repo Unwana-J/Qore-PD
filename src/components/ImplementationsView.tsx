@@ -670,6 +670,7 @@ export const ImplementationsView: React.FC<ImplementationsViewProps> = ({
             </button>
           )}
         </div>
+      </div>
       )}
       
       {mode === 'dashboard' && !isRole(userRole, 'PM') && (
