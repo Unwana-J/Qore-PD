@@ -232,16 +232,28 @@ export const ImplementationsView: React.FC<ImplementationsViewProps> = ({
   const loadExtensions = async () => {
     try {
       setLoading(true);
-      let data;
-      // IM Leads / Superadmins / PMs in queue get all extensions to filter relevant ones
-      if (isLead || activeTab === 'mapping-queue' || activeTab === 'suspension-queue') {
+      let data: ServiceExtension[];
+      
+      // IM Leads / Superadmins / PMs in queue get all extensions initially to filter
+      if (isLead || activeTab === 'mapping-queue' || activeTab === 'suspension-queue' || isRole(userRole, 'PM')) {
         data = await api.serviceExtensions.getAll();
       } else if (activeTab === 'issues') {
-        // Plain IMs see the shared issue log (all extensions) so they can view cross-team issues
         data = await api.serviceExtensions.getAll();
       } else {
         data = await api.serviceExtensions.getByIM(userName);
       }
+
+      // PM Visibility Restriction: Only see implementations for projects assigned to them
+      if (isRole(userRole, 'PM') && !isLead) {
+        const myProjectIds = projects
+          .filter(p => p.assignedPM?.trim().toLowerCase() === userName?.trim().toLowerCase())
+          .map(p => p.id);
+        
+        data = data.filter(ext => 
+          ext.linkedProjectId && myProjectIds.includes(ext.linkedProjectId)
+        );
+      }
+
       setExtensions(data);
     } catch (err: any) {
       onShowToast(err.message, 'error');
