@@ -103,7 +103,12 @@ export const IMInsightsView: React.FC<IMInsightsViewProps> = ({ extensions=[], u
   const kpis = useMemo(() => {
     const total=fd.length, completed=fd.filter(e=>e.status==='Completed').length;
     const suspended=fd.filter(e=>e.status==='Suspended').length, active=total-completed-suspended;
-    const overdue=fd.filter(e=>e.status!=='Completed'&&e.status!=='Suspended'&&new Date(e.targetClosureDate)<today).length;
+    const overdue=fd.filter(e=>
+      e.status!=='Completed' && 
+      e.status!=='Suspended' && 
+      !e.serviceName.toLowerCase().includes('api') &&
+      new Date(e.targetClosureDate) < today
+    ).length;
     const mapped=fd.filter(e=>e.mappingStatus==='Approved').length;
     return {
       total, completed, suspended, active, overdue, mapped,
@@ -139,7 +144,7 @@ export const IMInsightsView: React.FC<IMInsightsViewProps> = ({ extensions=[], u
       if(ext.status==='Completed') t.completed++;
       else if(ext.status==='Suspended') t.suspended++;
       else t.active++;
-      if(ext.status!=='Completed'&&ext.status!=='Suspended'&&new Date(ext.targetClosureDate)<today) t.overdue++;
+      if(ext.status!=='Completed'&&ext.status!=='Suspended'&& !ext.serviceName.toLowerCase().includes('api') && new Date(ext.targetClosureDate)<today) t.overdue++;
     });
     return m;
   }, [fd, ims]);
@@ -207,8 +212,7 @@ export const IMInsightsView: React.FC<IMInsightsViewProps> = ({ extensions=[], u
           const completedMilestones = ext.milestones?.filter(m => m.completed).length || 0;
           progress = totalMilestones > 0 ? (completedMilestones / totalMilestones) : 0.1;
         }
-        let penalty = 0;
-        if (ext.status !== 'Completed' && new Date(ext.targetClosureDate) < today) penalty = 0.15; 
+        if (ext.status !== 'Completed' && !ext.serviceName.toLowerCase().includes('api') && new Date(ext.targetClosureDate) < today) penalty = 0.15; 
         ws += (progress - penalty) * baseWeight;
         tw += baseWeight;
       });
@@ -222,7 +226,7 @@ export const IMInsightsView: React.FC<IMInsightsViewProps> = ({ extensions=[], u
         active: exts.filter(e => e.status !== 'Completed' && e.status !== 'Suspended').length,
         suspended: exts.filter(e => e.status === 'Suspended').length,
         completed: exts.filter(e => e.status === 'Completed').length,
-        overdue: exts.filter(e => e.status !== 'Completed' && new Date(e.targetClosureDate) < today).length,
+        overdue: exts.filter(e => e.status !== 'Completed' && !e.serviceName.toLowerCase().includes('api') && new Date(e.targetClosureDate) < today).length,
         bd
       };
     }).sort((a,b)=>b.score-a.score);
@@ -232,7 +236,7 @@ export const IMInsightsView: React.FC<IMInsightsViewProps> = ({ extensions=[], u
   }, [fd, ims, weightMap]);
 
   const overdue = useMemo(() =>
-    fd.filter(e=>e.status!=='Completed'&&new Date(e.targetClosureDate)<today)
+    fd.filter(e=>e.status!=='Completed' && !e.serviceName.toLowerCase().includes('api') && new Date(e.targetClosureDate)<today)
       .sort((a,b)=>new Date(a.targetClosureDate).getTime()-new Date(b.targetClosureDate).getTime()),
   [fd]);
 

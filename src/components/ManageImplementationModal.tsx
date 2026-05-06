@@ -3,7 +3,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   X, CheckCircle2, Circle, MapPin, Unlink, AlertCircle,
   ExternalLink, Loader2, Lock, Clock, Calendar, UserPlus,
-  RefreshCw, Briefcase, Check, Shield, AlertTriangle, Plus
+  RefreshCw, Briefcase, Check, Shield, AlertTriangle, Plus,
+  Pencil, Trash2
 } from 'lucide-react';
 import { ServiceExtension, IMilestone, AppConfig, User, ImplementationIssue } from '../types';
 import { api } from '../lib/api';
@@ -56,6 +57,39 @@ export const ManageImplementationModal: React.FC<ManageImplementationModalProps>
 
   const [isAddingIssue, setIsAddingIssue] = useState(false);
   const [newIssue, setNewIssue] = useState({ description: '', impact: 'Medium' as ImplementationIssue['impact'], category: 'General' });
+
+  const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
+  const [editingContent, setEditingContent] = useState('');
+
+  const handleEditComment = async (commentId: string) => {
+    if (!editingContent.trim()) return;
+    setSaving(true);
+    try {
+      const result = await api.serviceExtensions.editComment(extension.id, commentId, editingContent);
+      onUpdated(result);
+      setEditingCommentId(null);
+      setEditingContent('');
+      onShowToast('Comment updated');
+    } catch (err: any) {
+      onShowToast(err.message, 'error');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDeleteComment = async (commentId: string) => {
+    if (!window.confirm('Are you sure you want to delete this comment?')) return;
+    setSaving(true);
+    try {
+      const result = await api.serviceExtensions.deleteComment(extension.id, commentId);
+      onUpdated(result);
+      onShowToast('Comment deleted');
+    } catch (err: any) {
+      onShowToast(err.message, 'error');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   React.useEffect(() => {
     const loadUsers = async () => {
@@ -869,11 +903,62 @@ export const ManageImplementationModal: React.FC<ManageImplementationModalProps>
                           </div>
                           <div className="flex-1">
                             <div className="flex items-center justify-between mb-1">
-                              <span className="text-xs font-black text-slate-900">{c.author}</span>
-                              <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">{new Date(c.createdAt).toLocaleDateString()} · {new Date(c.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs font-black text-slate-900">{c.author}</span>
+                                {c.updatedAt && <span className="text-[9px] font-black text-teal-500 uppercase tracking-widest bg-teal-50 px-1 rounded">Edited</span>}
+                              </div>
+                              <div className="flex items-center gap-3">
+                                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">{new Date(c.createdAt).toLocaleDateString()} · {new Date(c.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                                {c.author === userName && !editingCommentId && (
+                                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <button 
+                                      onClick={() => { setEditingCommentId(c.id); setEditingContent(c.content); }}
+                                      className="p-1 text-slate-400 hover:text-teal-600 transition-colors"
+                                    >
+                                      <Pencil className="w-3 h-3" />
+                                    </button>
+                                    <button 
+                                      onClick={() => handleDeleteComment(c.id)}
+                                      className="p-1 text-slate-400 hover:text-red-500 transition-colors"
+                                    >
+                                      <Trash2 className="w-3 h-3" />
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
                             </div>
-                            <div className="p-3 bg-slate-50 rounded-2xl rounded-tl-none border border-slate-100 group-hover:border-slate-200 transition-colors">
-                              <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap">{c.content || (c as any).text}</p>
+                            <div className={cn(
+                              "p-3 bg-slate-50 rounded-2xl rounded-tl-none border border-slate-100 group-hover:border-slate-200 transition-colors",
+                              editingCommentId === c.id && "bg-white border-teal-200 ring-2 ring-teal-500/10"
+                            )}>
+                              {editingCommentId === c.id ? (
+                                <div className="space-y-2">
+                                  <textarea
+                                    value={editingContent}
+                                    onChange={e => setEditingContent(e.target.value)}
+                                    className="w-full bg-transparent text-sm text-slate-700 outline-none resize-none"
+                                    rows={3}
+                                    autoFocus
+                                  />
+                                  <div className="flex justify-end gap-2">
+                                    <button 
+                                      onClick={() => setEditingCommentId(null)}
+                                      className="px-2 py-1 text-[9px] font-black uppercase text-slate-400 hover:text-slate-600"
+                                    >
+                                      Cancel
+                                    </button>
+                                    <button 
+                                      onClick={() => handleEditComment(c.id)}
+                                      disabled={saving || !editingContent.trim() || editingContent === c.content}
+                                      className="px-3 py-1 bg-teal-600 text-white text-[9px] font-black uppercase rounded-lg hover:bg-teal-700 transition-all disabled:opacity-50"
+                                    >
+                                      {saving ? 'Saving...' : 'Save Changes'}
+                                    </button>
+                                  </div>
+                                </div>
+                              ) : (
+                                <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap">{c.content || (c as any).text}</p>
+                              )}
                             </div>
                           </div>
                         </div>

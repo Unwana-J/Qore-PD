@@ -35,7 +35,12 @@ const IMPersonalDashboard: React.FC<{ extensions: ServiceExtension[]; userName: 
     const inProgress = extensions.filter(e => e.status === 'In Progress').length;
     const notStarted = extensions.filter(e => e.status === 'Not Started').length;
     const frozen = extensions.filter(e => e.status === 'Suspended').length;
-    const overdue = extensions.filter(e => e.status !== 'Completed' && e.status !== 'Suspended' && new Date(e.targetClosureDate) < today).length;
+    const overdue = extensions.filter(e => 
+      e.status !== 'Completed' && 
+      e.status !== 'Suspended' && 
+      !e.serviceName.toLowerCase().includes('api') &&
+      new Date(e.targetClosureDate) < today
+    ).length;
     const mapped = extensions.filter(e => e.mappingStatus === 'Approved').length;
     const openIssues = extensions.reduce((acc, e) => acc + (e.issues || []).filter(i => i.status !== 'Closed').length, 0);
     const completionRate = total > 0 ? Math.round((completed / total) * 100) : 0;
@@ -57,7 +62,12 @@ const IMPersonalDashboard: React.FC<{ extensions: ServiceExtension[]; userName: 
     return { label: `${diff}d left`, color: 'text-emerald-600 bg-emerald-50 border-emerald-200' };
   };
 
-  const overduelist = extensions.filter(e => e.status !== 'Completed' && e.status !== 'Suspended' && new Date(e.targetClosureDate) < today);
+  const overduelist = extensions.filter(e => 
+    e.status !== 'Completed' && 
+    e.status !== 'Suspended' && 
+    !e.serviceName.toLowerCase().includes('api') &&
+    new Date(e.targetClosureDate) < today
+  );
 
   return (
     <div className="space-y-6">
@@ -259,7 +269,7 @@ export const ImplementationsView: React.FC<ImplementationsViewProps> = ({
       if (statusFilter === 'Mapping Pending') matchesStatus = ext.mappingStatus === 'Pending';
       if (statusFilter === 'Suspension Pending') matchesStatus = ext.suspensionRequest?.status === 'Pending';
       if (statusFilter === 'Extension Pending') matchesStatus = ext.extensionRequest?.status === 'Pending';
-      if (statusFilter === 'Delayed') matchesStatus = ext.status !== 'Completed' && ext.status !== 'Suspended' && new Date(ext.targetClosureDate) < new Date();
+      if (statusFilter === 'Delayed') matchesStatus = ext.status !== 'Completed' && ext.status !== 'Suspended' && !ext.serviceName.toLowerCase().includes('api') && new Date(ext.targetClosureDate) < new Date();
 
       const matchesManager = managerFilter === 'All' || ext.implementationManager === managerFilter;
       const matchesService = serviceFilter === 'All' || ext.serviceName === serviceFilter;

@@ -845,7 +845,6 @@ export const api = {
           }
         }
 
-        // Notify PM if it's mapped and they are not the author
         if (ext.linked_project_id) {
           const { data: proj } = await supabase.from('projects').select('assigned_pm').eq('id', ext.linked_project_id).single();
           if (proj?.assigned_pm && author !== proj.assigned_pm) {
@@ -869,6 +868,51 @@ export const api = {
         console.error("[API] Failed to dispatch comment notifications:", notifErr);
       }
 
+      return api.serviceExtensions._fromDb(updated);
+    },
+
+    editComment: async (extensionId: string, commentId: string, newContent: string): Promise<ServiceExtension> => {
+      const { data: ext, error: fetchErr } = await supabase
+        .from('service_extensions')
+        .select('comments')
+        .eq('id', extensionId)
+        .single();
+      if (fetchErr) throw fetchErr;
+
+      const updatedComments = (ext.comments || []).map((c: any) => {
+        if (c.id === commentId) {
+          return { ...c, content: newContent, updatedAt: new Date().toISOString() };
+        }
+        return c;
+      });
+
+      const { data: updated, error } = await supabase
+        .from('service_extensions')
+        .update({ comments: updatedComments })
+        .eq('id', extensionId)
+        .select('*')
+        .single();
+      if (error) throw error;
+      return api.serviceExtensions._fromDb(updated);
+    },
+
+    deleteComment: async (extensionId: string, commentId: string): Promise<ServiceExtension> => {
+      const { data: ext, error: fetchErr } = await supabase
+        .from('service_extensions')
+        .select('comments')
+        .eq('id', extensionId)
+        .single();
+      if (fetchErr) throw fetchErr;
+
+      const updatedComments = (ext.comments || []).filter((c: any) => c.id !== commentId);
+
+      const { data: updated, error } = await supabase
+        .from('service_extensions')
+        .update({ comments: updatedComments })
+        .eq('id', extensionId)
+        .select('*')
+        .single();
+      if (error) throw error;
       return api.serviceExtensions._fromDb(updated);
     },
 

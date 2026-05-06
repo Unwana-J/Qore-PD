@@ -273,6 +273,7 @@ export interface ServiceComment {
   author: string;
   content: string;
   createdAt: string;
+  updatedAt?: string;
 }
 
 export interface AssignmentHistoryEntry {
