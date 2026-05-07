@@ -28,7 +28,7 @@ export const ImplementationIssuesLog: React.FC<ImplementationIssuesLogProps> = (
   }, [filterStatus, filterCategory, filterIM, filterMonth, startDate, endDate, searchTerm]);
 
   const allIssues = useMemo(() => {
-    return extensions.flatMap(ext => 
+    const issues = extensions.flatMap(ext => 
       (ext.issues || []).map(issue => ({
         ...issue,
         clientName: ext.clientName,
@@ -38,6 +38,7 @@ export const ImplementationIssuesLog: React.FC<ImplementationIssuesLogProps> = (
         extension: ext
       }))
     );
+    return issues.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   }, [extensions]);
 
   const categories = useMemo(() => {
