@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { ServiceExtension, ImplementationIssue } from '../types';
 import { cn } from '../lib/utils';
 import { AlertTriangle, Shield, Clock, CheckCircle, Filter, Search, Users, Calendar, X } from 'lucide-react';
@@ -19,6 +19,13 @@ export const ImplementationIssuesLog: React.FC<ImplementationIssuesLogProps> = (
   const [startDate, setStartDate] = useState<string>('');
   const [endDate, setEndDate] = useState<string>('');
   const [searchTerm, setSearchTerm] = useState('');
+
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 10;
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filterStatus, filterCategory, filterIM, filterMonth, startDate, endDate, searchTerm]);
 
   const allIssues = useMemo(() => {
     return extensions.flatMap(ext => 
@@ -109,6 +116,9 @@ export const ImplementationIssuesLog: React.FC<ImplementationIssuesLogProps> = (
   };
 
   const hasFilters = filterStatus !== 'All' || filterCategory !== 'All' || filterIM !== 'All' || filterMonth !== 'All' || startDate || endDate || searchTerm;
+
+  const paginatedIssues = filteredIssues.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+  const totalPages = Math.ceil(filteredIssues.length / pageSize);
 
   return (
     <div className="space-y-6">
@@ -259,7 +269,7 @@ export const ImplementationIssuesLog: React.FC<ImplementationIssuesLogProps> = (
                   </td>
                 </tr>
               ) : (
-                filteredIssues.map((issue) => (
+                paginatedIssues.map((issue) => (
                   <tr key={issue.id} className="hover:bg-slate-50/50 transition-colors group">
                     <td className="px-6 py-4">
                       <button 
@@ -309,6 +319,45 @@ export const ImplementationIssuesLog: React.FC<ImplementationIssuesLogProps> = (
           </table>
         </div>
       </div>
+
+      {/* Pagination Controls */}
+      {filteredIssues.length > pageSize && (
+        <div className="flex items-center justify-between bg-white px-8 py-4 rounded-2xl border border-slate-200 shadow-sm mt-4">
+          <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">
+            Showing <span className="text-slate-900">{(currentPage - 1) * pageSize + 1}</span> to <span className="text-slate-900">{Math.min(currentPage * pageSize, filteredIssues.length)}</span> of <span className="text-slate-900">{filteredIssues.length}</span> results
+          </p>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+              className="px-4 py-2 text-xs font-black uppercase tracking-widest text-slate-400 hover:text-teal-600 disabled:opacity-30 disabled:hover:text-slate-400 transition-colors"
+            >
+              Previous
+            </button>
+            <div className="flex items-center gap-1">
+              {Array.from({ length: totalPages }).map((_, i) => (
+                <button
+                  key={i}
+                  onClick={() => setCurrentPage(i + 1)}
+                  className={cn(
+                    "w-8 h-8 rounded-lg text-xs font-black transition-all",
+                    currentPage === i + 1 ? "bg-teal-600 text-white shadow-lg shadow-teal-600/20 scale-110" : "text-slate-400 hover:bg-slate-100"
+                  )}
+                >
+                  {i + 1}
+                </button>
+              ))}
+            </div>
+            <button
+              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+              disabled={currentPage === totalPages}
+              className="px-4 py-2 text-xs font-black uppercase tracking-widest text-slate-400 hover:text-teal-600 disabled:opacity-30 disabled:hover:text-slate-400 transition-colors"
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
