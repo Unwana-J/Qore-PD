@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Plus, Layers, Clock, Search, Users, Filter, X, CheckCircle2, AlertTriangle, TrendingUp, MapPin, Upload, Package, Trash2, RefreshCw } from 'lucide-react';
+import { Plus, Layers, Clock, Search, Users, Filter, X, CheckCircle2, AlertTriangle, TrendingUp, MapPin, Upload, Package, Trash2, RefreshCw, Check } from 'lucide-react';
 import { cn, isRole } from '../lib/utils';
 import { ServiceExtension, Role, AppConfig } from '../types';
 import { api } from '../lib/api';
@@ -206,7 +206,8 @@ export const ImplementationsView: React.FC<ImplementationsViewProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('All');
   const [managerFilter, setManagerFilter] = useState<string>('All');
-  const [serviceFilter, setServiceFilter] = useState<string>('All');
+  const [serviceFilters, setServiceFilters] = useState<string[]>([]);
+  const [isServiceDropdownOpen, setIsServiceDropdownOpen] = useState(false);
   const [monthFilter, setMonthFilter] = useState<string>('All');
 
   // Pagination
@@ -288,7 +289,7 @@ export const ImplementationsView: React.FC<ImplementationsViewProps> = ({
       if (statusFilter === 'Delayed') matchesStatus = ext.status !== 'Completed' && ext.status !== 'Suspended' && !ext.serviceName.toLowerCase().includes('api') && new Date(ext.targetClosureDate) < new Date();
 
       const matchesManager = managerFilter === 'All' || ext.implementationManager === managerFilter;
-      const matchesService = serviceFilter === 'All' || ext.serviceName === serviceFilter;
+      const matchesService = serviceFilters.length === 0 || serviceFilters.includes(ext.serviceName);
       
       let matchesMonth = true;
       if (monthFilter !== 'All') {
@@ -303,7 +304,7 @@ export const ImplementationsView: React.FC<ImplementationsViewProps> = ({
 
       return matchesSearch && matchesStatus && matchesManager && matchesService && matchesMonth && matchesTab;
     });
-  }, [extensions, searchTerm, statusFilter, managerFilter, serviceFilter, monthFilter, activeTab]);
+  }, [extensions, searchTerm, statusFilter, managerFilter, serviceFilters, monthFilter, activeTab]);
 
   const validServices = useMemo(() => {
     return Array.from(new Set((extensions || []).map(e => e.serviceName))).sort();
@@ -461,15 +462,62 @@ export const ImplementationsView: React.FC<ImplementationsViewProps> = ({
               </div>
             )}
             <div className="relative group">
-              <Package className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
-              <select
-                value={serviceFilter}
-                onChange={(e) => setServiceFilter(e.target.value)}
-                className="pl-11 pr-10 py-3 bg-white border border-slate-200 rounded-2xl text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 appearance-none shadow-sm cursor-pointer"
+              <Package className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none z-10" />
+              <button
+                onClick={() => setIsServiceDropdownOpen(!isServiceDropdownOpen)}
+                className="pl-11 pr-10 py-3 bg-white border border-slate-200 rounded-2xl text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 shadow-sm text-left relative min-w-[160px]"
               >
-                <option value="All">All Services</option>
-                {validServices.map(s => <option key={s} value={s}>{s}</option>)}
-              </select>
+                <span className="block truncate">
+                  {serviceFilters.length === 0 ? 'All Services' : `${serviceFilters.length} Selected`}
+                </span>
+              </button>
+              
+              {isServiceDropdownOpen && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setIsServiceDropdownOpen(false)} />
+                  <div className="absolute top-full mt-2 w-64 bg-white rounded-2xl shadow-xl border border-slate-100 z-50 p-2 overflow-hidden">
+                    <div className="max-h-60 overflow-y-auto pr-1 custom-scrollbar flex flex-col gap-1">
+                      <label className="flex items-center gap-3 p-2 hover:bg-slate-50 rounded-lg cursor-pointer transition-colors group">
+                        <div className="relative flex items-center justify-center w-5 h-5 rounded border border-slate-300 group-hover:border-teal-500">
+                          <input
+                            type="checkbox"
+                            className="peer sr-only"
+                            checked={serviceFilters.length === 0}
+                            onChange={() => setServiceFilters([])}
+                          />
+                          <div className={cn("absolute inset-0 rounded bg-teal-500 opacity-0 peer-checked:opacity-100 transition-opacity flex items-center justify-center")}>
+                            <Check className="w-3.5 h-3.5 text-white" />
+                          </div>
+                        </div>
+                        <span className={cn("text-sm font-medium", serviceFilters.length === 0 ? "text-slate-900" : "text-slate-600")}>All Services</span>
+                      </label>
+                      
+                      {validServices.map(s => (
+                        <label key={s} className="flex items-center gap-3 p-2 hover:bg-slate-50 rounded-lg cursor-pointer transition-colors group">
+                          <div className="relative flex items-center justify-center w-5 h-5 rounded border border-slate-300 group-hover:border-teal-500">
+                            <input
+                              type="checkbox"
+                              className="peer sr-only"
+                              checked={serviceFilters.includes(s)}
+                              onChange={() => {
+                                if (serviceFilters.includes(s)) {
+                                  setServiceFilters(serviceFilters.filter(f => f !== s));
+                                } else {
+                                  setServiceFilters([...serviceFilters, s]);
+                                }
+                              }}
+                            />
+                            <div className={cn("absolute inset-0 rounded bg-teal-500 opacity-0 peer-checked:opacity-100 transition-opacity flex items-center justify-center")}>
+                              <Check className="w-3.5 h-3.5 text-white" />
+                            </div>
+                          </div>
+                          <span className={cn("text-sm font-medium", serviceFilters.includes(s) ? "text-slate-900" : "text-slate-600")}>{s}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
             <div className="relative group">
               <Clock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
@@ -496,9 +544,9 @@ export const ImplementationsView: React.FC<ImplementationsViewProps> = ({
                 <option value="Suspended">Suspended</option>
               </select>
             </div>
-            {(searchTerm || managerFilter !== 'All' || statusFilter !== 'All' || serviceFilter !== 'All' || monthFilter !== 'All') && (
+            {(searchTerm || managerFilter !== 'All' || statusFilter !== 'All' || serviceFilters.length > 0 || monthFilter !== 'All') && (
               <button
-                onClick={() => { setSearchTerm(''); setManagerFilter('All'); setStatusFilter('All'); setServiceFilter('All'); setMonthFilter('All'); }}
+                onClick={() => { setSearchTerm(''); setManagerFilter('All'); setStatusFilter('All'); setServiceFilters([]); setMonthFilter('All'); }}
                 className="p-3 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-2xl transition-all"
                 title="Clear Filters"
               >
