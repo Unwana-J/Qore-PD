@@ -240,15 +240,15 @@ export const ImplementationIssuesLog: React.FC<ImplementationIssuesLogProps> = (
 
       <div className="bg-white rounded-[2rem] border border-slate-200 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-left">
+          <table className="w-full text-left table-fixed min-w-[900px]">
             <thead className="bg-slate-50/50 border-b border-slate-100">
               <tr>
-                <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Issue Description</th>
-                <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Category</th>
-                <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Institution & Manager</th>
-                <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Impact</th>
-                <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Status</th>
-                <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Logged</th>
+                <th className="w-[35%] px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest truncate">Issue Description</th>
+                <th className="w-[12%] px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest truncate">Category</th>
+                <th className="w-[20%] px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest truncate">Institution & Manager</th>
+                <th className="w-[10%] px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center truncate">Impact</th>
+                <th className="w-[13%] px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center truncate">Status</th>
+                <th className="w-[10%] px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right truncate">Logged</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
