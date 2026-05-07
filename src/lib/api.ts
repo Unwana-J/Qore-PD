@@ -799,7 +799,7 @@ export const api = {
     },
 
     approveSuspension: async (id: string, resolvedBy: string): Promise<void> => {
-      const { data: ext } = await supabase.from('service_extensions').select('suspension_request').eq('id', id).single();
+      const { data: ext } = await supabase.from('service_extensions').select('suspension_request, implementation_manager, client_name, service_name, linked_project_id').eq('id', id).single();
       const updated = { ...ext?.suspension_request, status: 'Approved', resolvedAt: new Date().toISOString(), resolvedBy };
       
       const { error } = await supabase
@@ -807,10 +807,23 @@ export const api = {
         .update({ status: 'Suspended', suspension_request: updated })
         .eq('id', id);
       if (error) throw error;
+
+      if (ext?.implementation_manager) {
+        const { data: imUser } = await supabase.from('profiles').select('id').eq('name', ext.implementation_manager).single();
+        if (imUser) {
+          await api.notifications.create(
+            imUser.id,
+            `Your suspension request for ${ext.client_name} (${ext.service_name}) has been approved by ${resolvedBy}.`,
+            'Status',
+            ext.linked_project_id,
+            id
+          );
+        }
+      }
     },
 
     rejectSuspension: async (id: string, rejectionReason: string, resolvedBy: string): Promise<void> => {
-      const { data: ext } = await supabase.from('service_extensions').select('suspension_request').eq('id', id).single();
+      const { data: ext } = await supabase.from('service_extensions').select('suspension_request, implementation_manager, client_name, service_name, linked_project_id').eq('id', id).single();
       const updated = { ...ext?.suspension_request, status: 'Rejected', rejectionComment: rejectionReason, resolvedAt: new Date().toISOString(), resolvedBy };
 
       const { error } = await supabase
@@ -818,6 +831,19 @@ export const api = {
         .update({ suspension_request: updated })
         .eq('id', id);
       if (error) throw error;
+
+      if (ext?.implementation_manager) {
+        const { data: imUser } = await supabase.from('profiles').select('id').eq('name', ext.implementation_manager).single();
+        if (imUser) {
+          await api.notifications.create(
+            imUser.id,
+            `Your suspension request for ${ext.client_name} (${ext.service_name}) was rejected by ${resolvedBy}.`,
+            'Status',
+            ext.linked_project_id,
+            id
+          );
+        }
+      }
     },
 
     // ── Reactivation Workflow ────────────────────────────────────────────────
@@ -836,7 +862,7 @@ export const api = {
     },
 
     approveReactivation: async (id: string, resolvedBy: string): Promise<void> => {
-      const { data: ext } = await supabase.from('service_extensions').select('reactivation_request').eq('id', id).single();
+      const { data: ext } = await supabase.from('service_extensions').select('reactivation_request, implementation_manager, client_name, service_name, linked_project_id').eq('id', id).single();
       const updated = { ...ext?.reactivation_request, status: 'Approved', resolvedAt: new Date().toISOString(), resolvedBy };
       
       const { error } = await supabase
@@ -844,10 +870,23 @@ export const api = {
         .update({ status: 'In Progress', reactivation_request: updated })
         .eq('id', id);
       if (error) throw error;
+
+      if (ext?.implementation_manager) {
+        const { data: imUser } = await supabase.from('profiles').select('id').eq('name', ext.implementation_manager).single();
+        if (imUser) {
+          await api.notifications.create(
+            imUser.id,
+            `Your reactivation request for ${ext.client_name} (${ext.service_name}) has been approved by ${resolvedBy}.`,
+            'Status',
+            ext.linked_project_id,
+            id
+          );
+        }
+      }
     },
 
     rejectReactivation: async (id: string, rejectionReason: string, resolvedBy: string): Promise<void> => {
-      const { data: ext } = await supabase.from('service_extensions').select('reactivation_request').eq('id', id).single();
+      const { data: ext } = await supabase.from('service_extensions').select('reactivation_request, implementation_manager, client_name, service_name, linked_project_id').eq('id', id).single();
       const updated = { ...ext?.reactivation_request, status: 'Rejected', rejectionComment: rejectionReason, resolvedAt: new Date().toISOString(), resolvedBy };
 
       const { error } = await supabase
@@ -855,6 +894,19 @@ export const api = {
         .update({ reactivation_request: updated })
         .eq('id', id);
       if (error) throw error;
+
+      if (ext?.implementation_manager) {
+        const { data: imUser } = await supabase.from('profiles').select('id').eq('name', ext.implementation_manager).single();
+        if (imUser) {
+          await api.notifications.create(
+            imUser.id,
+            `Your reactivation request for ${ext.client_name} (${ext.service_name}) was rejected by ${resolvedBy}.`,
+            'Status',
+            ext.linked_project_id,
+            id
+          );
+        }
+      }
     },
 
     addComment: async (id: string, author: string, content: string): Promise<ServiceExtension> => {
