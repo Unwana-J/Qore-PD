@@ -200,7 +200,7 @@ export const ImplementationsView: React.FC<ImplementationsViewProps> = ({
   const [extensionToDelete, setExtensionToDelete] = useState<ServiceExtension | null>(null);
 
   const isLead = isRole(userRole, 'IM Lead') || isRole(userRole, 'Superadmin');
-  const [activeTab, setActiveTab] = useState<'mine' | 'all' | 'insights' | 'suspension-queue' | 'mapping-queue' | 'issues' | 'pm-dashboard'>(defaultTab as any || (isLead ? 'insights' : 'mine'));
+  const [activeTab, setActiveTab] = useState<'mine' | 'all' | 'insights' | 'requests-queue' | 'mapping-queue' | 'issues' | 'pm-dashboard'>(defaultTab as any || (isLead ? 'insights' : 'mine'));
 
   // Filter state
   const [searchTerm, setSearchTerm] = useState('');
@@ -235,7 +235,7 @@ export const ImplementationsView: React.FC<ImplementationsViewProps> = ({
       let data: ServiceExtension[];
       
       // IM Leads / Superadmins / PMs in queue get all extensions initially to filter
-      if (isLead || activeTab === 'mapping-queue' || activeTab === 'suspension-queue' || isRole(userRole, 'PM')) {
+      if (isLead || activeTab === 'mapping-queue' || activeTab === 'requests-queue' || isRole(userRole, 'PM')) {
         data = await api.serviceExtensions.getAll();
       } else if (activeTab === 'issues') {
         data = await api.serviceExtensions.getAll();
@@ -721,9 +721,9 @@ export const ImplementationsView: React.FC<ImplementationsViewProps> = ({
               <button onClick={loadExtensions} className="p-2 text-slate-400 hover:text-teal-600 transition-colors" title="Refresh Feed"><RefreshCw className={cn("w-4 h-4", loading && "animate-spin")} /></button>
               <button onClick={() => setActiveTab('insights')} className={cn("px-4 py-2 text-sm font-bold rounded-lg transition-all", activeTab === 'insights' ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700")}>Team Insights</button>
               <button onClick={() => setActiveTab('all')} className={cn("px-4 py-2 text-sm font-bold rounded-lg transition-all", activeTab === 'all' ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700")}>Team Dashboard</button>
-              <button onClick={() => setActiveTab('suspension-queue')} className={cn("px-4 py-2 text-sm font-bold rounded-lg transition-all flex items-center gap-2", activeTab === 'suspension-queue' ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700")}>
-                Suspension Queue
-                {extensions.filter(e => e.suspensionRequest?.status === 'Pending').length > 0 && (
+              <button onClick={() => setActiveTab('requests-queue')} className={cn("px-4 py-2 text-sm font-bold rounded-lg transition-all flex items-center gap-2", activeTab === 'requests-queue' ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700")}>
+                Requests Queue
+                {extensions.filter(e => e.suspensionRequest?.status === 'Pending' || e.reactivationRequest?.status === 'Pending').length > 0 && (
                   <span className="w-2 h-2 bg-orange-500 rounded-full animate-pulse" />
                 )}
               </button>
@@ -754,39 +754,48 @@ export const ImplementationsView: React.FC<ImplementationsViewProps> = ({
                 if (ext) setManagingExtension(ext);
               }}
             />
-          ) : activeTab === 'suspension-queue' ? (
+          ) : activeTab === 'requests-queue' ? (
             <div className="space-y-4">
               <div className="bg-orange-50 border border-orange-100 rounded-2xl p-4 flex items-center gap-3">
                 <Clock className="w-5 h-5 text-orange-500" />
-                <p className="text-sm font-medium text-orange-800">Review and resolve pending suspension requests from implementation managers.</p>
+                <p className="text-sm font-medium text-orange-800">Review and resolve pending suspension and reactivation requests.</p>
               </div>
-              {extensions.filter(e => e.suspensionRequest?.status === 'Pending').length === 0 ? (
+              {extensions.filter(e => e.suspensionRequest?.status === 'Pending' || e.reactivationRequest?.status === 'Pending').length === 0 ? (
                 <div className="bg-white rounded-3xl border border-slate-200 border-dashed p-12 text-center">
                   <CheckCircle2 className="w-10 h-10 text-emerald-400 mx-auto mb-3" />
-                  <p className="text-slate-500 font-bold">No pending suspension requests.</p>
+                  <p className="text-slate-500 font-bold">No pending requests.</p>
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {extensions.filter(e => e.suspensionRequest?.status === 'Pending').map(ext => (
-                    <div key={ext.id} className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm hover:border-orange-200 transition-colors">
-                      <div className="flex justify-between items-start mb-3">
-                        <div>
-                          <h4 className="font-black text-slate-900">{ext.clientName}</h4>
-                          <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{ext.serviceName}</p>
+                  {extensions.filter(e => e.suspensionRequest?.status === 'Pending' || e.reactivationRequest?.status === 'Pending').map(ext => {
+                    const isSuspension = ext.suspensionRequest?.status === 'Pending';
+                    const isReactivation = ext.reactivationRequest?.status === 'Pending';
+                    return (
+                      <div key={ext.id} className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm hover:border-orange-200 transition-colors">
+                        <div className="flex justify-between items-start mb-3">
+                          <div>
+                            <div className="flex items-center gap-2 mb-1">
+                              <h4 className="font-black text-slate-900">{ext.clientName}</h4>
+                              <span className={cn("px-2 py-0.5 text-[10px] font-black uppercase tracking-widest rounded-full", isSuspension ? "bg-orange-100 text-orange-700" : "bg-emerald-100 text-emerald-700")}>
+                                {isSuspension ? 'Suspension' : 'Reactivation'}
+                              </span>
+                            </div>
+                            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{ext.serviceName}</p>
+                          </div>
+                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">by {ext.implementationManager}</span>
                         </div>
-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">by {ext.implementationManager}</span>
+                        <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 mb-4 italic text-sm text-slate-700">
+                          "{isSuspension ? ext.suspensionRequest?.reason : ext.reactivationRequest?.reason}"
+                        </div>
+                        <div className="flex gap-2">
+                          <button 
+                            onClick={() => setManagingExtension(ext)}
+                            className="flex-1 py-2 bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-slate-800"
+                          >Review Details</button>
+                        </div>
                       </div>
-                      <div className="bg-orange-50/50 p-3 rounded-xl border border-orange-100 mb-4 italic text-sm text-orange-800">
-                        "{ext.suspensionRequest?.reason}"
-                      </div>
-                      <div className="flex gap-2">
-                        <button 
-                          onClick={() => setManagingExtension(ext)}
-                          className="flex-1 py-2 bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-slate-800"
-                        >Review Details</button>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>
