@@ -270,17 +270,14 @@ export const ImplementationIssuesLog: React.FC<ImplementationIssuesLogProps> = (
                         {issue.notes && <p className="text-[10px] text-slate-400 mt-1 line-clamp-1 italic">{issue.notes}</p>}
                       </button>
                     </td>
-                    <td className="px-6 py-4">
-                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{issue.category || 'General'}</span>
+                    <td className="px-6 py-4 min-w-0">
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block truncate" title={issue.category || 'General'}>{issue.category || 'General'}</span>
                     </td>
                     <td className="px-6 py-4">
-                      <div>
-                        <p className="text-xs font-black text-slate-800">{issue.clientName}</p>
-                        <div className="flex items-center gap-1.5 mt-0.5">
-                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{issue.serviceName}</p>
-                          <span className="text-slate-300">·</span>
-                          <p className="text-[10px] font-black text-teal-600 uppercase tracking-widest">{issue.manager}</p>
-                        </div>
+                      <div className="flex flex-col gap-0.5 min-w-0">
+                        <p className="text-xs font-black text-slate-800 truncate" title={issue.clientName}>{issue.clientName}</p>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest truncate" title={issue.serviceName}>{issue.serviceName}</p>
+                        <p className="text-[10px] font-black text-teal-600 uppercase tracking-widest truncate mt-0.5" title={issue.manager}>{issue.manager}</p>
                       </div>
                     </td>
                     <td className="px-6 py-4">
