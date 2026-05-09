@@ -316,6 +316,21 @@ export const ManageImplementationModal: React.FC<ManageImplementationModalProps>
     if (!tempClientName.trim() || !tempSelectedService) return;
     setSavingHeader(true);
     try {
+      const variantName = tempSelectedSubService?.name ?? 'Standard';
+      
+      const isDup = await api.serviceExtensions.checkDuplicate(
+        tempClientName.trim(),
+        tempSelectedService.id,
+        variantName,
+        extension.id
+      );
+      
+      if (isDup) {
+        onShowToast('An active implementation with this client, service, and sub-service already exists.', 'error');
+        setSavingHeader(false);
+        return;
+      }
+
       const effectiveBaseline = tempSelectedSubService?.baselineDays ?? tempSelectedService.baselineDays;
       const effectiveMilestones: string[] = (tempSelectedSubService?.milestones?.length ? tempSelectedSubService.milestones : tempSelectedService.milestones) ?? [];
 
@@ -341,7 +356,7 @@ export const ManageImplementationModal: React.FC<ManageImplementationModalProps>
         tempClientName.trim(),
         tempSelectedService.id,
         tempSelectedService.name,
-        tempSelectedSubService?.name ?? 'Standard',
+        variantName,
         tempSelectedSubService?.id ?? null,
         effectiveBaseline,
         newMilestones

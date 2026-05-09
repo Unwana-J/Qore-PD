@@ -1308,15 +1308,20 @@ export const api = {
     },
 
     // Check for duplicate active extension (warn before create)
-    checkDuplicate: async (clientName: string, serviceId: string, serviceVariant: string): Promise<boolean> => {
-      const { data } = await api.supabase
+    checkDuplicate: async (clientName: string, serviceId: string, serviceVariant: string, excludeId?: string): Promise<boolean> => {
+      let query = api.supabase
         .from('service_extensions')
         .select('id')
         .eq('client_name', clientName)
         .eq('service_id', serviceId)
         .eq('service_variant', serviceVariant)
-        .neq('status', 'Completed')
-        .limit(1);
+        .neq('status', 'Completed');
+        
+      if (excludeId) {
+        query = query.neq('id', excludeId);
+      }
+      
+      const { data } = await query.limit(1);
       return (data || []).length > 0;
     },
 
