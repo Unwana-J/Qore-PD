@@ -6,7 +6,7 @@ import {
   RefreshCw, Briefcase, Check, Shield, AlertTriangle, Plus,
   Pencil, Trash2, Edit2
 } from 'lucide-react';
-import { ServiceExtension, IMilestone, AppConfig, User, ImplementationIssue } from '../types';
+import { ServiceExtension, IMilestone, AppConfig, User, ImplementationIssue, ServiceBaseline, ServiceSubService, Project } from '../types';
 import { api } from '../lib/api';
 import { cn, isRole, calculateWorkingDays } from '../lib/utils';
 import { MapToProjectModal } from './MapToProjectModal';
@@ -66,6 +66,18 @@ export const ManageImplementationModal: React.FC<ManageImplementationModalProps>
   const [tempStartDate, setTempStartDate] = useState(extension.startDate);
   const [tempTargetDate, setTempTargetDate] = useState(extension.targetClosureDate);
   const [savingTimeline, setSavingTimeline] = useState(false);
+
+  const [isEditingHeader, setIsEditingHeader] = useState(false);
+  const [tempClientName, setTempClientName] = useState(extension.clientName);
+  const [tempSelectedService, setTempSelectedService] = useState<ServiceBaseline | null>(
+    config.serviceBaselines.find(s => s.id === extension.serviceId) || null
+  );
+  const [tempSelectedSubService, setTempSelectedSubService] = useState<ServiceSubService | null>(
+    extension.subServiceId 
+      ? config.serviceBaselines.find(s => s.id === extension.serviceId)?.subServices?.find(ss => ss.id === extension.subServiceId) || null 
+      : null
+  );
+  const [savingHeader, setSavingHeader] = useState(false);
 
   const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
   const [editingContent, setEditingContent] = useState('');
@@ -300,6 +312,51 @@ export const ManageImplementationModal: React.FC<ManageImplementationModalProps>
     }
   };
 
+  const handleUpdateHeader = async () => {
+    if (!tempClientName.trim() || !tempSelectedService) return;
+    setSavingHeader(true);
+    try {
+      const effectiveBaseline = tempSelectedSubService?.baselineDays ?? tempSelectedService.baselineDays;
+      const effectiveMilestones: string[] = (tempSelectedSubService?.milestones?.length ? tempSelectedSubService.milestones : tempSelectedService.milestones) ?? [];
+
+      const existingMilestonesMap = extension.milestones.reduce((acc, m) => {
+        acc[m.name] = m;
+        return acc;
+      }, {} as Record<string, IMilestone>);
+
+      const newMilestones = effectiveMilestones.map(m => {
+        if (existingMilestonesMap[m]) {
+          return existingMilestonesMap[m];
+        }
+        return {
+          name: m,
+          completed: false,
+          completedAt: null,
+          completedBy: null,
+        };
+      });
+
+      const updated = await api.serviceExtensions.updateDetails(
+        extension.id,
+        tempClientName.trim(),
+        tempSelectedService.id,
+        tempSelectedService.name,
+        tempSelectedSubService?.name ?? 'Standard',
+        tempSelectedSubService?.id ?? null,
+        effectiveBaseline,
+        newMilestones
+      );
+      onUpdated(updated);
+      setMilestones(updated.milestones);
+      onShowToast('Implementation details updated.');
+      setIsEditingHeader(false);
+    } catch (err: any) {
+      onShowToast(err.message, 'error');
+    } finally {
+      setSavingHeader(false);
+    }
+  };
+
   const handleApproveMapping = async () => {
     setSaving(true);
     try {
@@ -402,17 +459,99 @@ export const ManageImplementationModal: React.FC<ManageImplementationModalProps>
           >
             <div className="flex items-start justify-between p-6 sm:p-8 border-b border-slate-100">
               <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-1">
-                  <h2 className="text-xl font-black text-slate-900 truncate">{extension.clientName}</h2>
-                  {isSuspended && (
-                    <span className="flex items-center gap-1 px-2 py-0.5 bg-amber-100 text-amber-700 text-[10px] font-black uppercase tracking-widest rounded-md">
-                      <Lock className="w-3 h-3" /> Suspended
-                    </span>
-                  )}
-                </div>
-                <p className="text-sm text-slate-500 font-medium">
-                  {extension.serviceName} — {extension.serviceVariant || 'Standard'}
-                </p>
+                {isEditingHeader ? (
+                  <div className="space-y-4 pr-8 animate-in slide-in-from-top-2">
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Client Name</label>
+                      <input 
+                        type="text" 
+                        value={tempClientName}
+                        onChange={e => setTempClientName(e.target.value)}
+                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-teal-500/20"
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Service</label>
+                        <select
+                          value={tempSelectedService?.id || ''}
+                          onChange={e => {
+                            const svc = config.serviceBaselines.find(s => s.id === e.target.value) || null;
+                            setTempSelectedService(svc);
+                            setTempSelectedSubService(null);
+                          }}
+                          className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-teal-500/20"
+                        >
+                          <option value="">Select Service...</option>
+                          {config.serviceBaselines.map(s => (
+                            <option key={s.id} value={s.id}>{s.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                      {tempSelectedService && (tempSelectedService.subServices?.length ?? 0) > 0 && (
+                        <div className="space-y-1.5 animate-in fade-in">
+                          <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Sub-Service</label>
+                          <select
+                            value={tempSelectedSubService?.id || ''}
+                            onChange={e => {
+                              const ss = tempSelectedService.subServices?.find(s => s.id === e.target.value) || null;
+                              setTempSelectedSubService(ss);
+                            }}
+                            className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-teal-500/20"
+                          >
+                            <option value="">Select Sub-Service...</option>
+                            {tempSelectedService.subServices?.map(s => (
+                              <option key={s.id} value={s.id}>{s.name}</option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex gap-2 pt-2">
+                      <button 
+                        onClick={() => {
+                          setIsEditingHeader(false);
+                          setTempClientName(extension.clientName);
+                          setTempSelectedService(config.serviceBaselines.find(s => s.id === extension.serviceId) || null);
+                          setTempSelectedSubService(extension.subServiceId ? config.serviceBaselines.find(s => s.id === extension.serviceId)?.subServices?.find(ss => ss.id === extension.subServiceId) || null : null);
+                        }}
+                        className="px-4 py-2 text-slate-500 text-xs font-bold rounded-lg hover:bg-slate-100 transition-colors"
+                      >
+                        Cancel
+                      </button>
+                      <button 
+                        onClick={handleUpdateHeader}
+                        disabled={savingHeader || !tempClientName.trim() || !tempSelectedService || ((tempSelectedService.subServices?.length ?? 0) > 0 && !tempSelectedSubService)}
+                        className="px-4 py-2 bg-teal-600 text-white text-xs font-bold rounded-lg hover:bg-teal-700 transition-colors disabled:opacity-50 flex items-center gap-1.5"
+                      >
+                        {savingHeader ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Save Changes'}
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex items-center gap-2 mb-1">
+                      <h2 className="text-xl font-black text-slate-900 truncate">{extension.clientName}</h2>
+                      {isSuspended && (
+                        <span className="flex items-center gap-1 px-2 py-0.5 bg-amber-100 text-amber-700 text-[10px] font-black uppercase tracking-widest rounded-md">
+                          <Lock className="w-3 h-3" /> Suspended
+                        </span>
+                      )}
+                      {!isSuspended && extension.status !== 'Completed' && (
+                        <button
+                          onClick={() => setIsEditingHeader(true)}
+                          className="ml-2 p-1.5 text-slate-400 hover:text-teal-600 hover:bg-teal-50 rounded-lg transition-colors group"
+                          title="Edit Details"
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
+                    <p className="text-sm text-slate-500 font-medium">
+                      {extension.serviceName} — {extension.serviceVariant || 'Standard'}
+                    </p>
+                  </>
+                )}
               </div>
               <button onClick={onClose} className="ml-4 p-2 hover:bg-slate-100 rounded-xl transition-colors text-slate-400 hover:text-slate-600">
                 <X className="w-5 h-5" />

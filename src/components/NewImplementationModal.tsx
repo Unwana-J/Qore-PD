@@ -123,6 +123,9 @@ export const NewImplementationModal: React.FC<NewImplementationModalProps> = ({
         extensionHistory: [],
         assignmentHistory: [],
         suspensionRequest: null,
+        reactivationRequest: null,
+        comments: [],
+        issues: [],
       });
       onSuccess();
     } catch (err: any) {

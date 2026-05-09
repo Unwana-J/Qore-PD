@@ -1,4 +1,4 @@
-import { Project, User, AuditLog, AppConfig, DigestData, ServiceExtension, IMilestone, MappingStatus, ServiceSubService, ExtensionRequest, ExtensionHistoryEntry, AssignmentHistoryEntry, SuspensionRequest } from '../types';
+import { Project, User, AuditLog, AppConfig, DigestData, ServiceExtension, IMilestone, MappingStatus, ServiceSubService, ExtensionRequest, ExtensionHistoryEntry, AssignmentHistoryEntry, SuspensionRequest, ImplementationIssue } from '../types';
 import { MOCK_PROJECTS, MOCK_USERS, MOCK_AUDIT_LOGS, INITIAL_CONFIG } from '../mockData';
 import { supabase } from './supabase';
 
@@ -1029,7 +1029,36 @@ export const api = {
           updated_at: new Date().toISOString()
         })
         .eq('id', id)
-        .select()
+        .select('*')
+        .single();
+      if (error) throw error;
+      return api.serviceExtensions._fromDb(data);
+    },
+
+    updateDetails: async (
+      id: string,
+      clientName: string,
+      serviceId: string,
+      serviceName: string,
+      serviceVariant: string,
+      subServiceId: string | null,
+      baselineDays: number,
+      milestones: IMilestone[]
+    ): Promise<ServiceExtension> => {
+      const { data, error } = await supabase
+        .from('service_extensions')
+        .update({
+          client_name: clientName,
+          service_id: serviceId,
+          service_name: serviceName,
+          service_variant: serviceVariant,
+          sub_service_id: subServiceId,
+          baseline_days: baselineDays,
+          milestones: milestones,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', id)
+        .select('*')
         .single();
       if (error) throw error;
       return api.serviceExtensions._fromDb(data);
