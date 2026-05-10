@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Project, ProjectState } from '../types';
-import { formatCurrency, cn, getActiveDaysCount, calculateSPI, getAutoProjectState, getEffectiveServiceIds, getServiceNames } from '../lib/utils';
+import { formatCurrency, cn, getActiveDaysCount, calculateSPI, getAutoProjectState, getEffectiveServiceIds, getServiceNames, getLatestInteractionDate } from '../lib/utils';
 import { motion } from 'motion/react';
 import { PROJECT_STATES } from '../constants';
 import { PROJECT_STATE_COLORS, PRIORITY_COLORS, getThemeClasses } from '../lib/theme';
@@ -407,7 +407,7 @@ export const ProjectList: React.FC<ProjectListProps> = ({
                         );
                       })()}
                     </div>
-                    {differenceInDays(new Date(), parseISO(project.updatedAt)) >= staleThresholdDays && (
+                    {!['Closed', 'Billed', 'Signed Off', 'Suspended'].includes(project.state) && differenceInDays(new Date(), getLatestInteractionDate(project)) >= staleThresholdDays && (
                       <span className="flex items-center gap-1.5 px-2 py-0.5 bg-red-500/10 text-red-600 rounded-md text-[9px] font-black uppercase tracking-tighter border border-red-200/50 backdrop-blur-sm shadow-sm ring-4 ring-red-500/5">
                         <AlertCircle className="w-3 h-3 animate-pulse" />
                         Needs Update

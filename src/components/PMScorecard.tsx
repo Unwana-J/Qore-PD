@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Project, AppConfig, Role } from '../types';
-import { calculateSPI, getActiveDaysCount, cn, resolveServiceIds, getEffectiveServiceIds, calculatePhaseScores } from '../lib/utils';
+import { calculateSPI, getActiveDaysCount, cn, resolveServiceIds, getEffectiveServiceIds, calculatePhaseScores, getLatestInteractionDate } from '../lib/utils';
 import { ChevronDown, ChevronRight, AlertTriangle, TrendingDown, Clock, Search, Filter, Layers } from 'lucide-react';
 import { differenceInDays, parseISO, isAfter, isBefore, subDays, startOfMonth, startOfQuarter, startOfYear } from 'date-fns';
 import { getThemeClasses } from '../lib/theme';
@@ -102,8 +102,13 @@ export const PMScorecard: React.FC<PMScorecardProps> = ({ projects, config, user
       });
       const rebaselineRate = pList.length > 0 ? rebCount / pList.length : 0;
       
+
+
       // Stale Projects count
-      const staleCount = pList.filter(p => differenceInDays(new Date(), parseISO(p.updatedAt)) >= config.staleThresholdDays).length;
+      const staleCount = pList.filter(p => 
+        !['Closed', 'Billed', 'Signed Off', 'Suspended'].includes(p.state) &&
+        differenceInDays(new Date(), getLatestInteractionDate(p)) >= config.staleThresholdDays
+      ).length;
       
       // Avg days to close
       let daysSum = 0;
@@ -255,10 +260,10 @@ export const PMScorecard: React.FC<PMScorecardProps> = ({ projects, config, user
         </div>
         <div className={cn("bg-white p-5 rounded-3xl border shadow-sm", mostStalePM?.staleCount > 0 ? "border-red-200 bg-red-50/30" : "border-slate-200")}>
           <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Most Stale Projects</p>
-          <p className="text-xl font-black text-slate-900">{mostStalePM ? mostStalePM.name : '-'}</p>
-          {mostStalePM && <p className={cn("text-sm font-bold mt-1", mostStalePM.staleCount > 0 ? "text-red-600" : "text-slate-500")}>
-            {mostStalePM.staleCount} Stale
-          </p>}
+          <p className="text-xl font-black text-slate-900">{mostStalePM && mostStalePM.staleCount > 0 ? mostStalePM.name : 'None'}</p>
+          <p className={cn("text-sm font-bold mt-1", mostStalePM?.staleCount > 0 ? "text-red-600" : "text-slate-500")}>
+            {mostStalePM ? mostStalePM.staleCount : 0} Stale
+          </p>
         </div>
         <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm">
           <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Lowest Avg SPI</p>
@@ -359,7 +364,8 @@ export const PMScorecard: React.FC<PMScorecardProps> = ({ projects, config, user
                             const pSpi = calculateSPI(p, config.spiThresholds);
                             const pDays = getActiveDaysCount(p);
                             const hasPendingRebaseline = p.rebaselineRequests?.some(r => r.status === 'Pending');
-                            const isStale = differenceInDays(new Date(), parseISO(p.updatedAt)) >= config.staleThresholdDays;
+                            const isStale = !['Closed', 'Billed', 'Signed Off', 'Suspended'].includes(p.state) && 
+                                            differenceInDays(new Date(), getLatestInteractionDate(p)) >= config.staleThresholdDays;
                             
                             return (
                               <div key={p.id} className="bg-white px-4 py-3 rounded-2xl border border-slate-200 shadow-sm flex flex-wrap items-center justify-between gap-4">

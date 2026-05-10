@@ -4,7 +4,7 @@ import { format, differenceInBusinessDays, parseISO } from 'date-fns';
 import { Project, Role, AppConfig, ProjectPriority, ProjectActivity, ActivityType, RebaselineRequest, Phase, ServiceState, ProjectState, BillingRejection, DigestData, PMActivityEntry } from '../types';
 import { api } from '../lib/api';
 import { supabase } from '../lib/supabase';
-import { calculateWorkingDays, getActiveDaysCount, calculateSPI, getAutoProjectState, isRole, hasRole } from '../lib/utils';
+import { calculateWorkingDays, getActiveDaysCount, calculateSPI, getAutoProjectState, getEffectiveServiceIds, getLatestInteractionDate, isRole, hasRole } from '../lib/utils';
 
 export function useProjects(userRole: Role, config: AppConfig, userName: string = 'User', userId?: string) {
   const queryClient = useQueryClient();
@@ -393,9 +393,9 @@ export function useProjects(userRole: Role, config: AppConfig, userName: string 
     const staleProjects = rawProjects.filter(p => {
       const isOwner = p.assignedPM?.trim().toLowerCase() === userName?.trim().toLowerCase();
       if (!isOwner || p.state === 'Closed' || p.state === 'Billed' || p.state === 'Suspended') return false;
-      const lastUpdate = p.updatedAt ? new Date(p.updatedAt) : new Date(p.createdAt);
-      const diffDays = (new Date().getTime() - lastUpdate.getTime()) / (1000 * 60 * 60 * 24);
-      return diffDays > (config.staleThresholdDays || 7);
+      const lastInteraction = getLatestInteractionDate(p);
+      const diffDays = (new Date().getTime() - lastInteraction.getTime()) / (1000 * 60 * 60 * 24);
+      return diffDays >= (config.staleThresholdDays || 14);
     });
     staleProjects.forEach(p => {
       const key = `stale-${p.id}`;

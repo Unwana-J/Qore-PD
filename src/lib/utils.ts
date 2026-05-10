@@ -446,3 +446,50 @@ export function getServiceNames(ids: string[], serviceBaselines: ServiceBaseline
   });
   return Array.from(new Set(names));
 }
+
+/**
+ * Resolves the absolute latest interaction date for a project by comparing:
+ * 1. System updatedAt
+ * 2. System createdAt
+ * 3. Latest Activity timestamp
+ * 4. Latest Comment timestamp
+ * This helps identify "True Stale" projects where a PM hasn't touched the project
+ * even if technical system updates (like bulk imports) have reset the technical updatedAt.
+ */
+export function getLatestInteractionDate(p: Project): Date {
+  const dates = [parseISO(p.updatedAt || p.createdAt)];
+  
+  // Add activity dates
+  if (p.activities && p.activities.length > 0) {
+    p.activities.forEach(a => {
+      try {
+        // Handle both ISO and "MM/DD/YY, HH:mm" formats
+        const raw = a.timestamp.includes(',') ? a.timestamp.split(',')[0] : a.timestamp;
+        const d = parseISO(raw);
+        if (!isNaN(d.getTime())) dates.push(d);
+        else {
+          // Fallback for non-ISO short formats if needed
+          const [m, day, y] = raw.split('/').map(Number);
+          if (m && day && y) {
+            const fullYear = y < 100 ? 2000 + y : y;
+            const parsed = new Date(fullYear, m - 1, day);
+            if (!isNaN(parsed.getTime())) dates.push(parsed);
+          }
+        }
+      } catch (e) {}
+    });
+  }
+  
+  // Add comment dates
+  if (p.comments && p.comments.length > 0) {
+    p.comments.forEach(c => {
+      try {
+        const raw = c.timestamp.includes(',') ? c.timestamp.split(',')[0] : c.timestamp;
+        const d = parseISO(raw);
+        if (!isNaN(d.getTime())) dates.push(d);
+      } catch (e) {}
+    });
+  }
+  
+  return new Date(Math.max(...dates.map(d => d.getTime())));
+}
