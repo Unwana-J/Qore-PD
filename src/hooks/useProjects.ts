@@ -265,7 +265,7 @@ export function useProjects(userRole: Role, config: AppConfig, userName: string 
           );
         }
 
-        const active = extensionsToDigest.filter(e => e.status !== 'Completed');
+        const active = extensionsToDigest.filter(e => e.status !== 'Completed' && e.status !== 'Suspended' && e.status !== 'Frozen');
         const completedThisWeek = extensionsToDigest.filter(e => e.status === 'Completed' && new Date(e.updatedAt) >= sevenDaysAgo).length;
         const overdueCount = active.filter(e => 
           e.status !== 'Suspended' && 

@@ -50,7 +50,7 @@ const IMPersonalDashboard: React.FC<{ extensions: ServiceExtension[]; userName: 
   const upcoming = useMemo(() =>
     extensions
       .filter(e => {
-        if (e.status === 'Completed') return false;
+        if (e.status === 'Completed' || e.status === 'Suspended' || e.status === 'Frozen') return false;
         if (!e.targetClosureDate) return false;
         const d = new Date(e.targetClosureDate);
         return !isNaN(d.getTime());
