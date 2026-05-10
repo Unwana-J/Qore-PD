@@ -457,7 +457,10 @@ export function getServiceNames(ids: string[], serviceBaselines: ServiceBaseline
  * even if technical system updates (like bulk imports) have reset the technical updatedAt.
  */
 export function getLatestInteractionDate(p: Project): Date {
-  const dates = [parseISO(p.updatedAt || p.createdAt)];
+  // Start with createdAt as the absolute minimum. 
+  // We EXCLUDE updatedAt because system processes (bulk imports, migrations) 
+  // often reset this technical field even when no PM activity occurred.
+  const dates = [parseISO(p.createdAt)];
   
   // Add activity dates
   if (p.activities && p.activities.length > 0) {
