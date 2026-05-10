@@ -14,12 +14,13 @@ interface ImplementationDigestModalProps {
   digest: ImplementationDigestData;
   historicalDigests?: ImplementationDigestData[];
   themeColor?: string;
+  userName?: string;
   onClose: () => void;
   onNavigate: (view: string, filter?: string, imFilter?: string) => void;
 }
 
 export const ImplementationDigestModal: React.FC<ImplementationDigestModalProps> = ({
-  digest, historicalDigests = [], themeColor = 'teal', onClose, onNavigate
+  digest, historicalDigests = [], themeColor = 'teal', userName, onClose, onNavigate
 }) => {
   const theme = getThemeClasses(themeColor);
   const [selectedWeek, setSelectedWeek] = React.useState<string>(digest.weekOf);
@@ -108,7 +109,7 @@ export const ImplementationDigestModal: React.FC<ImplementationDigestModalProps>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               {[
                 { label: 'Active', value: displayDigest.totalActive, icon: <TrendingUp className="w-4 h-4" />, colour: 'text-slate-900', bg: 'bg-slate-50 border-slate-200', action: () => onNavigate('implementations', 'All') },
-                { label: 'Completed', value: displayDigest.completedThisWeek, icon: <CheckCircle2 className="w-4 h-4" />, colour: 'text-emerald-700', bg: 'bg-emerald-50 border-emerald-200', action: () => onNavigate('implementations', 'Completed') },
+                { label: 'Completed (Week)', value: displayDigest.completedThisWeek, icon: <CheckCircle2 className="w-4 h-4" />, colour: 'text-emerald-700', bg: 'bg-emerald-50 border-emerald-200', action: () => onNavigate('implementations', 'Completed') },
                 { label: 'Overdue', value: displayDigest.overdueCount, icon: <AlertCircle className="w-4 h-4" />, colour: 'text-red-700', bg: 'bg-red-50 border-red-200', action: () => onNavigate('implementations', 'Delayed') },
                 { label: 'Open Issues', value: displayDigest.openIssuesCount || 0, icon: <AlertTriangle className="w-4 h-4" />, colour: 'text-amber-700', bg: 'bg-amber-50 border-amber-200', action: () => onNavigate('implementations', 'All') },
               ].map(stat => (
@@ -162,7 +163,9 @@ export const ImplementationDigestModal: React.FC<ImplementationDigestModalProps>
           <section className="px-8 py-6">
             <div className="flex items-center gap-2 mb-4">
               <Users className="w-4 h-4 text-slate-400" />
-              <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">IM Inactivity</h3>
+              <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">
+                {displayDigest.imActivity.length === 1 && displayDigest.imActivity[0].imName === userName ? 'Your Activity' : 'IM Inactivity'}
+              </h3>
             </div>
             <div className="space-y-2">
               {displayDigest.imActivity.length === 0 ? (

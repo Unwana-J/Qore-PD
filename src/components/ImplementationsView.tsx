@@ -49,13 +49,22 @@ const IMPersonalDashboard: React.FC<{ extensions: ServiceExtension[]; userName: 
 
   const upcoming = useMemo(() =>
     extensions
-      .filter(e => e.status !== 'Completed')
+      .filter(e => {
+        if (e.status === 'Completed') return false;
+        if (!e.targetClosureDate) return false;
+        const d = new Date(e.targetClosureDate);
+        return !isNaN(d.getTime());
+      })
       .sort((a, b) => new Date(a.targetClosureDate).getTime() - new Date(b.targetClosureDate).getTime())
       .slice(0, 5),
     [extensions]);
 
   const getDaysLabel = (dateStr: string) => {
-    const diff = Math.ceil((new Date(dateStr).getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+    if (!dateStr) return { label: 'No date', color: 'text-slate-400 bg-slate-50 border-slate-200' };
+    const date = new Date(dateStr);
+    if (isNaN(date.getTime())) return { label: 'Invalid date', color: 'text-slate-400 bg-slate-50 border-slate-200' };
+    
+    const diff = Math.ceil((date.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
     if (diff < 0) return { label: `${Math.abs(diff)}d overdue`, color: 'text-red-600 bg-red-50 border-red-200' };
     if (diff === 0) return { label: 'Due today', color: 'text-orange-600 bg-orange-50 border-orange-200' };
     if (diff <= 7) return { label: `${diff}d left`, color: 'text-amber-600 bg-amber-50 border-amber-200' };
