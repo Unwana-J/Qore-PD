@@ -275,8 +275,11 @@ export function useProjects(userRole: Role, config: AppConfig, userName: string 
         const openIssuesCount = extensionsToDigest.reduce((acc, e) => acc + (e.issues || []).filter(i => i.status !== 'Closed').length, 0);
 
         const imMap: Record<string, IMDigestActivityEntry> = {};
-        allExtensions.forEach(e => {
+        const extensionsForInactivity = isIndividualIM ? extensionsToDigest : allExtensions;
+        
+        extensionsForInactivity.forEach(e => {
           const im = e.implementationManager;
+          if (!im) return;
           if (!imMap[im]) imMap[im] = { imName: im, totalActive: 0, completedThisWeek: 0, overdueCount: 0, lastUpdatedDaysAgo: 0 };
           
           const daysSinceUpdate = Math.floor((today.getTime() - new Date(e.updatedAt).getTime()) / 86400000);
@@ -320,9 +323,9 @@ export function useProjects(userRole: Role, config: AppConfig, userName: string 
           completedThisWeek,
           mappingRequestsPending: isPM 
             ? extensionsToDigest.filter(e => e.mappingStatus === 'Pending' && !isRole(userRole, 'IM')).length
-            : allExtensions.filter(e => e.mappingStatus === 'Pending').length,
-          suspensionRequestsPending: allExtensions.filter(e => e.suspensionRequest?.status === 'Pending').length,
-          dateExtensionRequestsPending: allExtensions.filter(e => e.extensionRequest?.status === 'Pending').length,
+            : (isIndividualIM ? extensionsToDigest : allExtensions).filter(e => e.mappingStatus === 'Pending').length,
+          suspensionRequestsPending: (isIndividualIM ? extensionsToDigest : allExtensions).filter(e => e.suspensionRequest?.status === 'Pending').length,
+          dateExtensionRequestsPending: (isIndividualIM ? extensionsToDigest : allExtensions).filter(e => e.extensionRequest?.status === 'Pending').length,
           overdueCount,
           openIssuesCount,
           imActivity,

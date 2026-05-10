@@ -15,12 +15,13 @@ interface ImplementationDigestModalProps {
   historicalDigests?: ImplementationDigestData[];
   themeColor?: string;
   userName?: string;
+  userRole: string;
   onClose: () => void;
   onNavigate: (view: string, filter?: string, imFilter?: string) => void;
 }
 
 export const ImplementationDigestModal: React.FC<ImplementationDigestModalProps> = ({
-  digest, historicalDigests = [], themeColor = 'teal', userName, onClose, onNavigate
+  digest, historicalDigests = [], themeColor = 'teal', userName, userRole, onClose, onNavigate
 }) => {
   const theme = getThemeClasses(themeColor);
   const [selectedWeek, setSelectedWeek] = React.useState<string>(digest.weekOf);
@@ -98,7 +99,9 @@ export const ImplementationDigestModal: React.FC<ImplementationDigestModalProps>
           {/* High Level Stats */}
           <section className="px-8 py-6">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">Portfolio Health</h3>
+              <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">
+                {userRole === 'IM' ? 'Your Portfolio Health' : 'Team Portfolio Health'}
+              </h3>
               {displayDigest.completedThisWeek > 0 && (
                 <span className="flex items-center gap-1.5 text-[10px] font-bold text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-100">
                   <CheckCircle2 className="w-3 h-3" />
@@ -133,7 +136,9 @@ export const ImplementationDigestModal: React.FC<ImplementationDigestModalProps>
           <section className="px-8 py-6 bg-slate-50/30">
             <div className="flex items-center gap-2 mb-4">
               <Clock className="w-4 h-4 text-slate-400" />
-              <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">Review Items</h3>
+              <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">
+                {userRole === 'IM' ? 'Your Review Items' : 'Review Queue'}
+              </h3>
             </div>
             <div className="grid grid-cols-3 gap-3">
               {[
@@ -159,51 +164,53 @@ export const ImplementationDigestModal: React.FC<ImplementationDigestModalProps>
             </div>
           </section>
 
-          {/* IM Inactivity */}
-          <section className="px-8 py-6">
-            <div className="flex items-center gap-2 mb-4">
-              <Users className="w-4 h-4 text-slate-400" />
-              <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">
-                {displayDigest.imActivity.length === 1 && displayDigest.imActivity[0].imName === userName ? 'Your Activity' : 'IM Inactivity'}
-              </h3>
-            </div>
-            <div className="space-y-2">
-              {displayDigest.imActivity.length === 0 ? (
-                <div className="flex items-center gap-3 py-3 text-emerald-600">
-                  <CheckCircle2 className="w-4 h-4" />
-                  <p className="text-sm font-semibold">All IMs have updated their implementations recently.</p>
-                </div>
-              ) : (
-                displayDigest.imActivity.map(im => {
-                  const c = getIMColour(im.lastUpdatedDaysAgo);
-                  return (
-                    <button 
-                      key={im.imName} 
-                      onClick={() => onNavigate('implementations', 'All', im.imName)}
-                      className="w-full flex items-center gap-3 py-2.5 px-4 bg-slate-50 rounded-2xl border border-slate-100 hover:border-slate-300 hover:bg-white hover:shadow-sm transition-all group active:scale-[0.98]"
-                    >
-                      <div className={cn('w-2 h-2 rounded-full shrink-0', c.dot)} />
-                      <div className="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center text-[10px] font-black text-slate-600 shrink-0 group-hover:bg-teal-100 group-hover:text-teal-700 transition-colors">
-                        {im.imName.split(' ').map(n => n[0]).join('').slice(0, 2)}
-                      </div>
-                      <div className="flex-1 text-left">
-                        <p className="text-sm font-semibold text-slate-900">{im.imName}</p>
-                        <div className="flex items-center gap-2 mt-0.5">
-                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{im.totalActive} implementation{im.totalActive !== 1 ? 's' : ''}</span>
-                          {im.overdueCount > 0 && (
-                            <span className="text-[10px] font-black text-red-500 uppercase tracking-wider">· {im.overdueCount} Overdue</span>
-                          )}
+          {/* IM Activity / Sync — Hidden for individual IMs to focus only on their work */}
+          {userRole !== 'IM' && (
+            <section className="px-8 py-6">
+              <div className="flex items-center gap-2 mb-4">
+                <Users className="w-4 h-4 text-slate-400" />
+                <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">
+                  Team Activity Sync
+                </h3>
+              </div>
+              <div className="space-y-2">
+                {displayDigest.imActivity.length === 0 ? (
+                  <div className="flex items-center gap-3 py-3 text-emerald-600">
+                    <CheckCircle2 className="w-4 h-4" />
+                    <p className="text-sm font-semibold">All IMs have updated their implementations recently.</p>
+                  </div>
+                ) : (
+                  displayDigest.imActivity.map(im => {
+                    const c = getIMColour(im.lastUpdatedDaysAgo);
+                    return (
+                      <button 
+                        key={im.imName} 
+                        onClick={() => onNavigate('implementations', 'All', im.imName)}
+                        className="w-full flex items-center gap-3 py-2.5 px-4 bg-slate-50 rounded-2xl border border-slate-100 hover:border-slate-300 hover:bg-white hover:shadow-sm transition-all group active:scale-[0.98]"
+                      >
+                        <div className={cn('w-2 h-2 rounded-full shrink-0', c.dot)} />
+                        <div className="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center text-[10px] font-black text-slate-600 shrink-0 group-hover:bg-teal-100 group-hover:text-teal-700 transition-colors">
+                          {im.imName.split(' ').map(n => n[0]).join('').slice(0, 2)}
                         </div>
-                      </div>
-                      <span className={cn('px-2 py-1 rounded-lg text-[10px] font-black', c.badge)}>
-                        {c.label} ago
-                      </span>
-                    </button>
-                  );
-                })
-              )}
-            </div>
-          </section>
+                        <div className="flex-1 text-left">
+                          <p className="text-sm font-semibold text-slate-900">{im.imName}</p>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{im.totalActive} implementation{im.totalActive !== 1 ? 's' : ''}</span>
+                            {im.overdueCount > 0 && (
+                              <span className="text-[10px] font-black text-red-500 uppercase tracking-wider">· {im.overdueCount} Overdue</span>
+                            )}
+                          </div>
+                        </div>
+                        <span className={cn('px-2 py-1 rounded-lg text-[10px] font-black', c.badge)}>
+                          {c.label} ago
+                        </span>
+                      </button>
+                    );
+                  })
+                )}
+              </div>
+            </section>
+          )}
 
           {/* Upcoming Deadlines */}
           <section className="px-8 py-6 bg-slate-50/50">

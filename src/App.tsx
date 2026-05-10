@@ -737,6 +737,7 @@ function AppContent() {
             digest={implementationDigest}
             historicalDigests={implementationHistoricalDigests}
             userName={profile?.name}
+            userRole={userRole}
             onClose={() => setIsImplementationDigestOpen(false)}
             onNavigate={(view, filter, imFilter) => {
               setIsImplementationDigestOpen(false);
