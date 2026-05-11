@@ -96,6 +96,8 @@ export const PhaseView: React.FC<PhaseViewProps> = ({
     // Check package or project services
     const pkg = packages.find(p => p.name === rawProject.packageName);
     const serviceIds = pkg ? pkg.services : syncedServiceIds;
+    // Prefer freshly-fetched service_states over stale prop data
+    const effectiveStates = freshServiceStates ?? rawProject.serviceStates ?? {};
     
     return serviceIds.map(sid => {
       const sb = serviceBaselines.find(b => b.id === sid);
@@ -103,7 +105,7 @@ export const PhaseView: React.FC<PhaseViewProps> = ({
       return {
         id: sid,
         name: name,
-        status: (rawProject.serviceStates?.[sid] || rawProject.serviceStates?.[name] || 'Not Started') as ServiceState
+        status: (effectiveStates[sid] || effectiveStates[name] || 'Not Started') as ServiceState
       };
     });
   };
@@ -121,14 +123,14 @@ export const PhaseView: React.FC<PhaseViewProps> = ({
   const project = {
     ...rawProject,
     services: syncedServiceIds,
-    expectedDuration: dynamicDuration, // STICK TO THE CONFIG!
+    expectedDuration: dynamicDuration,
     expectedCompletionDate: dynamicExpCompletion,
     phases,
     milestones: getInitialMilestones(),
     risks: rawProject.risks || [],
     comments: rawProject.comments || [],
     activities: rawProject.activities || [],
-    serviceStates: rawProject.serviceStates || {},
+    serviceStates: freshServiceStates ?? rawProject.serviceStates ?? {},
     suspensionCycles: rawProject.suspensionCycles || []
   };
 
@@ -165,10 +167,21 @@ export const PhaseView: React.FC<PhaseViewProps> = ({
   const [rejectingId, setRejectingId] = useState<string | null>(null);
   const [rejectComment, setRejectComment] = useState('');
 
+  // Fresh service_states fetched directly from DB to ensure execution milestones
+  // reflect the latest IM milestone ticks, even if parent component state is stale.
+  const [freshServiceStates, setFreshServiceStates] = useState<Record<string, string> | null>(null);
+
   useEffect(() => {
     if (!rawProject?.id) return;
-    api.serviceExtensions.getAll().then(all => {
+    // Fetch extensions and fresh service_states in parallel
+    Promise.all([
+      api.serviceExtensions.getAll(),
+      api.projects.getById(rawProject.id).catch(() => null),
+    ]).then(([all, freshProject]) => {
       setLinkedExtensions(all.filter(e => e.linkedProjectId === rawProject.id));
+      if (freshProject?.serviceStates) {
+        setFreshServiceStates(freshProject.serviceStates);
+      }
       setExtensionsLoaded(true);
     }).catch(() => setExtensionsLoaded(true));
   }, [rawProject?.id]);
