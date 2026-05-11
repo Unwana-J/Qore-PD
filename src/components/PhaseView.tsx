@@ -172,7 +172,37 @@ export const PhaseView: React.FC<PhaseViewProps> = ({
       setExtensionsLoaded(true);
     }).catch(() => setExtensionsLoaded(true));
   }, [rawProject?.id]);
-  
+
+  // Determine the "primary" extension per parent service — the first approved mapping
+  // per serviceId on this project. Primary ones reflect on the execution milestone and
+  // should NOT appear in the Additional Scope panel.
+  const primaryExtensionIds = useMemo(() => {
+    const primaryMap: Record<string, ServiceExtension> = {};
+    linkedExtensions
+      .filter(e => e.mappingStatus === 'Approved')
+      .forEach(ext => {
+        const existing = primaryMap[ext.serviceId];
+        if (!existing) {
+          primaryMap[ext.serviceId] = ext;
+        } else {
+          const existingTime = existing.mappingApprovedAt ? new Date(existing.mappingApprovedAt).getTime() : Infinity;
+          const newTime = ext.mappingApprovedAt ? new Date(ext.mappingApprovedAt).getTime() : Infinity;
+          if (newTime < existingTime) primaryMap[ext.serviceId] = ext;
+        }
+      });
+    return new Set(Object.values(primaryMap).map(e => e.id));
+  }, [linkedExtensions]);
+
+  // Extensions to show in Additional Scope:
+  // - Always include Pending (PM needs to act)
+  // - Include Approved only if NOT the primary for their service
+  // - Include Rejected / Unmapped for audit trail
+  const additionalScopeExtensions = useMemo(() =>
+    linkedExtensions.filter(ext =>
+      ext.mappingStatus !== 'Approved' || !primaryExtensionIds.has(ext.id)
+    ),
+  [linkedExtensions, primaryExtensionIds]);
+
   const [phaseCommentInputs, setPhaseCommentInputs] = useState<Record<string, string>>({});
   const [showAddMilestone, setShowAddMilestone] = useState(false);
   const [newMilestoneName, setNewMilestoneName] = useState('');
@@ -773,26 +803,24 @@ export const PhaseView: React.FC<PhaseViewProps> = ({
                 })()}
               </div>
             {/* ── Additional Scope (Service Extensions) ───────────────────────── */}
-            {(isRole(userRole, 'PM') || hasRole(userRole, ['Superadmin', 'Manager', 'Team Lead'])) && (
+            {(isRole(userRole, 'PM') || hasRole(userRole, ['Superadmin', 'Manager', 'Team Lead'])) && additionalScopeExtensions.length > 0 && (
               <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
                 <div className="flex items-center justify-between mb-5">
                   <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
                     <Wrench className="w-5 h-5 text-teal-600" />
                     Additional Scope
-                    {linkedExtensions.filter(e => e.mappingStatus === 'Pending').length > 0 && (
+                    {additionalScopeExtensions.filter(e => e.mappingStatus === 'Pending').length > 0 && (
                       <span className="ml-1 px-2 py-0.5 bg-amber-100 text-amber-700 text-[10px] font-black rounded-full">
-                        {linkedExtensions.filter(e => e.mappingStatus === 'Pending').length} Pending
+                        {additionalScopeExtensions.filter(e => e.mappingStatus === 'Pending').length} Pending
                       </span>
                     )}
                   </h3>
                 </div>
                 {!extensionsLoaded ? (
                   <div className="text-center py-4 text-slate-400 text-sm">Loading...</div>
-                ) : linkedExtensions.length === 0 ? (
-                  <p className="text-sm text-slate-400 font-medium py-2">No service extension requests for this project.</p>
                 ) : (
                   <div className="space-y-3">
-                    {linkedExtensions.map(ext => {
+                    {additionalScopeExtensions.map(ext => {
                       const completed = ext.milestones.filter(m => m.completed).length;
                       const total = ext.milestones.length;
                       const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
