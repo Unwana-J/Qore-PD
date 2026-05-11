@@ -83,13 +83,24 @@ export const api = {
   supabase,
   projects: {
     getAll: async (): Promise<Project[]> => {
-      const { data, error } = await supabase
-        .from('projects')
-        .select('id, client_name, package_name, services, product_lines, assigned_pm, start_date, expected_duration, expected_completion_date, current_completion_date, value, currency, state, phases, phase_weights, service_states, pid_signed_off_date, priority, created_at, updated_at, signed_off_at, billed_at, total_active_days, suspension_cycles, is_internal_initiative, delivery_track, rebaseline_requests, comments, risks, activities, milestones, phase_comments, implementation_managers')
-        .order('created_at', { ascending: false });
-      
-      if (error) throw error;
-      return (data || []).map(mapProjectFromDb);
+      const FIELDS = 'id, client_name, package_name, services, product_lines, assigned_pm, start_date, expected_duration, expected_completion_date, current_completion_date, value, currency, state, phases, phase_weights, service_states, pid_signed_off_date, priority, created_at, updated_at, signed_off_at, billed_at, total_active_days, suspension_cycles, is_internal_initiative, delivery_track, rebaseline_requests, comments, risks, activities, milestones, phase_comments, implementation_managers';
+      const PAGE_SIZE = 1000;
+      let allRows: any[] = [];
+      let from = 0;
+      let keepGoing = true;
+      while (keepGoing) {
+        const { data, error } = await supabase
+          .from('projects')
+          .select(FIELDS)
+          .order('created_at', { ascending: false })
+          .range(from, from + PAGE_SIZE - 1);
+        if (error) throw error;
+        const page = data || [];
+        allRows = allRows.concat(page);
+        keepGoing = page.length === PAGE_SIZE;
+        from += PAGE_SIZE;
+      }
+      return allRows.map(mapProjectFromDb);
     },
     getPaginated: async (
       page: number, 
@@ -578,22 +589,44 @@ export const api = {
 
     // ── CRUD ─────────────────────────────────────────────────────────────────
     getAll: async (): Promise<ServiceExtension[]> => {
-      const { data, error } = await supabase
-        .from('service_extensions')
-        .select('*')
-        .order('created_at', { ascending: false });
-      if (error) throw error;
-      return (data || []).map(api.serviceExtensions._fromDb);
+      const PAGE_SIZE = 1000;
+      let allRows: any[] = [];
+      let from = 0;
+      let keepGoing = true;
+      while (keepGoing) {
+        const { data, error } = await supabase
+          .from('service_extensions')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .range(from, from + PAGE_SIZE - 1);
+        if (error) throw error;
+        const page = data || [];
+        allRows = allRows.concat(page);
+        keepGoing = page.length === PAGE_SIZE;
+        from += PAGE_SIZE;
+      }
+      return allRows.map(api.serviceExtensions._fromDb);
     },
 
     getByIM: async (imName: string): Promise<ServiceExtension[]> => {
-      const { data, error } = await supabase
-        .from('service_extensions')
-        .select('*')
-        .eq('implementation_manager', imName)
-        .order('created_at', { ascending: false });
-      if (error) throw error;
-      return (data || []).map(api.serviceExtensions._fromDb);
+      const PAGE_SIZE = 1000;
+      let allRows: any[] = [];
+      let from = 0;
+      let keepGoing = true;
+      while (keepGoing) {
+        const { data, error } = await supabase
+          .from('service_extensions')
+          .select('*')
+          .eq('implementation_manager', imName)
+          .order('created_at', { ascending: false })
+          .range(from, from + PAGE_SIZE - 1);
+        if (error) throw error;
+        const page = data || [];
+        allRows = allRows.concat(page);
+        keepGoing = page.length === PAGE_SIZE;
+        from += PAGE_SIZE;
+      }
+      return allRows.map(api.serviceExtensions._fromDb);
     },
 
     getByProject: async (projectId: string): Promise<ServiceExtension[]> => {
