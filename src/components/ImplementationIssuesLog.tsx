@@ -9,9 +9,10 @@ interface ImplementationIssuesLogProps {
   onManage: (ext: ServiceExtension) => void;
   isLead?: boolean;
   config?: any;
+  userName?: string;
 }
 
-export const ImplementationIssuesLog: React.FC<ImplementationIssuesLogProps> = ({ extensions, onManage, isLead, config }) => {
+export const ImplementationIssuesLog: React.FC<ImplementationIssuesLogProps> = ({ extensions, onManage, isLead, config, userName }) => {
   const [filterStatus, setFilterStatus] = useState<string>('All');
   const [filterCategory, setFilterCategory] = useState<string>('All');
   const [filterIM, setFilterIM] = useState<string>('All');
@@ -28,7 +29,14 @@ export const ImplementationIssuesLog: React.FC<ImplementationIssuesLogProps> = (
   }, [filterStatus, filterCategory, filterIM, filterMonth, startDate, endDate, searchTerm]);
 
   const allIssues = useMemo(() => {
-    const issues = extensions.flatMap(ext => 
+    // IMs only see issues from their own implementations
+    const scopedExtensions = isLead
+      ? extensions
+      : extensions.filter(ext =>
+          ext.implementationManager?.trim().toLowerCase() === userName?.trim().toLowerCase()
+        );
+
+    const issues = scopedExtensions.flatMap(ext => 
       (ext.issues || []).map(issue => ({
         ...issue,
         clientName: ext.clientName,
@@ -39,7 +47,7 @@ export const ImplementationIssuesLog: React.FC<ImplementationIssuesLogProps> = (
       }))
     );
     return issues.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-  }, [extensions]);
+  }, [extensions, isLead, userName]);
 
   const categories = useMemo(() => {
     if (config?.issueCategories && config.issueCategories.length > 0) {

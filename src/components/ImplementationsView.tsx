@@ -864,6 +864,7 @@ export const ImplementationsView: React.FC<ImplementationsViewProps> = ({
               onManage={setManagingExtension}
               isLead={isLead}
               config={config}
+              userName={userName}
             />
           ) : renderTable()}
         </>
@@ -895,6 +896,7 @@ export const ImplementationsView: React.FC<ImplementationsViewProps> = ({
               onManage={setManagingExtension}
               isLead={isLead}
               config={config}
+              userName={userName}
             />
           ) : activeTab === 'mapping-queue' ? (
             renderMappingQueue()
