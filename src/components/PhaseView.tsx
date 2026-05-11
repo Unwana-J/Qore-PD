@@ -89,6 +89,10 @@ export const PhaseView: React.FC<PhaseViewProps> = ({
         rawProject.actualCompletionDate
       );
 
+  // Fresh service_states fetched on mount — ensures execution milestones reflect
+  // latest IM progress even when parent component state is stale.
+  const [freshServiceStates, setFreshServiceStates] = useState<Record<string, string> | null>(null);
+
   // Universal Milestones: Use package-default services if milestones are empty
   const getInitialMilestones = () => {
     if (rawProject.milestones && rawProject.milestones.length > 0) return rawProject.milestones;
@@ -166,10 +170,6 @@ export const PhaseView: React.FC<PhaseViewProps> = ({
   const [approvingId, setApprovingId] = useState<string | null>(null);
   const [rejectingId, setRejectingId] = useState<string | null>(null);
   const [rejectComment, setRejectComment] = useState('');
-
-  // Fresh service_states fetched directly from DB to ensure execution milestones
-  // reflect the latest IM milestone ticks, even if parent component state is stale.
-  const [freshServiceStates, setFreshServiceStates] = useState<Record<string, string> | null>(null);
 
   useEffect(() => {
     if (!rawProject?.id) return;
