@@ -1163,12 +1163,23 @@ export const ManageImplementationModal: React.FC<ManageImplementationModalProps>
                   </div>
                 )}
 
-                {(extension.mappingStatus === 'Unmapped' || extension.mappingStatus === 'None') && extension.unmapComment && (
-                  <div className="p-3 bg-white border border-slate-100 rounded-xl">
-                    <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-1">Previous Unmap Reason</p>
-                    <p className="text-xs text-slate-500">"{extension.unmapComment}"</p>
+                {extension.mappingStatus === 'Unmapped' && (
+                  <div className="space-y-3">
+                    {extension.unmapComment && (
+                      <div className="p-3 bg-white border border-slate-100 rounded-xl">
+                        <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-1">Previous Unmap Reason</p>
+                        <p className="text-xs text-slate-500">"{extension.unmapComment}"</p>
+                      </div>
+                    )}
+                    <button
+                      onClick={() => setShowMapModal(true)}
+                      className="px-4 py-2 bg-teal-600 text-white text-xs font-bold rounded-xl hover:bg-teal-700 transition-colors flex items-center gap-1.5"
+                    >
+                      <MapPin className="w-3.5 h-3.5" /> Map to New Project
+                    </button>
                   </div>
                 )}
+
               </div>
 
               {isLead && (
