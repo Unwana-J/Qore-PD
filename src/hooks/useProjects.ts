@@ -243,6 +243,7 @@ export function useProjects(userRole: Role, config: AppConfig, userName: string 
       try {
         const allExtensions = await api.serviceExtensions.getAll();
         const today = new Date();
+        today.setHours(0, 0, 0, 0);
         const sevenDaysAgo = new Date(today); sevenDaysAgo.setDate(today.getDate() - 7);
         const mondayKey = getMondayKey();
 
@@ -284,9 +285,12 @@ export function useProjects(userRole: Role, config: AppConfig, userName: string 
           
           const daysSinceUpdate = Math.floor((today.getTime() - new Date(e.updatedAt).getTime()) / 86400000);
 
-          if (e.status !== 'Completed') {
+          const isActive = e.status !== 'Completed' && e.status !== 'Suspended' && e.status !== 'Frozen';
+          const isOverdue = isActive && !e.serviceName.toLowerCase().includes('api') && new Date(e.targetClosureDate) < today;
+
+          if (isActive) {
             imMap[im].totalActive++;
-            if (e.status !== 'Suspended' && !e.serviceName.toLowerCase().includes('api') && new Date(e.targetClosureDate) < today) imMap[im].overdueCount++;
+            if (isOverdue) imMap[im].overdueCount++;
             
             // Track worst-case inactivity for active projects
             if (daysSinceUpdate > imMap[im].lastUpdatedDaysAgo) {
@@ -297,9 +301,9 @@ export function useProjects(userRole: Role, config: AppConfig, userName: string 
           }
         });
 
-        // Filter IM activity to only show those with active projects and sort by inactivity
+        // Filter IM activity to only show those with active work or recent completions
         const imActivity = Object.values(imMap)
-          .filter(im => im.totalActive > 0)
+          .filter(im => im.totalActive > 0 || im.completedThisWeek > 0)
           .sort((a, b) => b.lastUpdatedDaysAgo - a.lastUpdatedDaysAgo);
 
         const upcomingDeadlines = active
