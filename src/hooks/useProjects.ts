@@ -148,6 +148,16 @@ export function useProjects(userRole: Role, config: AppConfig, userName: string 
     return mon.toISOString().split('T')[0];
   };
 
+  // Gate: only surface digest notifications on Monday >= 09:00 WAT (UTC+1).
+  // The digest is still computed & saved to DB at any time for accuracy;
+  // this only controls when the bell notification is shown to users.
+  const isDigestTime = () => {
+    const now = new Date();
+    const isMonday = now.getDay() === 1;          // 0=Sun, 1=Mon
+    const hourWAT  = now.getUTCHours() + 1;       // WAT = UTC+1
+    return isMonday && hourWAT >= 9;
+  };
+
   useEffect(() => {
     if (rawProjects.length === 0) return;
     if (!hasRole(userRole, ['Superadmin', 'Manager', 'PM', 'Team Lead', 'IM Lead'])) return;
@@ -227,9 +237,12 @@ export function useProjects(userRole: Role, config: AppConfig, userName: string 
       oldestRebaselineDays,
     };
 
-    setWeeklyDigest(digest);
+    // Only surface the notification on Monday >= 09:00 WAT
+    if (isDigestTime()) {
+      setWeeklyDigest(digest);
+    }
     
-    // Asynchronously save to archive (database will ignore if already saved by another admin)
+    // Always save to archive regardless of time gate
     api.digests.save(digest).catch(err => console.error("Digest save error:", err));
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -336,7 +349,10 @@ export function useProjects(userRole: Role, config: AppConfig, userName: string 
           upcomingDeadlines
         };
 
-        setImplementationDigest(digest);
+        // Only surface the notification on Monday >= 09:00 WAT
+        if (isDigestTime()) {
+          setImplementationDigest(digest);
+        }
         api.implementationDigests.save(digest).catch(err => console.error("Impl digest save error:", err));
       } catch (err) {
         console.error("Failed to calculate implementation digest", err);
