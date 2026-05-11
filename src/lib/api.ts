@@ -707,7 +707,8 @@ export const api = {
       milestones: IMilestone[],
       newStatus: string,
       linkedProjectId?: string | null,
-      serviceVariant?: string,
+      serviceName?: string,
+      serviceId?: string,
     ): Promise<ServiceExtension> => {
       const { data, error } = await supabase
         .from('service_extensions')
@@ -717,26 +718,39 @@ export const api = {
         .single();
       if (error) throw error;
 
-      // Sync to linked project's service_states if approved mapping exists
-      if (linkedProjectId && serviceVariant) {
-        // Map implementation status to project status
-        const serviceStatus = 
-          newStatus === 'Completed' ? 'Closed' :
-          newStatus === 'Suspended' ? 'Suspended' :
-          newStatus === 'In Progress' ? 'In Progress' : 'Not Started';
+      // Sync to linked project's service_states ONLY if this is the primary (first approved)
+      // mapping for this parent service on this project.
+      if (linkedProjectId && serviceName && serviceId) {
+        // Check if there are other approved mappings for the same parent service on this project
+        const { data: otherApproved } = await supabase
+          .from('service_extensions')
+          .select('id')
+          .eq('linked_project_id', linkedProjectId)
+          .eq('service_id', serviceId)
+          .eq('mapping_status', 'Approved')
+          .neq('id', id);
 
-        const { data: proj } = await supabase
-          .from('projects')
-          .select('service_states')
-          .eq('id', linkedProjectId)
-          .single();
-        
-        if (proj) {
-          const updatedStates = { ...(proj.service_states || {}), [serviceVariant]: serviceStatus };
-          await supabase
+        const isPrimary = (otherApproved || []).length === 0;
+
+        if (isPrimary) {
+          const serviceStatus = 
+            newStatus === 'Completed' ? 'Closed' :
+            newStatus === 'Suspended' ? 'Suspended' :
+            newStatus === 'In Progress' ? 'In Progress' : 'Not Started';
+
+          const { data: proj } = await supabase
             .from('projects')
-            .update({ service_states: updatedStates })
-            .eq('id', linkedProjectId);
+            .select('service_states')
+            .eq('id', linkedProjectId)
+            .single();
+          
+          if (proj) {
+            const updatedStates = { ...(proj.service_states || {}), [serviceName]: serviceStatus };
+            await supabase
+              .from('projects')
+              .update({ service_states: updatedStates })
+              .eq('id', linkedProjectId);
+          }
         }
       }
       return api.serviceExtensions._fromDb(data);
@@ -1195,28 +1209,59 @@ export const api = {
           mapping_approved_at: new Date().toISOString(),
         })
         .eq('id', id)
-        .select('linked_project_id, implementation_manager, status, service_variant, client_name, service_name')
+        .select('linked_project_id, implementation_manager, status, service_variant, service_id, service_name, client_name')
         .single();
       if (extErr) throw extErr;
 
       if (ext?.linked_project_id) {
-        // 2. Map implementation status to project status
-        const serviceStatus = 
-          ext.status === 'Completed' ? 'Closed' :
-          ext.status === 'Suspended' ? 'Suspended' :
-          ext.status === 'In Progress' ? 'In Progress' : 'Not Started';
+        // 2. Check if this is the FIRST approved mapping for this parent service on the project.
+        //    Only the first one reflects on the execution milestone. Others are Additional Scope.
+        const { data: existingApproved } = await supabase
+          .from('service_extensions')
+          .select('id')
+          .eq('linked_project_id', ext.linked_project_id)
+          .eq('service_id', ext.service_id)
+          .eq('mapping_status', 'Approved')
+          .neq('id', id);
 
-        const { data: proj } = await supabase
-          .from('projects')
-          .select('service_states, implementation_managers')
-          .eq('id', ext.linked_project_id)
-          .single();
+        const isPrimary = (existingApproved || []).length === 0;
 
-        if (proj) {
-          // Update service status
-          const updatedStates = { ...(proj.service_states || {}), [ext.service_variant]: serviceStatus };
-          
-          // Re-aggregate implementation managers
+        if (isPrimary) {
+          // 3. Map implementation status to project service milestone status
+          const serviceStatus = 
+            ext.status === 'Completed' ? 'Closed' :
+            ext.status === 'Suspended' ? 'Suspended' :
+            ext.status === 'In Progress' ? 'In Progress' : 'Not Started';
+
+          const { data: proj } = await supabase
+            .from('projects')
+            .select('service_states, implementation_managers')
+            .eq('id', ext.linked_project_id)
+            .single();
+
+          if (proj) {
+            // Key by service_name (e.g. "USSD") so it matches the execution milestone label
+            const updatedStates = { ...(proj.service_states || {}), [ext.service_name]: serviceStatus };
+            
+            // Re-aggregate implementation managers
+            const { data: allApproved } = await supabase
+              .from('service_extensions')
+              .select('implementation_manager')
+              .eq('linked_project_id', ext.linked_project_id)
+              .eq('mapping_status', 'Approved');
+
+            const ims = Array.from(new Set((allApproved || []).map((e: any) => e.implementation_manager).filter(Boolean)));
+            
+            await supabase
+              .from('projects')
+              .update({ 
+                service_states: updatedStates,
+                implementation_managers: ims 
+              })
+              .eq('id', ext.linked_project_id);
+          }
+        } else {
+          // Additional scope — still update implementation_managers list
           const { data: allApproved } = await supabase
             .from('service_extensions')
             .select('implementation_manager')
@@ -1224,26 +1269,19 @@ export const api = {
             .eq('mapping_status', 'Approved');
 
           const ims = Array.from(new Set((allApproved || []).map((e: any) => e.implementation_manager).filter(Boolean)));
-          
-          await supabase
-            .from('projects')
-            .update({ 
-              service_states: updatedStates,
-              implementation_managers: ims 
-            })
-            .eq('id', ext.linked_project_id);
+          await supabase.from('projects').update({ implementation_managers: ims }).eq('id', ext.linked_project_id);
+        }
 
-          // Notify IM
-          const { data: imUser } = await supabase.from('profiles').select('id').eq('name', ext.implementation_manager).single();
-          if (imUser) {
-            await api.notifications.create(
-              imUser.id,
-              `Your mapping for ${ext.client_name} (${ext.service_name}) has been APPROVED.`,
-              'Mapping',
-              ext.linked_project_id,
-              id
-            );
-          }
+        // Notify IM regardless
+        const { data: imUser } = await supabase.from('profiles').select('id').eq('name', ext.implementation_manager).single();
+        if (imUser) {
+          await api.notifications.create(
+            imUser.id,
+            `Your mapping for ${ext.client_name} (${ext.service_name}) has been APPROVED.`,
+            'Mapping',
+            ext.linked_project_id,
+            id
+          );
         }
       }
     },

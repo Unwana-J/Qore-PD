@@ -154,7 +154,8 @@ export const ManageImplementationModal: React.FC<ManageImplementationModalProps>
         updated,
         newStatus,
         extension.mappingStatus === 'Approved' ? extension.linkedProjectId : null,
-        extension.mappingStatus === 'Approved' ? extension.serviceVariant : undefined,
+        extension.mappingStatus === 'Approved' ? extension.serviceName : undefined,
+        extension.mappingStatus === 'Approved' ? extension.serviceId : undefined,
       );
       onUpdated(result);
       if (allDone) onShowToast('All milestones completed — implementation marked as Closed!');
