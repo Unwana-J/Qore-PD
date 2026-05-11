@@ -95,13 +95,25 @@ export const PhaseView: React.FC<PhaseViewProps> = ({
 
   // Universal Milestones: Use package-default services if milestones are empty
   const getInitialMilestones = () => {
-    if (rawProject.milestones && rawProject.milestones.length > 0) return rawProject.milestones;
+    // Prefer freshly-fetched service_states over stale prop data
+    const effectiveStates = freshServiceStates ?? rawProject.serviceStates ?? {};
+    const statusRank = { 'Not Started': 0, 'In Progress': 1, 'Closed': 2 };
+
+    if (rawProject.milestones && rawProject.milestones.length > 0) {
+      // Merge: if the IM's service_states has a higher status than the saved milestone,
+      // use the fresh value so the PM always sees current IM progress.
+      return rawProject.milestones.map(m => {
+        const freshStatus = (effectiveStates[m.name] || effectiveStates[m.id]) as ServiceState | undefined;
+        if (freshStatus && (statusRank[freshStatus] ?? 0) > (statusRank[m.status as ServiceState] ?? 0)) {
+          return { ...m, status: freshStatus };
+        }
+        return m;
+      });
+    }
     
     // Check package or project services
     const pkg = packages.find(p => p.name === rawProject.packageName);
     const serviceIds = pkg ? pkg.services : syncedServiceIds;
-    // Prefer freshly-fetched service_states over stale prop data
-    const effectiveStates = freshServiceStates ?? rawProject.serviceStates ?? {};
     
     return serviceIds.map(sid => {
       const sb = serviceBaselines.find(b => b.id === sid);
