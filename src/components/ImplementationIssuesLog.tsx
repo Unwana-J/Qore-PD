@@ -1,8 +1,9 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { ServiceExtension, ImplementationIssue } from '../types';
+import { ServiceExtension, ImplementationIssue, GeneralIssue, ServiceState } from '../types';
 import { cn } from '../lib/utils';
-import { AlertTriangle, Shield, Clock, CheckCircle, Filter, Search, Users, Calendar, X, ChevronDown, Wrench } from 'lucide-react';
+import { AlertTriangle, Shield, Clock, CheckCircle, Filter, Search, Users, Calendar, X, ChevronDown, Wrench, Plus, Loader2, Layers } from 'lucide-react';
 import { format, parseISO, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
+import { api } from '../lib/api';
 
 interface ImplementationIssuesLogProps {
   extensions: ServiceExtension[];
@@ -10,6 +11,7 @@ interface ImplementationIssuesLogProps {
   isLead?: boolean;
   config?: any;
   userName?: string;
+  onShowToast?: (msg: string, type?: 'success' | 'error' | 'info') => void;
 }
 
 // ── Reusable multi-select dropdown ────────────────────────────────────────────
@@ -89,7 +91,22 @@ const MultiSelect: React.FC<MultiSelectProps> = ({ label, icon, options, selecte
 };
 
 // ── Main component ─────────────────────────────────────────────────────────────
-export const ImplementationIssuesLog: React.FC<ImplementationIssuesLogProps> = ({ extensions, onManage, isLead, config, userName }) => {
+export const ImplementationIssuesLog: React.FC<ImplementationIssuesLogProps> = ({ extensions, onManage, isLead, config, userName, onShowToast }) => {
+  const [generalIssues, setGeneralIssues] = useState<GeneralIssue[]>([]);
+  const [loadingGeneral, setLoadingGeneral] = useState(false);
+  const [isLoggingGeneralIssue, setIsLoggingGeneralIssue] = useState(false);
+  const [savingGeneral, setSavingGeneral] = useState(false);
+
+  // Form state for new general issue
+  const [newGeneralIssue, setNewGeneralIssue] = useState({
+    description: '',
+    impact: 'Medium' as GeneralIssue['impact'],
+    category: 'General',
+    affectedServices: [] as string[],
+    notes: '',
+    affectedExtensionIds: [] as string[]
+  });
+
   const [filterStatuses, setFilterStatuses] = useState<string[]>([]);
   const [filterCategories, setFilterCategories] = useState<string[]>([]);
   const [filterServices, setFilterServices] = useState<string[]>([]);
@@ -103,6 +120,22 @@ export const ImplementationIssuesLog: React.FC<ImplementationIssuesLogProps> = (
   const pageSize = 10;
 
   useEffect(() => {
+    fetchGeneralIssues();
+  }, []);
+
+  const fetchGeneralIssues = async () => {
+    setLoadingGeneral(true);
+    try {
+      const data = await api.generalIssues.getAll();
+      setGeneralIssues(data);
+    } catch (err) {
+      console.error('Failed to fetch general issues:', err);
+    } finally {
+      setLoadingGeneral(false);
+    }
+  };
+
+  useEffect(() => {
     setCurrentPage(1);
   }, [filterStatuses, filterCategories, filterServices, filterIMs, filterMonth, startDate, endDate, searchTerm]);
 
@@ -114,18 +147,36 @@ export const ImplementationIssuesLog: React.FC<ImplementationIssuesLogProps> = (
           ext.implementationManager?.trim().toLowerCase() === userName?.trim().toLowerCase()
         );
 
-    const issues = scopedExtensions.flatMap(ext =>
+    const extIssues = scopedExtensions.flatMap(ext =>
       (ext.issues || []).map(issue => ({
         ...issue,
         clientName: ext.clientName,
         serviceName: ext.serviceName,
         extensionId: ext.id,
         manager: ext.implementationManager,
-        extension: ext
+        extension: ext,
+        isGeneral: false
       }))
     );
-    return issues.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-  }, [extensions, isLead, userName]);
+
+    // Filter general issues for IMs if needed (though usually general issues are visible to all)
+    const filteredGeneral = isLead 
+      ? generalIssues 
+      : generalIssues.filter(gi => gi.loggedBy.trim().toLowerCase() === userName?.trim().toLowerCase());
+
+    const genIssuesMapped = filteredGeneral.map(gi => ({
+      ...gi,
+      clientName: 'General',
+      serviceName: gi.affectedServices.join(', '),
+      extensionId: undefined,
+      manager: gi.loggedBy,
+      extension: undefined,
+      isGeneral: true
+    }));
+
+    const combined = [...extIssues, ...genIssuesMapped];
+    return combined.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }, [extensions, generalIssues, isLead, userName]);
 
   const categories = useMemo(() => {
     if (config?.issueCategories && config.issueCategories.length > 0) {
@@ -134,15 +185,23 @@ export const ImplementationIssuesLog: React.FC<ImplementationIssuesLogProps> = (
     return ['Technical', 'Client', 'Process', 'Access', 'Data', 'Other', 'General'].sort();
   }, [config?.issueCategories]);
 
-  const services = useMemo(() => {
+  const availableServices = useMemo(() => {
+    if (config?.serviceBaselines) {
+      return config.serviceBaselines.map((sb: any) => sb.name).sort();
+    }
+    return [];
+  }, [config?.serviceBaselines]);
+
+  const servicesForFilter = useMemo(() => {
     const names = allIssues.map(i => i.serviceName).filter(Boolean);
-    return Array.from(new Set(names)).sort();
+    const unique = Array.from(new Set(names.flatMap(n => n.split(', ')))).sort();
+    return unique;
   }, [allIssues]);
 
   const managers = useMemo(() => {
-    const ims = extensions.map(ext => ext.implementationManager).filter(Boolean);
+    const ims = [...extensions.map(ext => ext.implementationManager), ...generalIssues.map(gi => gi.loggedBy)].filter(Boolean);
     return Array.from(new Set(ims)).sort();
-  }, [extensions]);
+  }, [extensions, generalIssues]);
 
   const months = ["January", "February", "March", "April", "May", "June",
                   "July", "August", "September", "October", "November", "December"];
@@ -154,7 +213,10 @@ export const ImplementationIssuesLog: React.FC<ImplementationIssuesLogProps> = (
       const cat = issue.category || 'General';
       if (filterCategories.length > 0 && !filterCategories.includes(cat)) return false;
 
-      if (filterServices.length > 0 && !filterServices.includes(issue.serviceName)) return false;
+      if (filterServices.length > 0) {
+        const issueServices = issue.serviceName.split(', ');
+        if (!filterServices.some(s => issueServices.includes(s))) return false;
+      }
 
       if (filterIMs.length > 0 && !filterIMs.includes(issue.manager)) return false;
 
@@ -167,7 +229,7 @@ export const ImplementationIssuesLog: React.FC<ImplementationIssuesLogProps> = (
       if (startDate || endDate) {
         try {
           const start = startDate ? startOfDay(parseISO(startDate)) : new Date(0);
-          const end = endDate ? endOfDay(parseISO(endDate)) : new Date(8640000000000000);
+          const end = endDate ? endOfDay(parseISO(endDate)) : new Date(864000000000000000);
           if (!isWithinInterval(loggedDate, { start, end })) return false;
         } catch (e) { /* ignore invalid dates */ }
       }
@@ -206,6 +268,38 @@ export const ImplementationIssuesLog: React.FC<ImplementationIssuesLogProps> = (
     setSearchTerm('');
   };
 
+  const handleLogGeneralIssue = async () => {
+    if (!newGeneralIssue.description.trim() || newGeneralIssue.affectedServices.length === 0) {
+      onShowToast?.('Please provide a description and at least one affected service.', 'error');
+      return;
+    }
+
+    setSavingGeneral(true);
+    try {
+      await api.generalIssues.create({
+        ...newGeneralIssue,
+        loggedBy: userName || 'Unknown',
+        status: 'Open'
+      });
+      await fetchGeneralIssues();
+      setIsLoggingGeneralIssue(false);
+      setNewGeneralIssue({
+        description: '',
+        impact: 'Medium',
+        category: 'General',
+        affectedServices: [],
+        notes: '',
+        affectedExtensionIds: []
+      });
+      onShowToast?.('General issue logged successfully.', 'success');
+    } catch (err) {
+      console.error('Failed to log general issue:', err);
+      onShowToast?.('Failed to log general issue.', 'error');
+    } finally {
+      setSavingGeneral(false);
+    }
+  };
+
   const hasFilters = filterStatuses.length > 0 || filterCategories.length > 0 ||
     filterServices.length > 0 || filterIMs.length > 0 ||
     filterMonth !== 'All' || startDate || endDate || searchTerm;
@@ -224,14 +318,22 @@ export const ImplementationIssuesLog: React.FC<ImplementationIssuesLogProps> = (
           </h2>
           <p className="text-sm font-medium text-slate-500 mt-0.5">Tracking blockers and issues across ancillary services.</p>
         </div>
-        <div className="flex gap-2">
-          <div className="flex items-center gap-2 px-3 py-1.5 bg-rose-50 text-rose-600 rounded-xl text-[10px] font-black uppercase tracking-wider border border-rose-100 shadow-sm">
-            <AlertTriangle className="w-3.5 h-3.5" />
-            {allIssues.filter(r => r.status === 'Open').length} Open
-          </div>
-          <div className="flex items-center gap-2 px-3 py-1.5 bg-emerald-50 text-emerald-600 rounded-xl text-[10px] font-black uppercase tracking-wider border border-emerald-100 shadow-sm">
-            <CheckCircle className="w-3.5 h-3.5" />
-            {allIssues.filter(r => r.status === 'Closed').length} Resolved
+        <div className="flex items-center gap-4">
+          <button
+            onClick={() => setIsLoggingGeneralIssue(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-teal-600 text-white text-xs font-black uppercase tracking-widest rounded-xl hover:bg-teal-700 transition-all shadow-lg shadow-teal-600/20"
+          >
+            <Plus className="w-4 h-4" /> Log General Issue
+          </button>
+          <div className="flex gap-2">
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-rose-50 text-rose-600 rounded-xl text-[10px] font-black uppercase tracking-wider border border-rose-100 shadow-sm">
+              <AlertTriangle className="w-3.5 h-3.5" />
+              {allIssues.filter(r => r.status === 'Open').length} Open
+            </div>
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-emerald-50 text-emerald-600 rounded-xl text-[10px] font-black uppercase tracking-wider border border-emerald-100 shadow-sm">
+              <CheckCircle className="w-3.5 h-3.5" />
+              {allIssues.filter(r => r.status === 'Closed').length} Resolved
+            </div>
           </div>
         </div>
       </div>
@@ -269,7 +371,7 @@ export const ImplementationIssuesLog: React.FC<ImplementationIssuesLogProps> = (
           <MultiSelect
             label="All Services"
             icon={<Wrench className="w-3.5 h-3.5" />}
-            options={services}
+            options={servicesForFilter}
             selected={filterServices}
             onChange={setFilterServices}
           />
@@ -392,17 +494,30 @@ export const ImplementationIssuesLog: React.FC<ImplementationIssuesLogProps> = (
                 paginatedIssues.map(issue => (
                   <tr key={issue.id} className="hover:bg-slate-50/50 transition-colors group">
                     <td className="px-6 py-4">
-                      <button onClick={() => onManage(issue.extension)} className="text-left">
-                        <p className="text-sm font-black text-slate-800 line-clamp-2 group-hover:text-teal-700 transition-colors">{issue.description}</p>
-                        {issue.notes && <p className="text-[10px] text-slate-400 mt-1 line-clamp-1 italic">{issue.notes}</p>}
-                      </button>
+                      {issue.isGeneral ? (
+                        <div className="text-left">
+                          <p className="text-sm font-black text-slate-800 line-clamp-2">{issue.description}</p>
+                          {issue.notes && <p className="text-[10px] text-slate-400 mt-1 line-clamp-1 italic">{issue.notes}</p>}
+                        </div>
+                      ) : (
+                        <button onClick={() => issue.extension && onManage(issue.extension)} className="text-left">
+                          <p className="text-sm font-black text-slate-800 line-clamp-2 group-hover:text-teal-700 transition-colors">{issue.description}</p>
+                          {issue.notes && <p className="text-[10px] text-slate-400 mt-1 line-clamp-1 italic">{issue.notes}</p>}
+                        </button>
+                      )}
                     </td>
                     <td className="px-6 py-4 min-w-0">
                       <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block truncate" title={issue.category || 'General'}>{issue.category || 'General'}</span>
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex flex-col gap-0.5 min-w-0">
-                        <p className="text-xs font-black text-slate-800 truncate" title={issue.clientName}>{issue.clientName}</p>
+                        {issue.isGeneral ? (
+                          <span className="px-2 py-0.5 bg-indigo-50 text-indigo-600 rounded text-[10px] font-black uppercase tracking-widest w-fit mb-1 border border-indigo-100">
+                            General
+                          </span>
+                        ) : (
+                          <p className="text-xs font-black text-slate-800 truncate" title={issue.clientName}>{issue.clientName}</p>
+                        )}
                         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest truncate" title={issue.serviceName}>{issue.serviceName}</p>
                         <p className="text-[10px] font-black text-teal-600 uppercase tracking-widest truncate mt-0.5" title={issue.manager}>{issue.manager}</p>
                       </div>
@@ -474,6 +589,155 @@ export const ImplementationIssuesLog: React.FC<ImplementationIssuesLogProps> = (
             >
               Next
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Log General Issue Modal */}
+      {isLoggingGeneralIssue && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white w-full max-w-xl rounded-[2.5rem] shadow-2xl shadow-slate-900/40 overflow-hidden animate-in zoom-in-95 duration-200 border border-slate-200/50">
+            {/* Modal Header */}
+            <div className="px-8 pt-8 pb-4 flex justify-between items-start">
+              <div className="space-y-1">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-indigo-50 rounded-2xl flex items-center justify-center">
+                    <AlertTriangle className="w-5 h-5 text-indigo-600" />
+                  </div>
+                  <h3 className="text-xl font-black text-slate-900 tracking-tight">Log General Issue</h3>
+                </div>
+                <p className="text-xs font-medium text-slate-400 ml-13">Issues affecting multiple implementations or a service.</p>
+              </div>
+              <button 
+                onClick={() => setIsLoggingGeneralIssue(false)}
+                className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-xl transition-all"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="px-8 py-6 space-y-6 overflow-y-auto max-h-[70vh]">
+              {/* Description */}
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Issue Description</label>
+                <textarea
+                  className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-medium outline-none focus:ring-4 focus:ring-teal-500/10 focus:border-teal-400 transition-all resize-none"
+                  placeholder="Describe the issue affecting the service..."
+                  rows={3}
+                  value={newGeneralIssue.description}
+                  onChange={e => setNewGeneralIssue({ ...newGeneralIssue, description: e.target.value })}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-6">
+                {/* Impact */}
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Impact Level</label>
+                  <div className="flex p-1 bg-slate-50 rounded-xl border border-slate-100">
+                    {(['Low', 'Medium', 'High'] as const).map((level) => (
+                      <button
+                        key={level}
+                        onClick={() => setNewGeneralIssue({ ...newGeneralIssue, impact: level })}
+                        className={cn(
+                          'flex-1 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all',
+                          newGeneralIssue.impact === level 
+                            ? level === 'High' ? 'bg-rose-600 text-white shadow-lg shadow-rose-600/20' 
+                            : level === 'Medium' ? 'bg-amber-500 text-white shadow-lg shadow-amber-500/20'
+                            : 'bg-emerald-600 text-white shadow-lg shadow-emerald-600/20'
+                            : 'text-slate-400 hover:text-slate-600'
+                        )}
+                      >
+                        {level}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Category */}
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Category</label>
+                  <select
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-medium outline-none focus:ring-4 focus:ring-teal-500/10 focus:border-teal-400 transition-all appearance-none"
+                    value={newGeneralIssue.category}
+                    onChange={e => setNewGeneralIssue({ ...newGeneralIssue, category: e.target.value })}
+                  >
+                    {categories.map(c => (
+                      <option key={c} value={c}>{c}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Affected Services */}
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Affected Services</label>
+                <div className="flex flex-wrap gap-2 p-4 bg-slate-50 rounded-2xl border border-slate-100 min-h-[60px]">
+                  {availableServices.length === 0 ? (
+                    <p className="text-xs text-slate-400 font-medium italic">No services configured in settings.</p>
+                  ) : (
+                    availableServices.map(service => (
+                      <button
+                        key={service}
+                        onClick={() => {
+                          const current = newGeneralIssue.affectedServices;
+                          const next = current.includes(service) 
+                            ? current.filter(s => s !== service)
+                            : [...current, service];
+                          setNewGeneralIssue({ ...newGeneralIssue, affectedServices: next });
+                        }}
+                        className={cn(
+                          'px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest border transition-all',
+                          newGeneralIssue.affectedServices.includes(service)
+                            ? 'bg-teal-600 border-teal-600 text-white shadow-md'
+                            : 'bg-white border-slate-200 text-slate-400 hover:border-slate-300'
+                        )}
+                      >
+                        {service}
+                      </button>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              {/* Resolution Notes / Workaround */}
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Resolution / Workaround (Optional)</label>
+                <textarea
+                  className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-medium outline-none focus:ring-4 focus:ring-teal-500/10 focus:border-teal-400 transition-all resize-none"
+                  placeholder="Notes on resolution or current workaround..."
+                  rows={2}
+                  value={newGeneralIssue.notes}
+                  onChange={e => setNewGeneralIssue({ ...newGeneralIssue, notes: e.target.value })}
+                />
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-8 bg-slate-50/50 flex gap-3 border-t border-slate-100">
+              <button
+                onClick={() => setIsLoggingGeneralIssue(false)}
+                className="flex-1 px-6 py-3 text-sm font-black text-slate-400 uppercase tracking-widest hover:text-slate-600 transition-all"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleLogGeneralIssue}
+                disabled={savingGeneral || !newGeneralIssue.description.trim() || newGeneralIssue.affectedServices.length === 0}
+                className="flex-[2] px-6 py-3 bg-teal-600 text-white text-sm font-black uppercase tracking-widest rounded-2xl hover:bg-teal-700 disabled:opacity-50 transition-all shadow-xl shadow-teal-600/10 flex items-center justify-center gap-2"
+              >
+                {savingGeneral ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Logging...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle className="w-4 h-4" />
+                    Confirm & Log Issue
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       )}

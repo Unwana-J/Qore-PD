@@ -1403,5 +1403,108 @@ export const api = {
         .eq('id', id);
       if (error) throw error;
     }
+  },
+  generalIssues: {
+    getAll: async (): Promise<GeneralIssue[]> => {
+      const { data, error } = await api.supabase
+        .from('general_issues')
+        .select('*')
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      return (data || []).map(d => ({
+        id: d.id,
+        description: d.description,
+        impact: d.impact,
+        status: d.status,
+        category: d.category,
+        affectedServices: d.affected_services || [],
+        affectedExtensionIds: d.affected_extension_ids || [],
+        notes: d.notes,
+        loggedBy: d.logged_by,
+        createdAt: d.created_at,
+        resolvedAt: d.resolved_at,
+        updatedAt: d.updated_at
+      }));
+    },
+    create: async (issue: Partial<GeneralIssue>): Promise<GeneralIssue> => {
+      const { data, error } = await api.supabase
+        .from('general_issues')
+        .insert([{
+          description: issue.description,
+          impact: issue.impact,
+          category: issue.category,
+          status: issue.status || 'Open',
+          affected_services: issue.affectedServices || [],
+          affected_extension_ids: issue.affectedExtensionIds || [],
+          notes: issue.notes,
+          logged_by: issue.loggedBy,
+          resolved_at: issue.resolvedAt
+        }])
+        .select()
+        .single();
+
+      if (error) throw error;
+      return {
+        id: data.id,
+        description: data.description,
+        impact: data.impact,
+        status: data.status,
+        category: data.category,
+        affectedServices: data.affected_services || [],
+        affectedExtensionIds: data.affected_extension_ids || [],
+        notes: data.notes,
+        loggedBy: data.logged_by,
+        createdAt: data.created_at,
+        resolvedAt: data.resolved_at,
+        updatedAt: data.updated_at
+      };
+    },
+    update: async (id: string, updates: Partial<GeneralIssue>): Promise<GeneralIssue> => {
+      const dbUpdates: any = {
+        description: updates.description,
+        impact: updates.impact,
+        category: updates.category,
+        status: updates.status,
+        affected_services: updates.affectedServices,
+        affected_extension_ids: updates.affectedExtensionIds,
+        notes: updates.notes,
+        resolved_at: updates.resolvedAt,
+        updated_at: new Date().toISOString()
+      };
+
+      // Remove undefined fields
+      Object.keys(dbUpdates).forEach(key => dbUpdates[key] === undefined && delete dbUpdates[key]);
+
+      const { data, error } = await api.supabase
+        .from('general_issues')
+        .update(dbUpdates)
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return {
+        id: data.id,
+        description: data.description,
+        impact: data.impact,
+        status: data.status,
+        category: data.category,
+        affectedServices: data.affected_services || [],
+        affectedExtensionIds: data.affected_extension_ids || [],
+        notes: data.notes,
+        loggedBy: data.logged_by,
+        createdAt: data.created_at,
+        resolvedAt: data.resolved_at,
+        updatedAt: data.updated_at
+      };
+    },
+    delete: async (id: string): Promise<void> => {
+      const { error } = await api.supabase
+        .from('general_issues')
+        .delete()
+        .eq('id', id);
+      if (error) throw error;
+    }
   }
 };

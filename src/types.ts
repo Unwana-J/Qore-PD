@@ -70,6 +70,21 @@ export interface ImplementationIssue {
   notes?: string;
 }
 
+export interface GeneralIssue {
+  id: string;
+  description: string;
+  impact: 'Low' | 'Medium' | 'High';
+  status: 'Open' | 'Addressing' | 'Closed';
+  category?: string;
+  affectedServices: string[];
+  affectedExtensionIds?: string[];
+  notes?: string;
+  loggedBy: string;
+  createdAt: string;
+  resolvedAt?: string;
+  updatedAt: string;
+}
+
 export interface Currency {
   code: string;
   symbol: string;
