@@ -162,10 +162,8 @@ export const ImplementationIssuesLog: React.FC<ImplementationIssuesLogProps> = (
       }))
     );
 
-    // Filter general issues for IMs if needed (though usually general issues are visible to all)
-    const filteredGeneral = isLead 
-      ? generalIssues 
-      : generalIssues.filter(gi => gi.loggedBy.trim().toLowerCase() === userName?.trim().toLowerCase());
+    // General issues are visible to everyone (Leads and IMs) since they affect shared services
+    const filteredGeneral = generalIssues;
 
     const genIssuesMapped = filteredGeneral.map(gi => ({
       ...gi,
