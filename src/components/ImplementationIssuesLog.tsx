@@ -304,17 +304,24 @@ export const ImplementationIssuesLog: React.FC<ImplementationIssuesLogProps> = (
   };
 
   const handleUpdateGeneralIssue = async (id: string, updates: Partial<GeneralIssue>) => {
+    // Optimistic Update: Update local state immediately
+    setGeneralIssues(prev => prev.map(gi => gi.id === id ? { ...gi, ...updates } : gi));
+    if (viewingGeneralIssue?.id === id) {
+      setViewingGeneralIssue(prev => prev ? { ...prev, ...updates } : null);
+    }
+
     setUpdatingGeneral(true);
     try {
       await api.generalIssues.update(id, updates);
-      await fetchGeneralIssues();
-      if (viewingGeneralIssue?.id === id) {
-        setViewingGeneralIssue(prev => prev ? { ...prev, ...updates } : null);
-      }
+      // We don't strictly need to fetchGeneralIssues() here if we trust our local update, 
+      // but we can do it in the background to ensure consistency.
+      api.generalIssues.getAll().then(data => setGeneralIssues(data)).catch(() => {});
       onShowToast?.('General issue updated successfully.', 'success');
     } catch (err) {
       console.error('Failed to update general issue:', err);
       onShowToast?.('Failed to update general issue.', 'error');
+      // Rollback on error
+      fetchGeneralIssues();
     } finally {
       setUpdatingGeneral(false);
     }
