@@ -809,51 +809,54 @@ export const ImplementationIssuesLog: React.FC<ImplementationIssuesLogProps> = (
             </div>
 
             <div className="px-8 py-6 space-y-6 overflow-y-auto max-h-[70vh]">
-              {/* Description (Read-only for now, or editable?) */}
+              {/* Description (Editable) */}
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Issue Description</label>
-                <div className="p-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold text-slate-800 leading-relaxed">
-                  {viewingGeneralIssue.description}
+                <textarea
+                  className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold text-slate-800 leading-relaxed outline-none focus:ring-4 focus:ring-teal-500/10 focus:border-teal-400 transition-all resize-none"
+                  rows={3}
+                  value={viewingGeneralIssue.description}
+                  onChange={e => setViewingGeneralIssue({ ...viewingGeneralIssue, description: e.target.value })}
+                  onBlur={() => handleUpdateGeneralIssue(viewingGeneralIssue.id, { description: viewingGeneralIssue.description })}
+                />
+                <p className="text-[10px] text-slate-400 font-medium italic px-1">Description auto-saves on blur.</p>
+              </div>
+
+              {/* Status Update (Full width to avoid overlap) */}
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Current Status</label>
+                <div className="flex p-1 bg-slate-50 rounded-xl border border-slate-100 gap-1">
+                  {(['Open', 'Addressing', 'Closed'] as const).map((s) => (
+                    <button
+                      key={s}
+                      disabled={updatingGeneral}
+                      onClick={() => handleUpdateGeneralIssue(viewingGeneralIssue.id, { status: s, resolvedAt: s === 'Closed' ? new Date().toISOString() : undefined })}
+                      className={cn(
+                        'flex-1 py-2.5 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all',
+                        viewingGeneralIssue.status === s 
+                          ? s === 'Open' ? 'bg-rose-600 text-white shadow-lg shadow-rose-600/20' 
+                          : s === 'Addressing' ? 'bg-amber-500 text-white shadow-lg shadow-amber-500/20'
+                          : 'bg-emerald-600 text-white shadow-lg shadow-emerald-600/20'
+                          : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100'
+                      )}
+                    >
+                      {s}
+                    </button>
+                  ))}
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-6">
-                {/* Status Update */}
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Current Status</label>
-                  <div className="flex p-1 bg-slate-50 rounded-xl border border-slate-100">
-                    {(['Open', 'Addressing', 'Closed'] as const).map((s) => (
-                      <button
-                        key={s}
-                        disabled={updatingGeneral}
-                        onClick={() => handleUpdateGeneralIssue(viewingGeneralIssue.id, { status: s, resolvedAt: s === 'Closed' ? new Date().toISOString() : undefined })}
-                        className={cn(
-                          'flex-1 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all',
-                          viewingGeneralIssue.status === s 
-                            ? s === 'Open' ? 'bg-rose-600 text-white shadow-lg shadow-rose-600/20' 
-                            : s === 'Addressing' ? 'bg-amber-500 text-white shadow-lg shadow-amber-500/20'
-                            : 'bg-emerald-600 text-white shadow-lg shadow-emerald-600/20'
-                            : 'text-slate-400 hover:text-slate-600'
-                        )}
-                      >
-                        {s}
-                      </button>
-                    ))}
+              {/* Metadata Pills */}
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Metadata</label>
+                <div className="flex flex-wrap gap-3">
+                  <div className="flex items-center gap-2 px-4 py-2.5 bg-slate-50 border border-slate-100 rounded-xl">
+                    <Shield className="w-3.5 h-3.5 text-slate-400" />
+                    <span className="text-[10px] font-black text-slate-600 uppercase tracking-widest">Category: {viewingGeneralIssue.category}</span>
                   </div>
-                </div>
-
-                {/* Info Pills */}
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Metadata</label>
-                  <div className="flex flex-col gap-2">
-                    <div className="flex items-center gap-2 px-3 py-2 bg-slate-50 border border-slate-100 rounded-xl">
-                      <Shield className="w-3.5 h-3.5 text-slate-400" />
-                      <span className="text-[10px] font-black text-slate-600 uppercase tracking-widest">Category: {viewingGeneralIssue.category}</span>
-                    </div>
-                    <div className="flex items-center gap-2 px-3 py-2 bg-slate-50 border border-slate-100 rounded-xl">
-                      <AlertTriangle className="w-3.5 h-3.5 text-slate-400" />
-                      <span className="text-[10px] font-black text-slate-600 uppercase tracking-widest">Impact: {viewingGeneralIssue.impact}</span>
-                    </div>
+                  <div className="flex items-center gap-2 px-4 py-2.5 bg-slate-50 border border-slate-100 rounded-xl">
+                    <AlertTriangle className="w-3.5 h-3.5 text-slate-400" />
+                    <span className="text-[10px] font-black text-slate-600 uppercase tracking-widest">Impact: {viewingGeneralIssue.impact}</span>
                   </div>
                 </div>
               </div>
