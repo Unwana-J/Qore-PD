@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { ServiceExtension, ImplementationIssue, GeneralIssue, ServiceState } from '../types';
 import { cn } from '../lib/utils';
-import { AlertTriangle, Shield, Clock, CheckCircle, Filter, Search, Users, Calendar, X, ChevronDown, Wrench, Plus, Loader2, Layers } from 'lucide-react';
+import { AlertTriangle, Shield, Clock, CheckCircle, Filter, Search, Users, Calendar, X, ChevronDown, Wrench, Plus, Loader2, Layers, Trash2, Edit3 } from 'lucide-react';
 import { format, parseISO, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
 import { api } from '../lib/api';
 
@@ -106,6 +106,9 @@ export const ImplementationIssuesLog: React.FC<ImplementationIssuesLogProps> = (
     notes: '',
     affectedExtensionIds: [] as string[]
   });
+
+  const [viewingGeneralIssue, setViewingGeneralIssue] = useState<GeneralIssue | null>(null);
+  const [updatingGeneral, setUpdatingGeneral] = useState(false);
 
   const [filterStatuses, setFilterStatuses] = useState<string[]>([]);
   const [filterCategories, setFilterCategories] = useState<string[]>([]);
@@ -297,6 +300,40 @@ export const ImplementationIssuesLog: React.FC<ImplementationIssuesLogProps> = (
       onShowToast?.('Failed to log general issue.', 'error');
     } finally {
       setSavingGeneral(false);
+    }
+  };
+
+  const handleUpdateGeneralIssue = async (id: string, updates: Partial<GeneralIssue>) => {
+    setUpdatingGeneral(true);
+    try {
+      await api.generalIssues.update(id, updates);
+      await fetchGeneralIssues();
+      if (viewingGeneralIssue?.id === id) {
+        setViewingGeneralIssue(prev => prev ? { ...prev, ...updates } : null);
+      }
+      onShowToast?.('General issue updated successfully.', 'success');
+    } catch (err) {
+      console.error('Failed to update general issue:', err);
+      onShowToast?.('Failed to update general issue.', 'error');
+    } finally {
+      setUpdatingGeneral(false);
+    }
+  };
+
+  const handleDeleteGeneralIssue = async (id: string) => {
+    if (!window.confirm('Are you sure you want to delete this general issue?')) return;
+    
+    setUpdatingGeneral(true);
+    try {
+      await api.generalIssues.delete(id);
+      await fetchGeneralIssues();
+      setViewingGeneralIssue(null);
+      onShowToast?.('General issue deleted.', 'info');
+    } catch (err) {
+      console.error('Failed to delete general issue:', err);
+      onShowToast?.('Failed to delete general issue.', 'error');
+    } finally {
+      setUpdatingGeneral(false);
     }
   };
 
@@ -495,10 +532,16 @@ export const ImplementationIssuesLog: React.FC<ImplementationIssuesLogProps> = (
                   <tr key={issue.id} className="hover:bg-slate-50/50 transition-colors group">
                     <td className="px-6 py-4">
                       {issue.isGeneral ? (
-                        <div className="text-left">
-                          <p className="text-sm font-black text-slate-800 line-clamp-2">{issue.description}</p>
+                        <button 
+                          onClick={() => {
+                            const gi = generalIssues.find(g => g.id === issue.id);
+                            if (gi) setViewingGeneralIssue(gi);
+                          }} 
+                          className="text-left group/btn"
+                        >
+                          <p className="text-sm font-black text-slate-800 line-clamp-2 group-hover/btn:text-indigo-600 transition-colors">{issue.description}</p>
                           {issue.notes && <p className="text-[10px] text-slate-400 mt-1 line-clamp-1 italic">{issue.notes}</p>}
-                        </div>
+                        </button>
                       ) : (
                         <button onClick={() => issue.extension && onManage(issue.extension)} className="text-left">
                           <p className="text-sm font-black text-slate-800 line-clamp-2 group-hover:text-teal-700 transition-colors">{issue.description}</p>
@@ -736,6 +779,146 @@ export const ImplementationIssuesLog: React.FC<ImplementationIssuesLogProps> = (
                     Confirm & Log Issue
                   </>
                 )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* General Issue Details Modal */}
+      {viewingGeneralIssue && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white w-full max-w-xl rounded-[2.5rem] shadow-2xl shadow-slate-900/40 overflow-hidden animate-in zoom-in-95 duration-200 border border-slate-200/50">
+            {/* Modal Header */}
+            <div className="px-8 pt-8 pb-4 flex justify-between items-start">
+              <div className="space-y-1">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-indigo-50 rounded-2xl flex items-center justify-center">
+                    <Layers className="w-5 h-5 text-indigo-600" />
+                  </div>
+                  <h3 className="text-xl font-black text-slate-900 tracking-tight">General Issue Details</h3>
+                </div>
+                <p className="text-xs font-medium text-slate-400 ml-13">View and update service-level issues.</p>
+              </div>
+              <button 
+                onClick={() => setViewingGeneralIssue(null)}
+                className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-xl transition-all"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="px-8 py-6 space-y-6 overflow-y-auto max-h-[70vh]">
+              {/* Description (Read-only for now, or editable?) */}
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Issue Description</label>
+                <div className="p-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold text-slate-800 leading-relaxed">
+                  {viewingGeneralIssue.description}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-6">
+                {/* Status Update */}
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Current Status</label>
+                  <div className="flex p-1 bg-slate-50 rounded-xl border border-slate-100">
+                    {(['Open', 'Addressing', 'Closed'] as const).map((s) => (
+                      <button
+                        key={s}
+                        disabled={updatingGeneral}
+                        onClick={() => handleUpdateGeneralIssue(viewingGeneralIssue.id, { status: s, resolvedAt: s === 'Closed' ? new Date().toISOString() : undefined })}
+                        className={cn(
+                          'flex-1 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all',
+                          viewingGeneralIssue.status === s 
+                            ? s === 'Open' ? 'bg-rose-600 text-white shadow-lg shadow-rose-600/20' 
+                            : s === 'Addressing' ? 'bg-amber-500 text-white shadow-lg shadow-amber-500/20'
+                            : 'bg-emerald-600 text-white shadow-lg shadow-emerald-600/20'
+                            : 'text-slate-400 hover:text-slate-600'
+                        )}
+                      >
+                        {s}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Info Pills */}
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Metadata</label>
+                  <div className="flex flex-col gap-2">
+                    <div className="flex items-center gap-2 px-3 py-2 bg-slate-50 border border-slate-100 rounded-xl">
+                      <Shield className="w-3.5 h-3.5 text-slate-400" />
+                      <span className="text-[10px] font-black text-slate-600 uppercase tracking-widest">Category: {viewingGeneralIssue.category}</span>
+                    </div>
+                    <div className="flex items-center gap-2 px-3 py-2 bg-slate-50 border border-slate-100 rounded-xl">
+                      <AlertTriangle className="w-3.5 h-3.5 text-slate-400" />
+                      <span className="text-[10px] font-black text-slate-600 uppercase tracking-widest">Impact: {viewingGeneralIssue.impact}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Affected Services */}
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Affected Services</label>
+                <div className="flex flex-wrap gap-2 p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                  {viewingGeneralIssue.affectedServices.map(service => (
+                    <span
+                      key={service}
+                      className="px-3 py-1.5 bg-indigo-50 border border-indigo-100 text-indigo-700 rounded-lg text-[10px] font-black uppercase tracking-widest"
+                    >
+                      {service}
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              {/* Notes (Editable) */}
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Resolution / Workaround</label>
+                <textarea
+                  className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-medium outline-none focus:ring-4 focus:ring-teal-500/10 focus:border-teal-400 transition-all resize-none"
+                  placeholder="Notes on resolution or current workaround..."
+                  rows={4}
+                  value={viewingGeneralIssue.notes || ''}
+                  onChange={e => setViewingGeneralIssue({ ...viewingGeneralIssue, notes: e.target.value })}
+                  onBlur={() => handleUpdateGeneralIssue(viewingGeneralIssue.id, { notes: viewingGeneralIssue.notes })}
+                />
+                <p className="text-[10px] text-slate-400 font-medium italic px-1">Notes are auto-saved on blur.</p>
+              </div>
+
+              {/* History */}
+              <div className="pt-4 border-t border-slate-100 flex justify-between items-center text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">
+                <div className="flex items-center gap-4">
+                  <span className="flex items-center gap-1.5">
+                    <Users className="w-3.5 h-3.5" />
+                    Logged by {viewingGeneralIssue.loggedBy}
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <Clock className="w-3.5 h-3.5" />
+                    {format(parseISO(viewingGeneralIssue.createdAt), 'dd MMM yyyy HH:mm')}
+                  </span>
+                </div>
+                {isLead && (
+                  <button 
+                    onClick={() => handleDeleteGeneralIssue(viewingGeneralIssue.id)}
+                    className="text-rose-400 hover:text-rose-600 transition-colors flex items-center gap-1.5"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    Delete Issue
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-8 bg-slate-50/50 flex gap-3 border-t border-slate-100">
+              <button
+                onClick={() => setViewingGeneralIssue(null)}
+                className="w-full px-6 py-3 bg-slate-900 text-white text-sm font-black uppercase tracking-widest rounded-2xl hover:bg-slate-800 transition-all shadow-xl shadow-slate-900/10 flex items-center justify-center gap-2"
+              >
+                <CheckCircle className="w-4 h-4" />
+                Done Viewing
               </button>
             </div>
           </div>
