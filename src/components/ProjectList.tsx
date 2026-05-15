@@ -5,7 +5,7 @@ import { motion } from 'motion/react';
 import { PROJECT_STATES } from '../constants';
 import { PROJECT_STATE_COLORS, PRIORITY_COLORS, getThemeClasses } from '../lib/theme';
 import { differenceInDays, parseISO, subDays, format } from 'date-fns';
-import { AlertCircle, AlertTriangle, BarChart2, DollarSign, Search, Filter, MoreHorizontal, Calendar, User, ChevronRight, TrendingUp, TrendingDown, Minus, ChevronDown, Check, X, RefreshCw, Layers } from 'lucide-react';
+import { AlertCircle, AlertTriangle, BarChart2, DollarSign, Search, Filter, MoreHorizontal, Calendar, User, ChevronRight, TrendingUp, TrendingDown, Minus, ChevronDown, Check, X, RefreshCw, Layers, Trash2 } from 'lucide-react';
 import { Role, PackageConfig, ServiceBaseline } from '../types';
 
 interface ProjectListProps {
@@ -19,6 +19,7 @@ interface ProjectListProps {
   serviceBaselines: ServiceBaseline[];
   allPMNames: string[];
   onReassignProject: (project: Project) => void;
+  onDeleteProject: (projectId: string) => Promise<void>;
   spiThresholds: { onTrack: number, atRisk: number };
   initialSearch?: string;
   initialStateFilter?: ProjectState | 'All';
@@ -30,7 +31,7 @@ interface ProjectListProps {
 
 export const ProjectList: React.FC<ProjectListProps> = ({ 
   projects, onSelectProject, userRole, users, packages = [], serviceBaselines = [], allPMNames = [], onReassignProject, 
-  themeColor = 'teal', staleThresholdDays, spiThresholds, initialSearch = '', initialStateFilter = 'All', 
+  onDeleteProject, themeColor = 'teal', staleThresholdDays, spiThresholds, initialSearch = '', initialStateFilter = 'All', 
   initialPMFilter, onBackToDigest, loading = false, customTags = []
 }) => {
   const [search, setSearch] = useState(initialSearch);
@@ -44,6 +45,8 @@ export const ProjectList: React.FC<ProjectListProps> = ({
   const [isPackageDropdownOpen, setIsPackageDropdownOpen] = useState(false);
   const [isPMDropdownOpen, setIsPMDropdownOpen] = useState(false);
   const [isCustomDateOpen, setIsCustomDateOpen] = useState(false);
+  const [projectToDelete, setProjectToDelete] = useState<Project | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   
   const [currentPage, setCurrentPage] = useState(1);
   const PAGE_SIZE = 5;
@@ -495,18 +498,30 @@ export const ProjectList: React.FC<ProjectListProps> = ({
                   </div>
                 </div>
                 <div className="flex items-center gap-3 ml-auto">
-                  {canReassign && (
-                    <button 
-                      onClick={(e) => { e.stopPropagation(); onReassignProject(project); }}
-                      className={cn("px-5 py-2.5 text-xs font-extrabold border-2 rounded-xl transition-all shadow-sm active:scale-95", theme.border, theme.text, theme.hoverBg, "hover:text-white")}
-                    >
-                      Reassign
+                    {canReassign && (
+                      <button 
+                        onClick={(e) => { e.stopPropagation(); onReassignProject(project); }}
+                        className={cn("px-5 py-2.5 text-xs font-extrabold border-2 rounded-xl transition-all shadow-sm active:scale-95", theme.border, theme.text, theme.hoverBg, "hover:text-white")}
+                      >
+                        Reassign
+                      </button>
+                    )}
+                    {['Superadmin', 'Manager'].includes(userRole) && (
+                      <button 
+                        onClick={(e) => { 
+                          e.stopPropagation(); 
+                          setProjectToDelete(project);
+                        }}
+                        className="p-2.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all active:scale-95"
+                        title="Delete Project"
+                      >
+                        <Trash2 className="w-5 h-5" />
+                      </button>
+                    )}
+                    <button className="p-2.5 hover:bg-slate-100 rounded-xl transition-all group-hover:translate-x-1">
+                      <ChevronRight className="w-5 h-5 text-slate-400 group-hover:text-slate-600" />
                     </button>
-                  )}
-                  <button className="p-2.5 hover:bg-slate-100 rounded-xl transition-all group-hover:translate-x-1">
-                    <ChevronRight className="w-5 h-5 text-slate-400 group-hover:text-slate-600" />
-                  </button>
-                </div>
+                  </div>
               </div>
             </div>
 
@@ -603,9 +618,64 @@ export const ProjectList: React.FC<ProjectListProps> = ({
           );
         })()}
       </div>
+      {projectToDelete && (
+        <DeleteConfirmationModal 
+          project={projectToDelete}
+          isDeleting={isDeleting}
+          theme={theme}
+          onCancel={() => setProjectToDelete(null)}
+          onConfirm={async () => {
+            setIsDeleting(true);
+            try {
+              await onDeleteProject(projectToDelete.id);
+              setProjectToDelete(null);
+            } catch (err) {
+              console.error(err);
+            } finally {
+              setIsDeleting(false);
+            }
+          }}
+        />
+      )}
     </div>
   );
 };
+
+const DeleteConfirmationModal = ({ project, onConfirm, onCancel, isDeleting, theme }: any) => (
+  <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+    <motion.div 
+      initial={{ opacity: 0, scale: 0.95 }}
+      animate={{ opacity: 1, scale: 1 }}
+      className="bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl overflow-hidden p-8 text-center space-y-6"
+    >
+      <div className="w-20 h-20 bg-red-50 rounded-3xl flex items-center justify-center mx-auto border-2 border-red-100">
+        <AlertTriangle className="w-10 h-10 text-red-500" />
+      </div>
+      <div className="space-y-2">
+        <h3 className="text-2xl font-black text-slate-900 tracking-tight">Delete Project?</h3>
+        <p className="text-sm text-slate-500 font-bold leading-relaxed px-4 uppercase tracking-wide">
+          Are you sure you want to delete <span className="text-red-600">"{project.clientName}"</span>? This action is permanent and will remove all associated logs and history.
+        </p>
+      </div>
+      <div className="flex gap-4">
+        <button 
+          onClick={onCancel}
+          disabled={isDeleting}
+          className="flex-1 py-4 bg-slate-100 text-slate-600 rounded-2xl font-black hover:bg-slate-200 transition-all active:scale-95"
+        >
+          Cancel
+        </button>
+        <button 
+          onClick={onConfirm}
+          disabled={isDeleting}
+          className="flex-1 py-4 bg-red-600 text-white rounded-2xl font-black hover:bg-red-700 transition-all active:scale-95 shadow-lg shadow-red-200 flex items-center justify-center gap-2"
+        >
+          {isDeleting ? <RefreshCw className="w-4 h-4 animate-spin" /> : 'Delete Project'}
+        </button>
+      </div>
+    </motion.div>
+  </div>
+);
 
 export const StateBadge = ({ state }: { state: ProjectState }) => {
   const styles = PROJECT_STATE_COLORS[state] || PROJECT_STATE_COLORS['On-Track'];

@@ -654,6 +654,26 @@ export function useProjects(userRole: Role, config: AppConfig, userName: string 
       throw error;
     }
   };
+  
+  const deleteProject = async (id: string) => {
+    if (!hasRole(userRole, ['Superadmin', 'Manager'])) {
+      throw new Error('You do not have permission to delete projects.');
+    }
+
+    try {
+      await api.projects.deleteByIds([id]);
+      queryClient.setQueryData<Project[]>(['projects'], (old = []) => 
+        old.filter(p => p.id !== id)
+      );
+      
+      if (selectedProject?.id === id) {
+        setSelectedProject(null);
+      }
+    } catch (error) {
+      console.error('Failed to delete project', error);
+      throw error;
+    }
+  };
 
   const updateProject = async (project: Project) => {
     try {
@@ -1129,6 +1149,7 @@ export function useProjects(userRole: Role, config: AppConfig, userName: string 
     importBulkProjects,
     importBulkExtensions,
     updateProject,
+    deleteProject,
     billProject,
     rejectBilling,
     reassignProject,

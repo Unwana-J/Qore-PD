@@ -418,6 +418,7 @@ function AppContent() {
                     onShowToast={(msg, type) => type === 'error' ? notifyError(msg) : success(msg)}
                     userName={profile?.name}
                     riskCategories={config.riskCategories}
+                    onDeleteProject={deleteProject}
                   />
                 ) : (
                   <>
@@ -501,6 +502,7 @@ function AppContent() {
                           ...projects.map(p => p.assignedPM)
                         ])).sort()}
                         onReassignProject={setProjectToReassign}
+                        onDeleteProject={deleteProject}
                         spiThresholds={config.spiThresholds}
                         loading={projectsLoading}
                         customTags={config.customTags}

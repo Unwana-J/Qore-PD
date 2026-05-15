@@ -29,7 +29,9 @@ import {
   Save,
   Wrench,
   MapPin,
-  XCircle
+  XCircle,
+  Trash2,
+  Trash
 } from 'lucide-react';
 import { PROJECT_STATES } from '../constants';
 import { getThemeClasses } from '../lib/theme';
@@ -54,13 +56,15 @@ interface PhaseViewProps {
   userName?: string;
   riskCategories?: string[];
   onViewImplementation?: (ext: ServiceExtension) => void;
+  onDeleteProject?: (projectId: string) => Promise<void>;
 }
 
 export const PhaseView: React.FC<PhaseViewProps> = ({ 
   project: rawProject, onBack, onUpdateProject, onSubmitRebaseline, 
   onApproveRebaseline, onDeclineRebaseline, 
   userRole, currencies = [], serviceBaselines = [], packages = [], themeColor = 'teal', onReassign, defaultPhases = [],
-  spiThresholds, validateStateTransition, onShowToast, userName, riskCategories = [], onViewImplementation
+  spiThresholds, validateStateTransition, onShowToast, userName, riskCategories = [], onViewImplementation,
+  onDeleteProject
 }) => {
   const effectiveIds = getEffectiveServiceIds(rawProject, packages, serviceBaselines);
 
@@ -162,7 +166,9 @@ export const PhaseView: React.FC<PhaseViewProps> = ({
   const [activeTab, setActiveTab] = useState<'overview' | 'activity'>('overview');
   const [commentText, setCommentText] = useState('');
   const [isAddingRisk, setIsAddingRisk] = useState(false);
-  const [newRisk, setNewRisk] = useState({ description: '', impact: 'Medium' as Risk['impact'], category: riskCategories[0] || 'General' });
+  const [newRisk, setNewRisk] = useState({ description: '', impact: 'Medium' as const, category: riskCategories[0] || 'General' });
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Sync newRisk category if riskCategories load after mount
   React.useEffect(() => {
@@ -596,7 +602,17 @@ export const PhaseView: React.FC<PhaseViewProps> = ({
           </div>
         </div>
 
-        <div className="flex gap-1 bg-white p-1 rounded-xl border border-slate-200 shadow-sm">
+        <div className="flex items-center gap-4">
+          {hasRole(userRole, ['Superadmin', 'Manager']) && (
+            <button 
+              onClick={() => setIsDeleteModalOpen(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-rose-50 text-rose-600 border border-rose-100 rounded-xl text-xs font-black hover:bg-rose-600 hover:text-white transition-all shadow-sm"
+            >
+              <Trash2 className="w-4 h-4" />
+              Delete Project
+            </button>
+          )}
+          <div className="flex gap-1 bg-white p-1 rounded-xl border border-slate-200 shadow-sm">
           <button 
             onClick={() => setActiveTab('overview')}
             className={cn(
@@ -1723,6 +1739,49 @@ export const PhaseView: React.FC<PhaseViewProps> = ({
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+      {/* Delete Confirmation Modal */}
+      {isDeleteModalOpen && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+          <div className="bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl overflow-hidden p-8 text-center space-y-6">
+            <div className="w-20 h-20 bg-rose-50 rounded-3xl flex items-center justify-center mx-auto border-2 border-rose-100">
+              <AlertTriangle className="w-10 h-10 text-rose-500" />
+            </div>
+            <div className="space-y-2">
+              <h3 className="text-2xl font-black text-slate-900 tracking-tight">Delete Project?</h3>
+              <p className="text-sm text-slate-500 font-bold leading-relaxed px-4 uppercase tracking-wide">
+                Are you sure you want to delete <span className="text-rose-600">"{project.clientName}"</span>? This action is permanent and will remove all project history.
+              </p>
+            </div>
+            <div className="flex gap-4">
+              <button 
+                onClick={() => setIsDeleteModalOpen(false)}
+                disabled={isDeleting}
+                className="flex-1 py-4 bg-slate-100 text-slate-600 rounded-2xl font-black hover:bg-slate-200 transition-all"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={async () => {
+                  setIsDeleting(true);
+                  try {
+                    await onDeleteProject?.(project.id);
+                    onBack();
+                  } catch (err) {
+                    console.error(err);
+                  } finally {
+                    setIsDeleting(false);
+                    setIsDeleteModalOpen(false);
+                  }
+                }}
+                disabled={isDeleting}
+                className="flex-1 py-4 bg-rose-600 text-white rounded-2xl font-black hover:bg-rose-700 transition-all shadow-lg shadow-rose-200 flex items-center justify-center gap-2"
+              >
+                {isDeleting ? <RefreshCw className="w-4 h-4 animate-spin" /> : 'Delete Project'}
+              </button>
+            </div>
           </div>
         </div>
       )}
