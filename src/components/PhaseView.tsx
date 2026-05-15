@@ -18,6 +18,7 @@ import {
   Shield,
   RefreshCw,
   X,
+  Layers,
   Lock,
   Check,
   CheckCircle,
@@ -732,6 +733,7 @@ export const PhaseView: React.FC<PhaseViewProps> = ({
           );
         })()}
       </div>
+    </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 space-y-8">
@@ -758,7 +760,7 @@ export const PhaseView: React.FC<PhaseViewProps> = ({
                         <span className="sm:hidden">Init</span>
                       </span>
                       <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden flex shadow-inner">
-                        <div className={cn("h-full transition-all duration-500", theme.bg)} style={{ width: `${(scores.initiationScore / (project.phaseWeights?.initiation || 10)) * 100}%` }} />
+                        <div className={cn("h-full transition-all duration-500", theme.bg)} style={{ width: `${(scores.initiationScore / (project.phaseWeights?.initiation || 10)) * 100}%` }}></div>
                       </div>
                       <span className="text-[9px] uppercase font-black text-slate-400 mt-2">{project.phaseWeights?.initiation || 10}%</span>
                     </div>
@@ -768,7 +770,7 @@ export const PhaseView: React.FC<PhaseViewProps> = ({
                         <span className="sm:hidden">Plan</span>
                       </span>
                       <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden flex shadow-inner">
-                        <div className={cn("h-full transition-all duration-500", theme.bg)} style={{ width: `${(scores.planningScore / (project.phaseWeights?.planning || 10)) * 100}%` }} />
+                        <div className={cn("h-full transition-all duration-500", theme.bg)} style={{ width: `${(scores.planningScore / (project.phaseWeights?.planning || 10)) * 100}%` }}></div>
                       </div>
                       <span className="text-[9px] uppercase font-black text-slate-400 mt-2">{project.phaseWeights?.planning || 10}%</span>
                     </div>
@@ -778,7 +780,7 @@ export const PhaseView: React.FC<PhaseViewProps> = ({
                         <span className="sm:hidden">Exec</span>
                       </span>
                       <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden flex shadow-inner">
-                        <div className={cn("h-full transition-all duration-500", theme.bg)} style={{ width: `${(scores.executionScore / (project.phaseWeights?.execution || 60)) * 100}%` }} />
+                        <div className={cn("h-full transition-all duration-500", theme.bg)} style={{ width: `${(scores.executionScore / (project.phaseWeights?.execution || 60)) * 100}%` }}></div>
                       </div>
                       <span className="text-[9px] uppercase font-black text-slate-400 mt-2">{project.phaseWeights?.execution || 60}%</span>
                     </div>
@@ -788,7 +790,7 @@ export const PhaseView: React.FC<PhaseViewProps> = ({
                         <span className="sm:hidden">Close</span>
                       </span>
                       <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden flex shadow-inner">
-                        <div className={cn("h-full transition-all duration-500", theme.bg)} style={{ width: `${(scores.closureScore / (project.phaseWeights?.closure || 20)) * 100}%` }} />
+                        <div className={cn("h-full transition-all duration-500", theme.bg)} style={{ width: `${(scores.closureScore / (project.phaseWeights?.closure || 20)) * 100}%` }}></div>
                       </div>
                       <span className="text-[9px] uppercase font-black text-slate-400 mt-2">{project.phaseWeights?.closure || 20}%</span>
                     </div>
@@ -937,7 +939,7 @@ export const PhaseView: React.FC<PhaseViewProps> = ({
                               {ext.mappingStatus === 'Approved' && total > 0 && (
                                 <div className="mt-2 flex items-center gap-2">
                                   <div className="w-24 h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                                    <div className="h-full bg-teal-500 rounded-full" style={{ width: `${pct}%` }} />
+                                    <div className="h-full bg-teal-500 rounded-full" style={{ width: `${pct}%` }}></div>
                                   </div>
                                   <span className="text-[10px] font-bold text-slate-400">{completed}/{total} milestones</span>
                                 </div>
@@ -958,7 +960,7 @@ export const PhaseView: React.FC<PhaseViewProps> = ({
                                   onClick={async () => {
                                     setApprovingId(ext.id);
                                     try {
-                                      await api.serviceExtensions.approveMapping(ext.id);
+                                      await api.serviceExtensions.approveMapping(ext.id, userName || 'System');
                                       setLinkedExtensions(prev => prev.map(e => e.id === ext.id ? { ...e, mappingStatus: 'Approved' } : e));
                                       onShowToast?.('Mapping approved.', 'success');
                                     } catch (err: any) { onShowToast?.(err.message, 'error'); }

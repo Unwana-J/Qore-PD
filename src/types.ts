@@ -282,6 +282,7 @@ export interface ExtensionHistoryEntry {
   reason: string;
   approvedBy: string;
   rejectionReason?: string;
+  timestamp: string;
 }
 
 export interface ServiceComment {
