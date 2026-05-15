@@ -273,7 +273,8 @@ export const PhaseView: React.FC<PhaseViewProps> = ({
       project.deliveryTrack === 'Internal Initiative' ||
       project.deliveryTrack === 'Customization';
 
-    onUpdateProject({
+    const packageChanged = !isInitiativeOrCustom && editDraft.packageName !== project.packageName;
+    let updatedProject = {
       ...project,
       packageName: editDraft.packageName,
       priority: editDraft.priority as any,
@@ -285,7 +286,53 @@ export const PhaseView: React.FC<PhaseViewProps> = ({
         expectedCompletionDate: editDraft.expectedCompletionDate,
         currentCompletionDate: editDraft.expectedCompletionDate,
       })
-    });
+    };
+
+    if (packageChanged) {
+      const newPkg = packages.find(p => p.name === editDraft.packageName);
+      if (newPkg) {
+        const nextServices = newPkg.services || [];
+        const currentMilestones = project.milestones || [];
+        
+        // Sync milestones: Start fresh with new package services
+        const nextMilestones = nextServices.map(sid => {
+          const existing = currentMilestones.find(m => m.id === sid);
+          if (existing) return existing;
+          
+          const sb = serviceBaselines.find(b => b.id === sid || b.name === sid);
+          return {
+            id: sid,
+            name: sb ? sb.name : sid,
+            status: 'Not Started' as const
+          };
+        });
+
+        // Recalculate duration & completion
+        const nextDuration = nextServices.reduce((acc, sid) => {
+          const sb = serviceBaselines.find(b => b.id === sid || b.name === sid);
+          return acc + (sb ? sb.baselineDays : 0);
+        }, 0);
+        
+        const nextExpCompletion = project.startDate 
+          ? calculateWorkingDays(project.startDate, nextDuration) 
+          : project.expectedCompletionDate;
+
+        updatedProject = {
+          ...updatedProject,
+          services: nextServices,
+          milestones: nextMilestones,
+          expectedDuration: nextDuration,
+          expectedCompletionDate: nextExpCompletion,
+          currentCompletionDate: nextExpCompletion,
+          serviceStates: nextServices.reduce((acc, sid) => ({ 
+            ...acc, 
+            [sid]: project.serviceStates?.[sid] || 'Not Started' 
+          }), {})
+        };
+      }
+    }
+
+    onUpdateProject(updatedProject);
     setIsEditingDetails(false);
     onShowToast?.('Project details updated', 'success');
   };
