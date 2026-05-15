@@ -415,7 +415,9 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
                           const activePriority = isInitiative ? 'Initiative' : formData.priority;
                           const workload = getPMWorkload(pm.name);
                           const currentLoad = workload[activePriority as keyof typeof workload] || 0;
-                          const limit = workloadThresholds[activePriority as keyof typeof workloadThresholds] || 20;
+                          const assignedPmUser = users.find(u => u.id === pm.id || u.name === pm.name);
+                          const pmThresholds = assignedPmUser?.workloadThresholds || workloadThresholds;
+                          const limit = pmThresholds[activePriority as keyof typeof pmThresholds] || workloadThresholds[activePriority as keyof typeof workloadThresholds] || 20;
                           const isAtLimit = currentLoad >= limit;
                           return (
                             <button key={pm.id} type="button"
@@ -436,11 +438,11 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
                                 </div>
                                 {isAtLimit && <span className="text-[10px] font-black bg-amber-100 text-amber-700 px-2 py-0.5 rounded uppercase tracking-wider">At Limit</span>}
                               </div>
-                              <div className="flex gap-3 text-[10px] font-bold text-slate-400">
-                                <span className={cn(activePriority === 'P1' && "text-slate-600")}>Tier 1: {workload.P1}/{workloadThresholds.P1}</span>
-                                <span className={cn(activePriority === 'P2' && "text-slate-600")}>Tier 2: {workload.P2}/{workloadThresholds.P2}</span>
-                                <span className={cn(activePriority === 'P3' && "text-slate-600")}>Tier 3: {workload.P3}/{workloadThresholds.P3}</span>
-                                {isInitiative && <span className="text-slate-600">Initiative: {workload.Initiative}/{workloadThresholds.Initiative}</span>}
+                              <div className="flex flex-wrap gap-x-3 gap-y-1 text-[9px] font-bold text-slate-400">
+                                <span className={cn(activePriority === 'P1' && "text-slate-600")}>Tier 1: {workload.P1}/{(assignedPmUser?.workloadThresholds?.P1 ?? workloadThresholds.P1)}</span>
+                                <span className={cn(activePriority === 'P2' && "text-slate-600")}>Tier 2: {workload.P2}/{(assignedPmUser?.workloadThresholds?.P2 ?? workloadThresholds.P2)}</span>
+                                <span className={cn(activePriority === 'P3' && "text-slate-600")}>Tier 3: {workload.P3}/{(assignedPmUser?.workloadThresholds?.P3 ?? workloadThresholds.P3)}</span>
+                                {isInitiative && <span className="text-slate-600">Initiative: {workload.Initiative}/{(assignedPmUser?.workloadThresholds?.Initiative ?? workloadThresholds.Initiative)}</span>}
                               </div>
                             </button>
                           );

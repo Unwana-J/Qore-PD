@@ -53,7 +53,9 @@ export const ReassignModal: React.FC<ReassignModalProps> = ({
 
   const selectedPmWorkload = selectedPm ? getPMWorkload(selectedPm) : null;
   const currentLoad = selectedPmWorkload ? selectedPmWorkload[project.priority] : 0;
-  const limit = workloadThresholds[project.priority];
+  const selectedPmUser = users.find(u => u.name === selectedPm);
+  const pmThresholds = selectedPmUser?.workloadThresholds || workloadThresholds;
+  const limit = pmThresholds[project.priority] || workloadThresholds[project.priority];
   const isAtLimit = selectedPmWorkload ? currentLoad >= limit : false;
 
   return (
@@ -92,9 +94,10 @@ export const ReassignModal: React.FC<ReassignModalProps> = ({
                 <option value="">Select a new PM</option>
                 {activePMs.map(pm => {
                   const workload = getPMWorkload(pm.name);
+                  const pThresholds = pm.workloadThresholds || workloadThresholds;
                   return (
                     <option key={pm.id} value={pm.name}>
-                      {pm.name} (Tier 1- Enterprise: {workload.P1}/{workloadThresholds.P1} | Tier 2- Pro: {workload.P2}/{workloadThresholds.P2} | Tier 3- Basic: {workload.P3}/{workloadThresholds.P3})
+                      {pm.name} (Tier 1: {workload.P1}/{pThresholds.P1} | Tier 2: {workload.P2}/{pThresholds.P2} | Tier 3: {workload.P3}/{pThresholds.P3})
                     </option>
                   );
                 })}

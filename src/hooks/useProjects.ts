@@ -6,7 +6,7 @@ import { api } from '../lib/api';
 import { supabase } from '../lib/supabase';
 import { calculateWorkingDays, getActiveDaysCount, calculateSPI, getAutoProjectState, getEffectiveServiceIds, getLatestInteractionDate, isRole, hasRole } from '../lib/utils';
 
-export function useProjects(userRole: Role, config: AppConfig, userName: string = 'User', userId?: string) {
+export function useProjects(userRole: Role, config: AppConfig, userName: string = 'User', userId?: string, users: User[] = []) {
   const queryClient = useQueryClient();
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   
@@ -582,7 +582,9 @@ export function useProjects(userRole: Role, config: AppConfig, userName: string 
     if (!force && pmName) {
       const workload = getPMWorkload(pmName);
       const currentCount = workload[priority];
-      const maxCount = config.workloadThresholds[priority];
+      const assignedPmUser = users.find(u => u.name === pmName);
+      const pmThresholds = assignedPmUser?.workloadThresholds || config.workloadThresholds;
+      const maxCount = pmThresholds[priority] ?? config.workloadThresholds[priority] ?? 20;
 
       if (currentCount >= maxCount && !hasRole(userRole, ['Superadmin', 'Manager', 'Team Lead'])) {
         throw new Error(`This PM has reached their ${priority} limit (${currentCount}/${maxCount}).`);
