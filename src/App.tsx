@@ -90,7 +90,8 @@ function AppContent() {
     implementationHistoricalDigests,
     dismissImplementationDigest,
     loading: projectsLoading,
-    refreshProjects
+    refreshProjects,
+    deleteProject
   } = useProjects(userRole || 'PM', config, profile?.name || 'User', user?.id, users);
 
 
