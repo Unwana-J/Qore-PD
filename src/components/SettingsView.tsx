@@ -1666,9 +1666,12 @@ const PackageServiceConfig = ({ config, setConfig, theme, showToast }: any) => {
                     value={newForm?.complexityWeight || 1}
                     onChange={e => setNewForm({ ...newForm, complexityWeight: parseInt(e.target.value) || 1 })}
                   >
-                    <option value={1}>1 Point (Standard)</option>
-                    <option value={2}>2 Points (Medium)</option>
-                    <option value={3}>3 Points (High / Max)</option>
+                    <option value={1}>1 Point</option>
+                    <option value={2}>2 Points</option>
+                    <option value={3}>3 Points</option>
+                    <option value={5}>5 Points</option>
+                    <option value={8}>8 Points</option>
+                    <option value={13}>13 Points</option>
                   </select>
                 </div>
               </div>
@@ -1709,7 +1712,10 @@ const PackageServiceConfig = ({ config, setConfig, theme, showToast }: any) => {
                         >
                           <option value={1}>1 Point</option>
                           <option value={2}>2 Points</option>
-                          <option value={3}>3 Points (Max)</option>
+                          <option value={3}>3 Points</option>
+                          <option value={5}>5 Points</option>
+                          <option value={8}>8 Points</option>
+                          <option value={13}>13 Points</option>
                         </select>
                       </div>
                     ) : (
@@ -1778,7 +1784,10 @@ const PackageServiceConfig = ({ config, setConfig, theme, showToast }: any) => {
                               >
                                 <option value={1}>1 Point</option>
                                 <option value={2}>2 Points</option>
-                                <option value={3}>3 Points (Max)</option>
+                                <option value={3}>3 Points</option>
+                                <option value={5}>5 Points</option>
+                                <option value={8}>8 Points</option>
+                                <option value={13}>13 Points</option>
                               </select>
                             ) : (
                               <span className="text-xs font-bold text-slate-500">{ss.complexityWeight || 1.0} PTS</span>
