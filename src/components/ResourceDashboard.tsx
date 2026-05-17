@@ -134,7 +134,7 @@ export const ResourceDashboard: React.FC<ResourceDashboardProps> = ({
                         "h-full rounded-full transition-all duration-1000",
                         isOverloaded ? "bg-rose-500" : (isWarning ? "bg-amber-500" : "bg-indigo-500")
                       )}
-                      style={{ width: \`\${Math.min(stat.utilizationPct, 100)}%\` }}
+                      style={{ width: `${Math.min(stat.utilizationPct, 100)}%` }}
                     />
                   </div>
                   <p className="text-[10px] font-bold text-slate-400">
