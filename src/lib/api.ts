@@ -308,7 +308,8 @@ export const api = {
           role: u.role,
           status: isStale ? 'Inactive' : (u.status || 'Active'),
           avatar: u.name?.substring(0, 2).toUpperCase() || 'U',
-          lastLogin: u.updated_at || u.created_at
+          lastLogin: u.updated_at || u.created_at,
+          wipLimit: u.wip_limit
         };
       });
     },
@@ -318,7 +319,8 @@ export const api = {
         .update({
           role: updates.role,
           name: updates.name,
-          status: updates.status
+          status: updates.status,
+          ...(updates.wipLimit !== undefined && { wip_limit: updates.wipLimit })
         })
         .eq('id', userId);
       if (error) throw error;
