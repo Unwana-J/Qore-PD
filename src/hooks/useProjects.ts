@@ -237,10 +237,8 @@ export function useProjects(userRole: Role, config: AppConfig, userName: string 
       oldestRebaselineDays,
     };
 
-    // Only surface the notification on Monday >= 09:00 WAT
-    if (isDigestTime()) {
-      setWeeklyDigest(digest);
-    }
+    // Always surface the latest digest notification
+    setWeeklyDigest(digest);
     
     // Always save to archive regardless of time gate
     api.digests.save(digest).catch(err => console.error("Digest save error:", err));
@@ -349,10 +347,8 @@ export function useProjects(userRole: Role, config: AppConfig, userName: string 
           upcomingDeadlines
         };
 
-        // Only surface the notification on Monday >= 09:00 WAT
-        if (isDigestTime()) {
-          setImplementationDigest(digest);
-        }
+        // Always surface the latest digest notification
+        setImplementationDigest(digest);
         api.implementationDigests.save(digest).catch(err => console.error("Impl digest save error:", err));
       } catch (err) {
         console.error("Failed to calculate implementation digest", err);

@@ -71,15 +71,21 @@ export const Header: React.FC<HeaderProps> = ({
   const theme = getThemeClasses(themeColor);
   const now = new Date();
 
-  const getRelativeTime = (date?: Date) => {
-    if (!date) return 'Just now';
-    const diffMs = Date.now() - date.getTime();
-    const diffMin = Math.floor(diffMs / 60000);
-    if (diffMin < 1) return 'Just now';
-    if (diffMin < 60) return `${diffMin}m ago`;
-    const diffHr = Math.floor(diffMin / 60);
-    if (diffHr < 24) return `${diffHr}h ago`;
-    return `${Math.floor(diffHr / 24)}d ago`;
+  const getRelativeTime = (dateValue?: Date | string) => {
+    if (!dateValue) return 'Just now';
+    try {
+      const date = typeof dateValue === 'string' ? new Date(dateValue) : dateValue;
+      if (isNaN(date.getTime())) return 'Just now';
+      const diffMs = Date.now() - date.getTime();
+      const diffMin = Math.floor(diffMs / 60000);
+      if (diffMin < 1) return 'Just now';
+      if (diffMin < 60) return `${diffMin}m ago`;
+      const diffHr = Math.floor(diffMin / 60);
+      if (diffHr < 24) return `${diffHr}h ago`;
+      return `${Math.floor(diffHr / 24)}d ago`;
+    } catch {
+      return 'Just now';
+    }
   };
 
   const unreadCount = notifications.filter(n => !n.isRead).length;
@@ -210,9 +216,7 @@ export const Header: React.FC<HeaderProps> = ({
         <div className="relative">
           <button 
             onClick={() => {
-              const opening = !isNotifOpen;
-              setIsNotifOpen(opening);
-              if (opening && markAllRead) markAllRead();
+              setIsNotifOpen(!isNotifOpen);
             }}
             className={cn("p-2 text-slate-400 rounded-lg transition-all relative", theme.hoverText, theme.hoverLightBg, isNotifOpen && "bg-slate-50 text-slate-900")}
             aria-label={`Notifications${unreadCount > 0 ? ` (${unreadCount} unread)` : ''}`}
@@ -325,8 +329,8 @@ export const Header: React.FC<HeaderProps> = ({
                 </div>
                 {notifications.length > 0 && (
                   <button 
-                    onClick={() => { clearAllNotifications?.(); setIsNotifOpen(false); }}
-                    className="w-full px-5 py-3 text-center text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-red-500 border-t border-slate-100 transition-colors"
+                    onClick={() => { markAllRead?.(); setIsNotifOpen(false); }}
+                    className="w-full px-5 py-3 text-center text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-teal-600 border-t border-slate-100 transition-colors"
                   >
                     Clear All
                   </button>
