@@ -208,6 +208,7 @@ const weightMap = useMemo(() => {
       });
 
       let totalUtilizedPoints = 0;
+      let activeApiPoints = 0;
 
       exts.forEach(ext => {
         // Find most specific weight and map it to a max-3 Fibonacci score
@@ -216,6 +217,8 @@ const weightMap = useMemo(() => {
                           Object.entries(weightMap).find(([k]) => ext.serviceName.includes(k))?.[1] || 1;
         const baseWeight = getIMStoryPoint(rawWeight);
         
+        const isApi = ext.serviceName.toLowerCase().includes('api') || ext.serviceVariant.toLowerCase().includes('api');
+
         let progress = 0;
         if (ext.status === 'Completed') progress = 1;
         else if (ext.status === 'Suspended') progress = 0;
@@ -225,9 +228,18 @@ const weightMap = useMemo(() => {
           progress = totalMilestones > 0 ? (completedMilestones / totalMilestones) : 0.1;
         }
         let penalty = 0;
-        if (ext.status !== 'Completed' && !ext.serviceName.toLowerCase().includes('api') && new Date(ext.targetClosureDate) < today) penalty = 0.15; 
+        if (ext.status !== 'Completed' && !isApi && new Date(ext.targetClosureDate) < today) penalty = 0.15; 
+        
         ws += (progress - penalty) * baseWeight;
-        tw += baseWeight;
+
+        // If it's an active API, only include its progressive weight in the denominator
+        // to avoid diluting the completion index, while still rewarding progress in the numerator!
+        if (isApi && ext.status !== 'Completed' && ext.status !== 'Suspended') {
+          tw += progress * baseWeight;
+          activeApiPoints += progress * baseWeight;
+        } else {
+          tw += baseWeight;
+        }
 
         // Calculate remaining effort for active projects only
         if (ext.status !== 'Completed' && ext.status !== 'Suspended') {
@@ -250,7 +262,8 @@ const weightMap = useMemo(() => {
         bd,
         totalUtilizedPoints,
         wipLimit,
-        utilizationPct
+        utilizationPct,
+        activeApiPoints
       };
     }).sort((a,b)=>b.score-a.score);
     
@@ -392,7 +405,15 @@ const weightMap = useMemo(() => {
                   className="group hover:bg-slate-50 transition-colors cursor-pointer"
                   onClick={() => onFilter?.('All', m.name)}
                 >
-                  <td className="py-2.5 text-sm font-bold text-slate-700 group-hover:text-teal-600 transition-colors">{m.name}</td>
+                  <td className="py-2.5 text-sm font-bold text-slate-700 group-hover:text-teal-600 transition-colors flex items-center gap-2">
+                    {m.name}
+                    {m.activeApiPoints > 0 && (
+                      <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-blue-50 border border-blue-100 text-blue-600 text-[9px] font-black rounded-md" title={`API Effort Earned: ${m.activeApiPoints.toFixed(1)} PTS`}>
+                        <Link className="w-2.5 h-2.5" />
+                        +{m.activeApiPoints.toFixed(1)} API
+                      </span>
+                    )}
+                  </td>
                   <td className="py-2.5 text-sm font-bold text-blue-600 text-center">{m.active} <span className="text-[10px] text-slate-400">of {m.total}</span></td>
                   <td className="py-2.5 text-sm font-bold text-amber-600 text-center">{m.suspended}</td>
                   <td className="py-2.5 text-sm font-bold text-emerald-600 text-center">{m.completed}</td>
