@@ -527,30 +527,24 @@ const UserManagement = ({ users, setUsers, invites, setInvites, projects, onUpda
               {item.statusType === 'Active' && item.role === 'PM' && (isRole(currentUserRole, 'Superadmin') || isRole(currentUserRole, 'Manager')) && (
                 <div className="flex items-center gap-3 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-100">
                    <div className="flex flex-col">
-                     <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Limits (P1/P2/P3)</span>
-                     <div className="flex items-center gap-1.5 mt-0.5">
-                        {(['P1', 'P2', 'P3'] as ProjectPriority[]).map(p => (
-                          <input 
-                            key={p}
-                            type="number"
-                            title={`${p} Max Projects`}
-                            className="w-8 bg-white border border-slate-200 rounded text-[10px] font-black text-center py-0.5 outline-none focus:border-indigo-400"
-                            value={item.workloadThresholds?.[p] ?? config.workloadThresholds[p]}
-                            onChange={async (e) => {
-                              const val = parseInt(e.target.value) || 0;
-                              const currentThresholds = item.workloadThresholds || { ...config.workloadThresholds };
-                              const updated = { ...currentThresholds, [p]: val };
-                              
-                              try {
-                                await api.users.update(item.id, { workloadThresholds: updated });
-                                setUsers(users.map((u: any) => u.id === item.id ? { ...u, workloadThresholds: updated } : u));
-                                showToast(`Workload limit updated for ${item.name}`, 'success');
-                              } catch (err) {
-                                showToast("Failed to update workload limit", "error");
-                              }
-                            }}
-                          />
-                        ))}
+                     <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">WIP Limit (Points)</span>
+                     <div className="flex items-center mt-0.5">
+                        <input 
+                          type="number"
+                          title="Max Active Story Points"
+                          className="w-16 bg-white border border-slate-200 rounded text-xs font-black text-center py-1 outline-none focus:border-indigo-400"
+                          value={item.wipLimit ?? 30}
+                          onChange={async (e) => {
+                            const val = parseInt(e.target.value) || 0;
+                            try {
+                              await api.users.update(item.id, { wipLimit: val });
+                              setUsers(users.map((u: any) => u.id === item.id ? { ...u, wipLimit: val } : u));
+                              showToast(`WIP limit updated for ${item.name}`, 'success');
+                            } catch (err) {
+                              showToast("Failed to update WIP limit", "error");
+                            }
+                          }}
+                        />
                      </div>
                    </div>
                 </div>
