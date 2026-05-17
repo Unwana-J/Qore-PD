@@ -15,7 +15,14 @@ export function useProjects(userRole: Role, config: AppConfig, userName: string 
     queryKey: ['notifications', userId],
     queryFn: async () => {
       if (!userId) return [];
-      return await api.notifications.getAll(userId);
+      const dbNotifs = await api.notifications.getAll(userId);
+      return dbNotifs.map(n => ({
+        id: n.id,
+        message: n.message,
+        projectId: n.project_id || '',
+        createdAt: n.created_at ? new Date(n.created_at) : new Date(),
+        isRead: n.is_read
+      }));
     },
     enabled: !!userId,
     staleTime: 60000, // 1 minute
@@ -24,7 +31,7 @@ export function useProjects(userRole: Role, config: AppConfig, userName: string 
   const dismissNotification = useCallback(async (id: string) => {
     await api.notifications.markAsRead(id);
     queryClient.setQueryData(['notifications', userId], (prev: any) => 
-      (prev || []).map((n: any) => n.id === id ? { ...n, is_read: true } : n)
+      (prev || []).map((n: any) => n.id === id ? { ...n, isRead: true } : n)
     );
   }, [userId, queryClient]);
 
@@ -32,11 +39,11 @@ export function useProjects(userRole: Role, config: AppConfig, userName: string 
     if (!userId) return;
     await api.notifications.markAllAsRead(userId);
     queryClient.setQueryData(['notifications', userId], (prev: any) => 
-      (prev || []).map((n: any) => ({ ...n, is_read: true }))
+      (prev || []).map((n: any) => ({ ...n, isRead: true }))
     );
   }, [userId, queryClient]);
 
-  const clearAllNotifications = useCallback(async () => {
+  const clearAllNotifications = useCallback(async (e?: React.MouseEvent) => {
     if (!userId) return;
     await api.notifications.clearAll(userId);
     queryClient.setQueryData(['notifications', userId], []);
