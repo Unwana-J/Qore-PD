@@ -1526,13 +1526,25 @@ const PackageServiceConfig = ({ config, setConfig, theme, showToast }: any) => {
           <div className="grid grid-cols-1 gap-4">
             {isAdding && (
               <div className="bg-slate-50 p-6 rounded-3xl border border-slate-200 space-y-4 animate-in slide-in-from-top-2">
-                <input 
-                  autoFocus
-                  className="w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl font-bold outline-none ring-teal-500/20 focus:ring-4"
-                  placeholder="New Package Name..."
-                  value={newForm?.name || ''}
-                  onChange={e => setNewForm({ ...newForm, name: e.target.value })}
-                />
+                <div className="grid grid-cols-2 gap-4">
+                  <input 
+                    autoFocus
+                    className="w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl font-bold outline-none ring-teal-500/20 focus:ring-4"
+                    placeholder="New Package Name..."
+                    value={newForm?.name || ''}
+                    onChange={e => setNewForm({ ...newForm, name: e.target.value })}
+                  />
+                  <select
+                    className="w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl font-bold outline-none"
+                    value={newForm?.storyPoints || 0}
+                    onChange={e => setNewForm({ ...newForm, storyPoints: parseInt(e.target.value) })}
+                  >
+                    <option value={0}>No Story Points</option>
+                    {[1, 2, 3, 5, 8, 13, 20, 40, 100].map(p => (
+                      <option key={p} value={p}>{p} Points</option>
+                    ))}
+                  </select>
+                </div>
                 <div className="space-y-2">
                   <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Select Services</p>
                   <div className="flex flex-wrap gap-2">
@@ -1561,11 +1573,23 @@ const PackageServiceConfig = ({ config, setConfig, theme, showToast }: any) => {
               <div key={pkg.id} className="bg-white border border-slate-100 p-6 rounded-3xl hover:shadow-md transition-all group">
                 {editingId === pkg.id ? (
                   <div className="space-y-4">
-                    <input 
-                      className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl font-bold outline-none"
-                      value={editForm.name}
-                      onChange={e => setEditForm({ ...editForm, name: e.target.value })}
-                    />
+                    <div className="grid grid-cols-2 gap-4">
+                      <input 
+                        className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl font-bold outline-none"
+                        value={editForm.name}
+                        onChange={e => setEditForm({ ...editForm, name: e.target.value })}
+                      />
+                      <select
+                        className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl font-bold outline-none"
+                        value={editForm.storyPoints || 0}
+                        onChange={e => setEditForm({ ...editForm, storyPoints: parseInt(e.target.value) })}
+                      >
+                        <option value={0}>No Story Points</option>
+                        {[1, 2, 3, 5, 8, 13, 20, 40, 100].map(p => (
+                          <option key={p} value={p}>{p} Points</option>
+                        ))}
+                      </select>
+                    </div>
                     <div className="flex flex-wrap gap-2">
                       {config.serviceBaselines.map((s: any) => (
                         <button 
@@ -1588,7 +1612,14 @@ const PackageServiceConfig = ({ config, setConfig, theme, showToast }: any) => {
                 ) : (
                   <div className="flex justify-between items-start">
                     <div className="space-y-2">
-                       <h5 className="text-lg font-black text-slate-900">{pkg.name}</h5>
+                       <div className="flex items-center gap-3">
+                         <h5 className="text-lg font-black text-slate-900">{pkg.name}</h5>
+                         {pkg.storyPoints && pkg.storyPoints > 0 && (
+                           <span className="px-2 py-0.5 bg-indigo-50 text-indigo-600 text-[10px] font-black rounded-full border border-indigo-100">
+                             {pkg.storyPoints} PTS
+                           </span>
+                         )}
+                       </div>
                        <div className="flex flex-wrap gap-1.5">
                          {pkg.services.map((sid: string) => {
                            const service = config.serviceBaselines.find((s: any) => s.id === sid);

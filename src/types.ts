@@ -211,6 +211,13 @@ export interface Project {
   billingRejections?: BillingRejection[];
   implementationManager?: string;   // @deprecated – use implementationManagers
   implementationManagers?: string[]; // all approved IMs derived from service_extensions
+  storyPoints?: number; // Base calculated or manually overridden points
+  pendingStoryPointsRequest?: {
+    requestedPoints: number;
+    reason: string;
+    requestedBy: string;
+    requestedAt: string;
+  };
 }
 
 export interface PackageConfig {
@@ -218,6 +225,7 @@ export interface PackageConfig {
   name: string;
   services: string[]; // service IDs
   weight: number;
+  storyPoints?: number; // Base Agile Story Points assigned to this package
 }
 
 export interface ProductLineConfig {
@@ -364,6 +372,7 @@ export interface User {
   avatar?: string;
   invitedAt?: string;
   lastLogin?: string;
+  wipLimit?: number; // Configurable maximum Work In Progress limit (Story Points)
 }
 
 export interface BulkImportViewProps {

@@ -19,6 +19,7 @@ import { DigestModal } from './components/DigestModal';
 import { ImplementationDigestModal } from './components/ImplementationDigestModal';
 import { DeactivatedScreen } from './components/DeactivatedScreen';
 import { ImplementationsView } from './components/ImplementationsView';
+import { ResourceDashboard } from './components/ResourceDashboard';
 import { INITIAL_CONFIG } from './mockData';
 import { Role, AppConfig, SettingsTab, Project, ProjectState } from './types';
 import { useProjects } from './hooks/useProjects';
@@ -29,7 +30,7 @@ import { api } from './lib/api';
 import { OnboardingWizard } from './components/OnboardingWizard';
 import { calculateSPI } from './lib/utils';
 
-type View = 'dashboard' | 'projects' | 'risks' | 'settings' | 'rebaseline-requests' | 'implementations';
+type View = 'dashboard' | 'projects' | 'risks' | 'settings' | 'rebaseline-requests' | 'implementations' | 'resources';
 
 import { safety } from './lib/safety';
 
@@ -483,6 +484,14 @@ function AppContent() {
                             setCurrentView('projects');
                           }
                         }}
+                      />
+                    )}
+                    {currentView === 'resources' && hasRole(userRole, ['Superadmin', 'Manager']) && (
+                      <ResourceDashboard
+                        projects={projects}
+                        users={users}
+                        packages={config.packages}
+                        serviceBaselines={config.serviceBaselines || []}
                       />
                     )}
                     {currentView === 'projects' && (

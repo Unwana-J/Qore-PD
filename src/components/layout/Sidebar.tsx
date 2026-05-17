@@ -7,13 +7,14 @@ import {
   ChevronRight,
   AlertTriangle,
   Clock,
-  Layers
+  Layers,
+  BarChart3
 } from 'lucide-react';
 import { Role, AppConfig } from '../../types';
 import { cn, isRole, hasRole } from '../../lib/utils';
 import { getThemeClasses } from '../../lib/theme';
 
-type View = 'dashboard' | 'projects' | 'risks' | 'settings' | 'rebaseline-requests' | 'implementations';
+type View = 'dashboard' | 'projects' | 'risks' | 'settings' | 'rebaseline-requests' | 'implementations' | 'resources';
 
 interface SidebarProps {
   currentView: View;
@@ -144,6 +145,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <NavItem icon={Briefcase} label="Projects" view="projects" />
             {(isRole(userRole, 'IM') || isRole(userRole, 'IM Lead') || isRole(userRole, 'PM') || hasRole(userRole, ['Superadmin', 'Manager'])) && (
               <NavItem icon={Layers} label="Ancillary Implementations" view="implementations" />
+            )}
+            {hasRole(userRole, ['Superadmin', 'Manager']) && (
+              <NavItem icon={BarChart3} label="Resource Tracking" view="resources" />
             )}
             {!isRole(userRole, 'Executive') && !isRole(userRole, 'Finance') && !isRole(userRole, 'IM') && !isRole(userRole, 'IM Lead') && (
               <>
