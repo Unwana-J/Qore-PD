@@ -272,6 +272,37 @@ const weightMap = useMemo(() => {
     return { rows, avg };
   }, [fd, ims, weightMap]);
 
+  const globalPerformance = useMemo(() => {
+    let globalWs = 0;
+    let globalTw = 0;
+    fd.forEach(ext => {
+      const pkg = config.packages?.find(p => p.name === ext.serviceName || p.name === ext.serviceVariant);
+      const rawWeight = pkg?.storyPoints || weightMap[ext.serviceVariant] || weightMap[ext.serviceName] || 
+                        Object.entries(weightMap).find(([k]) => ext.serviceName.includes(k))?.[1] || 1;
+      const baseWeight = getIMStoryPoint(rawWeight);
+      const isApi = ext.serviceName.toLowerCase().includes('api') || ext.serviceVariant.toLowerCase().includes('api');
+
+      let progress = 0;
+      if (ext.status === 'Completed') progress = 1;
+      else if (ext.status === 'Suspended') progress = 0;
+      else {
+        const totalM = ext.milestones?.length || 0;
+        const completedM = ext.milestones?.filter(m => m.completed).length || 0;
+        progress = totalM > 0 ? (completedM / totalM) : 0.1;
+      }
+      let penalty = 0;
+      if (ext.status !== 'Completed' && !isApi && new Date(ext.targetClosureDate) < today) penalty = 0.15; 
+      
+      globalWs += (progress - penalty) * baseWeight;
+      if (isApi && ext.status !== 'Completed' && ext.status !== 'Suspended') {
+        globalTw += progress * baseWeight;
+      } else {
+        globalTw += baseWeight;
+      }
+    });
+    return globalTw > 0 ? Math.max(0, (globalWs / globalTw)) * 100 : 0;
+  }, [fd, config.packages, weightMap]);
+
   const overdue = useMemo(() =>
     fd.filter(e=>e.status!=='Completed' && !e.serviceName.toLowerCase().includes('api') && new Date(e.targetClosureDate)<today)
       .sort((a,b)=>new Date(a.targetClosureDate).getTime()-new Date(b.targetClosureDate).getTime()),
@@ -348,14 +379,14 @@ const weightMap = useMemo(() => {
 
       {/* KPI Row 1 */}
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
-        <KPI label="Completion Rate" value={`${kpis.completionRate.toFixed(1)}%`} rate={kpis.completionRate} icon={<CheckCircle2/>} color="emerald"/>
+        <KPI label="Completion Rate" value={`${globalPerformance.toFixed(1)}%`} rate={globalPerformance} icon={<CheckCircle2/>} color="emerald"/>
         <KPI 
           label="In Progress" 
-          value={fd.filter(e => e.status === 'In Progress').length} 
+          value={kpis.active} 
           sub="Ongoing tasks" 
           icon={<Activity/>} 
           color="blue"
-          onClick={() => onFilter?.('In Progress')}
+          onClick={() => onFilter?.('All')}
         />
         <KPI label="Active Rate" value={`${kpis.activeRate.toFixed(1)}%`} sub={`${kpis.active} active`} rate={kpis.activeRate} icon={<Activity/>} color="blue"/>
         <KPI label="Suspension Rate" value={`${kpis.suspensionRate.toFixed(1)}%`} sub={`${kpis.suspended} frozen`} rate={kpis.suspensionRate} inv icon={<AlertTriangle/>} color="amber" onClick={() => onFilter?.('Suspended')}/>
@@ -365,7 +396,7 @@ const weightMap = useMemo(() => {
       {/* KPI Row 2 */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <KPI label="Started (Period)" value={fd.length} sub="Total in window" icon={<TrendingUp/>} color="teal" onClick={() => onFilter?.('All')}/>
-        <KPI label="Completed (Period)" value={kpis.completed} sub={`of ${fd.length} total`} rate={kpis.completionRate} icon={<CheckCircle2/>} color="emerald" onClick={() => onFilter?.('Completed')}/>
+        <KPI label="Completed (Period)" value={kpis.completed} sub={`of ${fd.length} total`} rate={globalPerformance} icon={<CheckCircle2/>} color="emerald" onClick={() => onFilter?.('Completed')}/>
         <KPI label="Overdue / At-Risk" value={kpis.overdue} sub="Past target date" icon={<Clock/>} color="red" onClick={() => onFilter?.('Delayed')}/>
         <KPI label="Mapping Ratio" value={`${kpis.mappingRatio.toFixed(0)}%`} sub={`${kpis.mapped} linked to projects`} icon={<Link/>} color="teal"/>
       </div>
