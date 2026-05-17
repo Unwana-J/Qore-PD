@@ -524,7 +524,7 @@ const UserManagement = ({ users, setUsers, invites, setInvites, projects, onUpda
               </div>
             </div>
             <div className="flex items-center gap-6">
-              {item.statusType === 'Active' && item.role === 'PM' && (isRole(currentUserRole, 'Superadmin') || isRole(currentUserRole, 'Manager')) && (
+              {item.statusType === 'Active' && (item.role === 'PM' || item.role === 'IM' || item.role === 'IM Lead') && (isRole(currentUserRole, 'Superadmin') || isRole(currentUserRole, 'Manager')) && (
                 <div className="flex items-center gap-3 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-100">
                    <div className="flex flex-col">
                      <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">WIP Limit (Points)</span>

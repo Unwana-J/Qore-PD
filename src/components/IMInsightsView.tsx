@@ -200,9 +200,12 @@ export const IMInsightsView: React.FC<IMInsightsViewProps> = ({ extensions=[], u
         } else bd[prod]=null;
       });
 
+      let totalUtilizedPoints = 0;
+
       exts.forEach(ext => {
-        // Find most specific weight (variant then service name)
-        const baseWeight = weightMap[ext.serviceVariant] || weightMap[ext.serviceName] || 
+        // Find most specific weight
+        const pkg = config.packages?.find(p => p.name === ext.serviceName || p.name === ext.serviceVariant);
+        const baseWeight = pkg?.storyPoints || weightMap[ext.serviceVariant] || weightMap[ext.serviceName] || 
                           Object.entries(weightMap).find(([k]) => ext.serviceName.includes(k))?.[1] || 1;
         
         let progress = 0;
@@ -217,9 +220,16 @@ export const IMInsightsView: React.FC<IMInsightsViewProps> = ({ extensions=[], u
         if (ext.status !== 'Completed' && !ext.serviceName.toLowerCase().includes('api') && new Date(ext.targetClosureDate) < today) penalty = 0.15; 
         ws += (progress - penalty) * baseWeight;
         tw += baseWeight;
+
+        // Calculate remaining effort for active projects only
+        if (ext.status !== 'Completed' && ext.status !== 'Suspended') {
+          totalUtilizedPoints += baseWeight * (1 - progress);
+        }
       });
 
       const score = tw > 0 ? Math.max(0, (ws / tw)) : 0;
+      const wipLimit = im.wipLimit || 30;
+      const utilizationPct = (totalUtilizedPoints / wipLimit) * 100;
 
       return {
         name: im.name, 
@@ -229,7 +239,10 @@ export const IMInsightsView: React.FC<IMInsightsViewProps> = ({ extensions=[], u
         suspended: exts.filter(e => e.status === 'Suspended').length,
         completed: exts.filter(e => e.status === 'Completed').length,
         overdue: exts.filter(e => e.status !== 'Completed' && !e.serviceName.toLowerCase().includes('api') && new Date(e.targetClosureDate) < today).length,
-        bd
+        bd,
+        totalUtilizedPoints,
+        wipLimit,
+        utilizationPct
       };
     }).sort((a,b)=>b.score-a.score);
     
@@ -363,7 +376,7 @@ export const IMInsightsView: React.FC<IMInsightsViewProps> = ({ extensions=[], u
         <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
           <div className="flex items-center gap-2 mb-5"><Users className="w-4 h-4 text-teal-600"/><h3 className="text-xs font-black text-slate-900 uppercase tracking-widest">IM Workload & Performance</h3></div>
           <table className="w-full text-left">
-            <thead><tr className="border-b border-slate-100">{['Manager','Total','Active','Susp.','Comp.','Overdue','Performance'].map(h=><th key={h} className="pb-2 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center first:text-left last:text-right">{h}</th>)}</tr></thead>
+            <thead><tr className="border-b border-slate-100">{['Manager','Active WIP','Susp.','Comp.','Overdue','Bandwidth Utilization','Performance'].map(h=><th key={h} className="pb-2 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center first:text-left last:text-right">{h}</th>)}</tr></thead>
             <tbody className="divide-y divide-slate-50">
               {(wp.rows || []).map((m)=>(
                 <tr 
@@ -372,11 +385,24 @@ export const IMInsightsView: React.FC<IMInsightsViewProps> = ({ extensions=[], u
                   onClick={() => onFilter?.('All', m.name)}
                 >
                   <td className="py-2.5 text-sm font-bold text-slate-700 group-hover:text-teal-600 transition-colors">{m.name}</td>
-                  <td className="py-2.5 text-sm font-black text-slate-900 text-center">{m.total}</td>
-                  <td className="py-2.5 text-sm font-bold text-blue-600 text-center">{m.active}</td>
+                  <td className="py-2.5 text-sm font-bold text-blue-600 text-center">{m.active} <span className="text-[10px] text-slate-400">of {m.total}</span></td>
                   <td className="py-2.5 text-sm font-bold text-amber-600 text-center">{m.suspended}</td>
                   <td className="py-2.5 text-sm font-bold text-emerald-600 text-center">{m.completed}</td>
                   <td className="py-2.5 text-center"><span className={cn("px-1.5 py-0.5 text-[10px] font-black rounded",m.overdue>0?"bg-red-100 text-red-700":"bg-slate-100 text-slate-500")}>{m.overdue}</span></td>
+                  <td className="py-2.5">
+                    <div className="flex flex-col items-center justify-center w-28 mx-auto">
+                      <div className="flex justify-between w-full text-[9px] font-black tracking-widest mb-1">
+                        <span className={m.utilizationPct > 100 ? "text-red-500" : "text-slate-400"}>{m.totalUtilizedPoints.toFixed(1)}</span>
+                        <span className="text-slate-300">/ {m.wipLimit}</span>
+                      </div>
+                      <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
+                        <div 
+                          className={cn("h-full rounded-full transition-all", m.utilizationPct > 100 ? "bg-red-500" : m.utilizationPct > 85 ? "bg-amber-500" : "bg-teal-500")}
+                          style={{ width: `${Math.min(m.utilizationPct, 100)}%` }}
+                        />
+                      </div>
+                    </div>
+                  </td>
                   <td className="py-2.5 text-right">
                     {(() => {
                       const scorePct = m.score * 100;
