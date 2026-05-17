@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ComposedChart, Line } from 'recharts';
-import { TrendingUp, Activity, Users, Package, Filter, Award, AlertTriangle, CheckCircle2, Layers, Clock, Link } from 'lucide-react';
+import { TrendingUp, Activity, Users, Package, Filter, Award, AlertTriangle, CheckCircle2, Layers, Clock, Link, HelpCircle } from 'lucide-react';
 import { ServiceExtension, User, AppConfig } from '../types';
 import { cn } from '../lib/utils';
 import { getThemeClasses } from '../lib/theme';
@@ -57,6 +57,7 @@ export const IMInsightsView: React.FC<IMInsightsViewProps> = ({ extensions=[], u
   const [isCustom, setIsCustom] = useState(false);
   const [customRange, setCustomRange] = useState({ start: '', end: '' });
   const [expandedIM, setExpandedIM] = useState<string|null>(null);
+  const [showApiInfo, setShowApiInfo] = useState(false);
   const theme = getThemeClasses(config.brand.themeColor);
   const today = new Date();
 
@@ -395,7 +396,37 @@ const weightMap = useMemo(() => {
         </div>
 
         <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
-          <div className="flex items-center gap-2 mb-5"><Users className="w-4 h-4 text-teal-600"/><h3 className="text-xs font-black text-slate-900 uppercase tracking-widest">IM Workload & Performance</h3></div>
+          <div className="flex items-center justify-between mb-5">
+            <div className="flex items-center gap-2">
+              <Users className="w-4 h-4 text-teal-600"/>
+              <h3 className="text-xs font-black text-slate-900 uppercase tracking-widest">IM Workload & Performance</h3>
+              <button 
+                onClick={(e) => { e.stopPropagation(); setShowApiInfo(!showApiInfo); }}
+                className="p-1 hover:bg-slate-50 rounded-lg text-slate-400 hover:text-teal-600 transition-colors"
+                title="Learn how Performance & API scoring works"
+              >
+                <HelpCircle className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+
+          {/* API and Performance Scoring Guide Popover */}
+          {showApiInfo && (
+            <div className="mb-5 p-4 bg-slate-50 border border-slate-200 rounded-2xl text-xs space-y-3 animate-in fade-in slide-in-from-top-2 duration-200">
+              <div className="flex items-center justify-between border-b border-slate-200 pb-2">
+                <p className="font-black text-slate-800 uppercase tracking-wider">Performance & API Scoring Guide</p>
+                <button onClick={(e) => { e.stopPropagation(); setShowApiInfo(false); }} className="text-slate-400 hover:text-slate-600 font-bold">×</button>
+              </div>
+              <div className="space-y-2 leading-relaxed text-slate-600">
+                <p>
+                  <strong>📊 Standard Services:</strong> Rated on completed milestones. Active projects count proportionally (e.g. 50% milestones = 50% weight). Past-due dates incur a small score penalty.
+                </p>
+                <p>
+                  <strong>🔌 API Integrations:</strong> Because APIs have open-ended timelines, they <em>never</em> drag down your index! Active APIs contribute at a perfect 1.0 ratio for whatever progress is completed. Effort is fully rewarded without penalizing the manager for the project remaining open.
+                </p>
+              </div>
+            </div>
+          )}
           <table className="w-full text-left">
             <thead><tr className="border-b border-slate-100">{['Manager','Active WIP','Susp.','Comp.','Overdue','Bandwidth Utilization','Performance'].map(h=><th key={h} className="pb-2 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center first:text-left last:text-right">{h}</th>)}</tr></thead>
             <tbody className="divide-y divide-slate-50">
