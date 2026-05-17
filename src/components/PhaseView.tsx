@@ -1740,7 +1740,7 @@ export const PhaseView: React.FC<PhaseViewProps> = ({
                       </div>
                     )}
                   </div>
-                  {isRole(userRole, 'PM') && !project.pendingStoryPointsRequest && (
+                  {(isRole(userRole, 'PM') || hasRole(userRole, ['Superadmin', 'Manager', 'Team Lead'])) && !project.pendingStoryPointsRequest && (
                     <button
                       onClick={() => {
                         const currentPoints = project.storyPoints || packages?.find(p => p.name === project.packageName)?.storyPoints || 3;
