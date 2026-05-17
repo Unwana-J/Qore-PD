@@ -1857,6 +1857,7 @@ export const PhaseView: React.FC<PhaseViewProps> = ({
                 </button>
               </div>
             </form>
+          </div>
         </div>
       )}
       {isStoryPointsModalOpen && (
