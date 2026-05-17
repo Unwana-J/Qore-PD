@@ -1,7 +1,7 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Project, User, PackageConfig, ServiceBaseline } from '../types';
 import { calculatePhaseScores, getServiceNames } from '../lib/utils';
-import { BarChart3, Activity, Briefcase, CheckCircle2, AlertTriangle, Clock } from 'lucide-react';
+import { BarChart3, Activity, Briefcase, CheckCircle2, AlertTriangle, Clock, Pencil, Flame } from 'lucide-react';
 import { cn } from '../lib/utils';
 
 interface ResourceDashboardProps {
@@ -11,6 +11,7 @@ interface ResourceDashboardProps {
   serviceBaselines: ServiceBaseline[];
   onUpdateProject?: (project: Project) => void;
   onShowToast?: (msg: string, type?: 'success' | 'error' | 'info') => void;
+  onUpdateUser?: (userId: string, updates: Partial<User>) => Promise<void>;
 }
 
 export const ResourceDashboard: React.FC<ResourceDashboardProps> = ({
@@ -19,8 +20,27 @@ export const ResourceDashboard: React.FC<ResourceDashboardProps> = ({
   packages,
   serviceBaselines,
   onUpdateProject,
-  onShowToast
+  onShowToast,
+  onUpdateUser
 }) => {
+  const [editingUserId, setEditingUserId] = useState<string | null>(null);
+  const [editWipLimitValue, setEditWipLimitValue] = useState<number>(30);
+  const [isSavingWipLimit, setIsSavingWipLimit] = useState<boolean>(false);
+
+  const handleSaveWipLimit = async (userId: string) => {
+    if (!onUpdateUser) return;
+    setIsSavingWipLimit(true);
+    try {
+      await onUpdateUser(userId, { wipLimit: editWipLimitValue });
+      onShowToast?.("WIP Limit updated successfully!", "success");
+      setEditingUserId(null);
+    } catch (err) {
+      onShowToast?.("Failed to update WIP Limit", "error");
+    } finally {
+      setIsSavingWipLimit(false);
+    }
+  };
+
   const pendingRequests = useMemo(() => {
     return projects.filter(p => p.pendingStoryPointsRequest != null);
   }, [projects]);
@@ -63,6 +83,27 @@ export const ResourceDashboard: React.FC<ResourceDashboardProps> = ({
       const wipLimit = pm.wipLimit || 30; // Default to 30 if not set
       const utilizationPct = (totalUtilizedPoints / wipLimit) * 100;
 
+      // Calculate oldest active project to determine overload duration
+      let oldestActiveProjectDate: Date | null = null;
+      activeProjects.forEach(p => {
+        if (p.startDate) {
+          const date = new Date(p.startDate);
+          if (!isNaN(date.getTime())) {
+            if (!oldestActiveProjectDate || date < oldestActiveProjectDate) {
+              oldestActiveProjectDate = date;
+            }
+          }
+        }
+      });
+
+      let daysOverloaded = 0;
+      if (utilizationPct > 100 && oldestActiveProjectDate) {
+        const diffTime = Math.abs(new Date().getTime() - oldestActiveProjectDate.getTime());
+        daysOverloaded = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      }
+
+      const isBurnedOut = utilizationPct > 100 && daysOverloaded >= 14;
+
       return {
         ...pm,
         initiatedCount,
@@ -72,7 +113,9 @@ export const ResourceDashboard: React.FC<ResourceDashboardProps> = ({
         totalUtilizedPoints,
         wipLimit,
         utilizationPct,
-        activeServiceCounts
+        activeServiceCounts,
+        daysOverloaded,
+        isBurnedOut
       };
     }).sort((a, b) => b.utilizationPct - a.utilizationPct); // Sort by highest utilization
   }, [projects, users, packages, serviceBaselines]);
@@ -212,12 +255,51 @@ export const ResourceDashboard: React.FC<ResourceDashboardProps> = ({
                 <div className="space-y-2">
                   <div className="flex justify-between items-end">
                     <span className="text-xs font-black uppercase tracking-widest text-slate-400">Current Bandwidth</span>
-                    <span className={cn(
-                      "text-sm font-black",
-                      isOverloaded ? "text-rose-600" : (isWarning ? "text-amber-500" : "text-indigo-600")
-                    )}>
-                      {stat.totalUtilizedPoints.toFixed(1)} / {stat.wipLimit} PTS
-                    </span>
+                    <div className="flex items-center gap-1">
+                      <span className={cn(
+                        "text-sm font-black",
+                        isOverloaded ? "text-rose-600" : (isWarning ? "text-amber-500" : "text-indigo-600")
+                      )}>
+                        {stat.totalUtilizedPoints.toFixed(1)} / 
+                      </span>
+                      {editingUserId === stat.id ? (
+                        <div className="flex items-center gap-1">
+                          <input
+                            type="number"
+                            min="1"
+                            disabled={isSavingWipLimit}
+                            className="w-12 px-1 py-0.5 border border-slate-300 rounded text-xs font-bold text-center outline-none focus:ring-1 focus:ring-indigo-500"
+                            value={editWipLimitValue}
+                            onChange={e => setEditWipLimitValue(parseInt(e.target.value) || 0)}
+                            onBlur={() => handleSaveWipLimit(stat.id)}
+                            onKeyDown={e => {
+                              if (e.key === 'Enter') handleSaveWipLimit(stat.id);
+                              if (e.key === 'Escape') setEditingUserId(null);
+                            }}
+                            autoFocus
+                          />
+                          <span className="text-[10px] font-bold text-slate-400">PTS</span>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => {
+                            setEditingUserId(stat.id);
+                            setEditWipLimitValue(stat.wipLimit);
+                          }}
+                          className="group flex items-center gap-0.5 hover:text-indigo-600 transition-colors"
+                          title="Click to adjust WIP Limit"
+                        >
+                          <span className={cn(
+                            "text-sm font-black",
+                            isOverloaded ? "text-rose-600" : (isWarning ? "text-amber-500" : "text-indigo-600")
+                          )}>
+                            {stat.wipLimit}
+                          </span>
+                          <span className="text-[10px] text-slate-400 font-bold">PTS</span>
+                          <Pencil className="w-2.5 h-2.5 text-slate-300 group-hover:text-indigo-500 transition-colors opacity-0 group-hover:opacity-100" />
+                        </button>
+                      )}
+                    </div>
                   </div>
                   <div className="h-3 w-full bg-slate-100 rounded-full overflow-hidden">
                     <div 
@@ -276,6 +358,18 @@ export const ResourceDashboard: React.FC<ResourceDashboardProps> = ({
                           </span>
                         </div>
                       ))}
+                    </div>
+                  </div>
+                )}
+                {/* Burnout Alert Banner */}
+                {stat.isBurnedOut && (
+                  <div className="bg-rose-50 border border-rose-100 rounded-2xl p-3 flex gap-2.5 items-start mt-4 animate-pulse">
+                    <Flame className="w-4.5 h-4.5 text-rose-500 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-[10px] font-black text-rose-700 uppercase tracking-widest leading-none">Severe Burnout Alert</p>
+                      <p className="text-[10px] font-semibold text-rose-600 mt-1 leading-relaxed">
+                        Operating at {stat.utilizationPct.toFixed(0)}% capacity for {stat.daysOverloaded} consecutive days. Immediate offloading recommended.
+                      </p>
                     </div>
                   </div>
                 )}

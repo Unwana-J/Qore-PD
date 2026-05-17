@@ -168,6 +168,16 @@ function AppContent() {
     }
   };
 
+  const updateUser = async (userId: string, updates: Partial<User>) => {
+    try {
+      await api.users.update(userId, updates);
+      setUsers(prev => prev.map(u => u.id === userId ? { ...u, ...updates } : u));
+    } catch (err: any) {
+      notifyError(err.message || 'Failed to update user profile.');
+      throw err;
+    }
+  };
+
   // User Deactivation / Stale 90-Day Logic
   const ninetyDaysAgo = new Date();
   ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
@@ -494,6 +504,7 @@ function AppContent() {
                         serviceBaselines={config.serviceBaselines || []}
                         onUpdateProject={updateProject}
                         onShowToast={(msg, type) => type === 'error' ? notifyError(msg) : type === 'info' ? info(msg) : success(msg)}
+                        onUpdateUser={updateUser}
                       />
                     )}
                     {currentView === 'projects' && (
