@@ -174,16 +174,23 @@ export const IMInsightsView: React.FC<IMInsightsViewProps> = ({ extensions=[], u
     return {started:s, completed:c, suspended:su, rate: s>0?Math.round((c/s)*100):0};
   }, [trends]);
 
-  const weightMap = useMemo(() => {
-    const map: Record<string, number> = {};
-    config.serviceBaselines.forEach(sb => {
-      map[sb.name] = sb.complexityWeight || 1.0;
-      sb.subServices?.forEach(ss => {
-        map[ss.name] = ss.complexityWeight || sb.complexityWeight || 1.0;
-      });
+const getIMStoryPoint = (w: number | undefined | null): number => {
+  if (w == null) return 1;
+  if (w <= 1.2) return 1;
+  if (w <= 2.2) return 2;
+  return 3; // Max 3 for IM services
+};
+
+const weightMap = useMemo(() => {
+  const map: Record<string, number> = {};
+  config.serviceBaselines.forEach(sb => {
+    map[sb.name] = getIMStoryPoint(sb.complexityWeight);
+    sb.subServices?.forEach(ss => {
+      map[ss.name] = getIMStoryPoint(ss.complexityWeight || sb.complexityWeight);
     });
-    return map;
-  }, [config.serviceBaselines]);
+  });
+  return map;
+}, [config.serviceBaselines]);
 
   const wp = useMemo(() => {
     const rows = (ims || []).map(im => {
@@ -203,10 +210,11 @@ export const IMInsightsView: React.FC<IMInsightsViewProps> = ({ extensions=[], u
       let totalUtilizedPoints = 0;
 
       exts.forEach(ext => {
-        // Find most specific weight
+        // Find most specific weight and map it to a max-3 Fibonacci score
         const pkg = config.packages?.find(p => p.name === ext.serviceName || p.name === ext.serviceVariant);
-        const baseWeight = pkg?.storyPoints || weightMap[ext.serviceVariant] || weightMap[ext.serviceName] || 
+        const rawWeight = pkg?.storyPoints || weightMap[ext.serviceVariant] || weightMap[ext.serviceName] || 
                           Object.entries(weightMap).find(([k]) => ext.serviceName.includes(k))?.[1] || 1;
+        const baseWeight = getIMStoryPoint(rawWeight);
         
         let progress = 0;
         if (ext.status === 'Completed') progress = 1;
