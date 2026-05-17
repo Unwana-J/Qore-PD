@@ -32,7 +32,8 @@ import {
   MapPin,
   XCircle,
   Trash2,
-  Trash
+  Trash,
+  Info
 } from 'lucide-react';
 import { PROJECT_STATES } from '../constants';
 import { getThemeClasses } from '../lib/theme';
@@ -182,6 +183,42 @@ export const PhaseView: React.FC<PhaseViewProps> = ({
   const [rebaselineDays, setRebaselineDays] = useState(1);
   const [rebaselineComment, setRebaselineComment] = useState('');
   const [isSubmittingRebaseline, setIsSubmittingRebaseline] = useState(false);
+
+  const [isStoryPointsModalOpen, setIsStoryPointsModalOpen] = useState(false);
+  const [requestedPoints, setRequestedPoints] = useState(0);
+  const [pointsReason, setPointsReason] = useState('');
+  const [isSubmittingPoints, setIsSubmittingPoints] = useState(false);
+
+  const handleStoryPointsRequest = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmittingPoints(true);
+    try {
+      const defaultPoints = packages?.find(p => p.name === project.packageName)?.storyPoints || 0;
+      const currentPoints = project.storyPoints || defaultPoints;
+
+      const request = {
+        requestedPoints,
+        reason: pointsReason,
+        requestedBy: userName || 'Project Manager',
+        requestedAt: new Date().toISOString()
+      };
+      
+      const updatedProject = {
+        ...project,
+        pendingStoryPointsRequest: request
+      };
+      
+      await onUpdateProject(updatedProject);
+      setIsStoryPointsModalOpen(false);
+      setPointsReason('');
+      onShowToast?.("Story point adjustment requested!", "success");
+    } catch (err) {
+      console.error(err);
+      onShowToast?.("Failed to request story point adjustment", "error");
+    } finally {
+      setIsSubmittingPoints(false);
+    }
+  };
 
   // Additional Scope (Service Extensions)
   const [linkedExtensions, setLinkedExtensions] = useState<ServiceExtension[]>([]);
@@ -1688,6 +1725,38 @@ export const PhaseView: React.FC<PhaseViewProps> = ({
                   )}
                 </div>
               </div>
+
+              <div className="col-span-2 border-t border-slate-100 pt-3 mt-1">
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Story Points Weight</p>
+                <div className="flex items-center justify-between">
+                  <div className="flex flex-col">
+                    <p className="text-sm font-semibold text-slate-900">
+                      {project.storyPoints || packages?.find(p => p.name === project.packageName)?.storyPoints || 0} Points
+                    </p>
+                    {project.pendingStoryPointsRequest && (
+                      <div className="flex items-center gap-1.5 mt-1 bg-amber-50 text-amber-700 px-2 py-0.5 rounded-lg border border-amber-200 text-[10px] font-semibold animate-pulse">
+                        <Clock className="w-3 h-3 text-amber-500" />
+                        Pending adjustment: {project.pendingStoryPointsRequest.requestedPoints} PTS
+                      </div>
+                    )}
+                  </div>
+                  {isRole(userRole, 'PM') && !project.pendingStoryPointsRequest && (
+                    <button
+                      onClick={() => {
+                        const currentPoints = project.storyPoints || packages?.find(p => p.name === project.packageName)?.storyPoints || 3;
+                        setRequestedPoints(currentPoints);
+                        setIsStoryPointsModalOpen(true);
+                      }}
+                      className={cn(
+                        "flex items-center gap-1 px-2.5 py-1 bg-slate-50 text-[10px] font-bold rounded-lg hover:bg-slate-100 transition-all border border-slate-200 uppercase tracking-wider",
+                        theme.text
+                      )}
+                    >
+                      Request Change
+                    </button>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
 
@@ -1785,6 +1854,59 @@ export const PhaseView: React.FC<PhaseViewProps> = ({
                 </button>
                 <button type="submit" disabled={isSubmittingRebaseline || !rebaselineComment.trim()} className={cn("flex-1 px-6 py-3 text-white font-bold rounded-2xl transition-all shadow-lg active:scale-95 disabled:opacity-50", theme.bg)}>
                   {isSubmittingRebaseline ? 'Submitting...' : 'Submit Request'}
+                </button>
+              </div>
+            </form>
+        </div>
+      )}
+      {isStoryPointsModalOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+          <div className="bg-white w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
+            <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+              <h2 className="text-xl font-bold text-slate-900">Request Story Point Adjustment</h2>
+              <button onClick={() => setIsStoryPointsModalOpen(false)} className="p-2 hover:bg-slate-200 rounded-full transition-colors">
+                <X className="w-5 h-5 text-slate-500" />
+              </button>
+            </div>
+            <form onSubmit={handleStoryPointsRequest} className="p-6 space-y-6">
+              <div className="p-4 bg-indigo-50 rounded-2xl border border-indigo-100 flex gap-3">
+                <Info className="w-5 h-5 text-indigo-600 flex-shrink-0 mt-0.5" />
+                <div className="text-xs text-indigo-700 leading-relaxed font-medium">
+                  Adjust Story Points if scope is uniquely complex, requires extra customizations, or includes special services. Requests are sent directly to your Manager for review.
+                </div>
+              </div>
+              
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Requested Story Points</label>
+                <select 
+                  className={cn("w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 outline-none font-bold text-sm", theme.ring)}
+                  value={requestedPoints}
+                  onChange={e => setRequestedPoints(parseInt(e.target.value) || 0)}
+                >
+                  {[1, 2, 3, 5, 8, 13, 20, 40, 100].map(pt => (
+                    <option key={pt} value={pt}>{pt} Story Points</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Reason / Justification</label>
+                <textarea 
+                  required
+                  rows={3}
+                  placeholder="Describe why this project requires a customized point assignment..."
+                  className={cn("w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 outline-none text-sm transition-all resize-none", theme.ring)}
+                  value={pointsReason}
+                  onChange={e => setPointsReason(e.target.value)}
+                />
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <button type="button" onClick={() => setIsStoryPointsModalOpen(false)} className="flex-1 px-6 py-3 bg-slate-100 text-slate-600 font-bold rounded-2xl hover:bg-slate-200 transition-colors">
+                  Cancel
+                </button>
+                <button type="submit" disabled={isSubmittingPoints || !pointsReason.trim()} className={cn("flex-1 px-6 py-3 text-white font-bold rounded-2xl transition-all shadow-lg active:scale-95 disabled:opacity-50", theme.bg)}>
+                  {isSubmittingPoints ? 'Submitting...' : 'Submit Request'}
                 </button>
               </div>
             </form>

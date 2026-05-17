@@ -492,6 +492,8 @@ function AppContent() {
                         users={users}
                         packages={config.packages}
                         serviceBaselines={config.serviceBaselines || []}
+                        onUpdateProject={updateProject}
+                        onShowToast={(msg, type) => type === 'error' ? notifyError(msg) : type === 'info' ? info(msg) : success(msg)}
                       />
                     )}
                     {currentView === 'projects' && (

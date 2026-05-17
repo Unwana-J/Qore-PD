@@ -39,6 +39,8 @@ const mapProjectFromDb = (p: any): Project => ({
   externalId: p.external_id,
   implementationManager: p.implementation_manager,
   implementationManagers: p.implementation_managers || (p.implementation_manager ? [p.implementation_manager] : []),
+  storyPoints: p.story_points || 0,
+  pendingStoryPointsRequest: p.pending_story_points_request,
 });
 
 // Helper to map Frontend camelCase to DB snake_case
@@ -76,6 +78,8 @@ const mapProjectToDb = (p: Partial<Project>) => {
   if (p.externalId !== undefined) mapped.external_id = p.externalId;
   if (p.implementationManager !== undefined) mapped.implementation_manager = p.implementationManager;
   if (p.implementationManagers !== undefined) mapped.implementation_managers = p.implementationManagers;
+  if (p.storyPoints !== undefined) mapped.story_points = p.storyPoints;
+  if (p.pendingStoryPointsRequest !== undefined) mapped.pending_story_points_request = p.pendingStoryPointsRequest;
   return mapped;
 };
 
@@ -83,7 +87,7 @@ export const api = {
   supabase,
   projects: {
     getAll: async (): Promise<Project[]> => {
-      const FIELDS = 'id, client_name, package_name, services, product_lines, assigned_pm, start_date, expected_duration, expected_completion_date, current_completion_date, value, currency, state, phases, phase_weights, service_states, pid_signed_off_date, priority, created_at, updated_at, signed_off_at, billed_at, total_active_days, suspension_cycles, is_internal_initiative, delivery_track, rebaseline_requests, comments, risks, activities, milestones, phase_comments, implementation_managers';
+      const FIELDS = 'id, client_name, package_name, services, product_lines, assigned_pm, start_date, expected_duration, expected_completion_date, current_completion_date, value, currency, state, phases, phase_weights, service_states, pid_signed_off_date, priority, created_at, updated_at, signed_off_at, billed_at, total_active_days, suspension_cycles, is_internal_initiative, delivery_track, rebaseline_requests, comments, risks, activities, milestones, phase_comments, implementation_managers, story_points, pending_story_points_request';
       const PAGE_SIZE = 1000;
       let allRows: any[] = [];
       let from = 0;
@@ -116,7 +120,7 @@ export const api = {
     ): Promise<{ data: Project[]; count: number }> => {
       let query = supabase
         .from('projects')
-        .select('id, client_name, package_name, services, product_lines, assigned_pm, start_date, expected_duration, expected_completion_date, current_completion_date, value, currency, state, phases, phase_weights, service_states, pid_signed_off_date, priority, created_at, updated_at, signed_off_at, billed_at, total_active_days, suspension_cycles, is_internal_initiative, delivery_track, rebaseline_requests, implementation_managers', { count: 'exact' });
+        .select('id, client_name, package_name, services, product_lines, assigned_pm, start_date, expected_duration, expected_completion_date, current_completion_date, value, currency, state, phases, phase_weights, service_states, pid_signed_off_date, priority, created_at, updated_at, signed_off_at, billed_at, total_active_days, suspension_cycles, is_internal_initiative, delivery_track, rebaseline_requests, implementation_managers, story_points, pending_story_points_request', { count: 'exact' });
 
       if (filters?.state && filters.state !== 'All') {
         query = query.eq('state', filters.state);

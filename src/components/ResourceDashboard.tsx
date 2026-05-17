@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { Project, User, PackageConfig, ServiceBaseline } from '../types';
 import { calculatePhaseScores, getServiceNames } from '../lib/utils';
-import { BarChart3, Activity, Briefcase, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { BarChart3, Activity, Briefcase, CheckCircle2, AlertTriangle, Clock } from 'lucide-react';
 import { cn } from '../lib/utils';
 
 interface ResourceDashboardProps {
@@ -9,14 +9,22 @@ interface ResourceDashboardProps {
   users: User[];
   packages: PackageConfig[];
   serviceBaselines: ServiceBaseline[];
+  onUpdateProject?: (project: Project) => void;
+  onShowToast?: (msg: string, type?: 'success' | 'error' | 'info') => void;
 }
 
 export const ResourceDashboard: React.FC<ResourceDashboardProps> = ({
   projects,
   users,
   packages,
-  serviceBaselines
+  serviceBaselines,
+  onUpdateProject,
+  onShowToast
 }) => {
+  const pendingRequests = useMemo(() => {
+    return projects.filter(p => p.pendingStoryPointsRequest != null);
+  }, [projects]);
+
   // 1. Group active projects by PM and calculate metrics
   const pmStats = useMemo(() => {
     const pms = users.filter(u => u.role === 'PM' || u.role === 'Team Lead');
@@ -80,6 +88,89 @@ export const ResourceDashboard: React.FC<ResourceDashboardProps> = ({
           Real-time PM utilization and WIP tracking based on Agile Story Points and completion status.
         </p>
       </div>
+
+      {/* Pending Story Point Adjustments queue */}
+      {pendingRequests.length > 0 && (
+        <div className="bg-indigo-50/50 border-2 border-indigo-100 rounded-3xl p-6 space-y-4">
+          <div className="flex justify-between items-center">
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 bg-indigo-500 rounded-full animate-ping" />
+              <h3 className="text-xs font-black text-indigo-900 uppercase tracking-widest">Pending Story Point Adjustments ({pendingRequests.length})</h3>
+            </div>
+            <span className="text-[9px] font-black uppercase text-indigo-500 tracking-wider">Requires Manager Review</span>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {pendingRequests.map(project => {
+              const req = project.pendingStoryPointsRequest!;
+              const defaultPoints = packages.find(p => p.name === project.packageName)?.storyPoints || 0;
+              const currentPoints = project.storyPoints || defaultPoints;
+
+              return (
+                <div key={project.id} className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-between space-y-4">
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <h4 className="font-bold text-slate-900 text-sm truncate max-w-[150px]">{project.clientName}</h4>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{project.packageName || 'Customization'}</p>
+                      </div>
+                      <span className="text-xs font-black bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded-lg border border-indigo-100">
+                        {currentPoints} → {req.requestedPoints} PTS
+                      </span>
+                    </div>
+                    
+                    <div className="bg-slate-50 p-3 rounded-xl border border-slate-100/50">
+                      <p className="text-xs font-semibold text-slate-600 italic line-clamp-3">"{req.reason}"</p>
+                      <p className="text-[9px] font-bold text-slate-400 mt-2 uppercase tracking-wider">
+                        Requested by {req.requestedBy}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-2">
+                    <button
+                      onClick={async () => {
+                        if (!onUpdateProject) return;
+                        try {
+                          const updated = {
+                            ...project,
+                            storyPoints: req.requestedPoints,
+                            pendingStoryPointsRequest: undefined
+                          };
+                          await onUpdateProject(updated);
+                          onShowToast?.("Story points request approved!", "success");
+                        } catch (err) {
+                          onShowToast?.("Failed to approve request", "error");
+                        }
+                      }}
+                      className="flex-1 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-black rounded-xl transition-all shadow-md hover:shadow-lg active:scale-95"
+                    >
+                      Approve
+                    </button>
+                    <button
+                      onClick={async () => {
+                        if (!onUpdateProject) return;
+                        try {
+                          const updated = {
+                            ...project,
+                            pendingStoryPointsRequest: undefined
+                          };
+                          await onUpdateProject(updated);
+                          onShowToast?.("Story points request declined", "info");
+                        } catch (err) {
+                          onShowToast?.("Failed to decline request", "error");
+                        }
+                      }}
+                      className="py-2 px-4 bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-black rounded-xl transition-all"
+                    >
+                      Decline
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
         {pmStats.map(stat => {
