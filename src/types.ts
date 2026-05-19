@@ -70,6 +70,13 @@ export interface ImplementationIssue {
   notes?: string;
 }
 
+export interface GeneralIssueComment {
+  id: string;
+  author: string;
+  text: string;
+  timestamp: string; // ISO string
+}
+
 export interface GeneralIssue {
   id: string;
   description: string;
@@ -83,6 +90,7 @@ export interface GeneralIssue {
   createdAt: string;
   resolvedAt?: string;
   updatedAt: string;
+  comments?: GeneralIssueComment[];
 }
 
 export interface Currency {

@@ -1,4 +1,4 @@
-import { Project, User, AuditLog, AppConfig, DigestData, ServiceExtension, IMilestone, MappingStatus, ServiceSubService, ExtensionRequest, ExtensionHistoryEntry, AssignmentHistoryEntry, SuspensionRequest, ImplementationIssue, DBNotification, ImplementationDigestData, GeneralIssue, ReactivationRequest } from '../types';
+import { Project, User, AuditLog, AppConfig, DigestData, ServiceExtension, IMilestone, MappingStatus, ServiceSubService, ExtensionRequest, ExtensionHistoryEntry, AssignmentHistoryEntry, SuspensionRequest, ImplementationIssue, DBNotification, ImplementationDigestData, GeneralIssue, GeneralIssueComment, ReactivationRequest } from '../types';
 import { MOCK_PROJECTS, MOCK_USERS, MOCK_AUDIT_LOGS, INITIAL_CONFIG } from '../mockData';
 import { supabase } from './supabase';
 
@@ -1425,7 +1425,8 @@ export const api = {
         loggedBy: d.logged_by,
         createdAt: d.created_at,
         resolvedAt: d.resolved_at,
-        updatedAt: d.updated_at
+        updatedAt: d.updated_at,
+        comments: d.comments || []
       }));
     },
     create: async (issue: Partial<GeneralIssue>): Promise<GeneralIssue> => {
@@ -1458,7 +1459,8 @@ export const api = {
         loggedBy: data.logged_by,
         createdAt: data.created_at,
         resolvedAt: data.resolved_at,
-        updatedAt: data.updated_at
+        updatedAt: data.updated_at,
+        comments: data.comments || []
       };
     },
     update: async (id: string, updates: Partial<GeneralIssue>): Promise<GeneralIssue> => {
@@ -1471,6 +1473,7 @@ export const api = {
         affected_extension_ids: updates.affectedExtensionIds,
         notes: updates.notes,
         resolved_at: updates.resolvedAt,
+        comments: updates.comments,
         updated_at: new Date().toISOString()
       };
 
@@ -1497,8 +1500,19 @@ export const api = {
         loggedBy: data.logged_by,
         createdAt: data.created_at,
         resolvedAt: data.resolved_at,
-        updatedAt: data.updated_at
+        updatedAt: data.updated_at,
+        comments: data.comments || []
       };
+    },
+    addComment: async (issueId: string, existingIssue: GeneralIssue, author: string, text: string): Promise<GeneralIssue> => {
+      const newComment: GeneralIssueComment = {
+        id: crypto.randomUUID(),
+        author,
+        text: text.trim(),
+        timestamp: new Date().toISOString()
+      };
+      const updatedComments = [...(existingIssue.comments || []), newComment];
+      return api.generalIssues.update(issueId, { comments: updatedComments });
     },
     delete: async (id: string): Promise<void> => {
       const { error } = await api.supabase

@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { ServiceExtension, ImplementationIssue, GeneralIssue, ServiceState } from '../types';
+import { ServiceExtension, ImplementationIssue, GeneralIssue, GeneralIssueComment, ServiceState } from '../types';
 import { cn } from '../lib/utils';
-import { AlertTriangle, Shield, Clock, CheckCircle, Filter, Search, Users, Calendar, X, ChevronDown, Wrench, Plus, Loader2, Layers, Trash2, Edit3 } from 'lucide-react';
+import { AlertTriangle, Shield, Clock, CheckCircle, Filter, Search, Users, Calendar, X, ChevronDown, Wrench, Plus, Loader2, Layers, Trash2, Edit3, MessageSquare, Send } from 'lucide-react';
 import { format, parseISO, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
 import { api } from '../lib/api';
 
@@ -109,6 +109,11 @@ export const ImplementationIssuesLog: React.FC<ImplementationIssuesLogProps> = (
 
   const [viewingGeneralIssue, setViewingGeneralIssue] = useState<GeneralIssue | null>(null);
   const [updatingGeneral, setUpdatingGeneral] = useState(false);
+
+  // Comment state
+  const [newCommentText, setNewCommentText] = useState('');
+  const [postingComment, setPostingComment] = useState(false);
+  const commentsEndRef = useRef<HTMLDivElement>(null);
 
   const [filterStatuses, setFilterStatuses] = useState<string[]>([]);
   const [filterCategories, setFilterCategories] = useState<string[]>([]);
@@ -322,6 +327,30 @@ export const ImplementationIssuesLog: React.FC<ImplementationIssuesLogProps> = (
       fetchGeneralIssues();
     } finally {
       setUpdatingGeneral(false);
+    }
+  };
+
+  const handleAddComment = async () => {
+    if (!newCommentText.trim() || !viewingGeneralIssue) return;
+    setPostingComment(true);
+    try {
+      const updated = await api.generalIssues.addComment(
+        viewingGeneralIssue.id,
+        viewingGeneralIssue,
+        userName || 'Unknown',
+        newCommentText
+      );
+      // Update both the modal state and the list
+      setViewingGeneralIssue(updated);
+      setGeneralIssues(prev => prev.map(gi => gi.id === updated.id ? updated : gi));
+      setNewCommentText('');
+      // Scroll to newest comment
+      setTimeout(() => commentsEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
+    } catch (err) {
+      console.error('Failed to post comment:', err);
+      onShowToast?.('Failed to post comment.', 'error');
+    } finally {
+      setPostingComment(false);
     }
   };
 
@@ -893,6 +922,94 @@ export const ImplementationIssuesLog: React.FC<ImplementationIssuesLogProps> = (
                   onBlur={() => handleUpdateGeneralIssue(viewingGeneralIssue.id, { notes: viewingGeneralIssue.notes })}
                 />
                 <p className="text-[10px] text-slate-400 font-medium italic px-1">Notes are auto-saved on blur.</p>
+              </div>
+
+              {/* Comments Section */}
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <MessageSquare className="w-3.5 h-3.5 text-slate-400" />
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Comments</label>
+                  {(viewingGeneralIssue.comments?.length || 0) > 0 && (
+                    <span className="ml-auto px-2 py-0.5 bg-slate-100 text-slate-500 rounded-full text-[10px] font-black">
+                      {viewingGeneralIssue.comments!.length}
+                    </span>
+                  )}
+                </div>
+
+                {/* Comment list */}
+                <div className="space-y-3 max-h-52 overflow-y-auto pr-1">
+                  {(!viewingGeneralIssue.comments || viewingGeneralIssue.comments.length === 0) ? (
+                    <div className="flex flex-col items-center py-6 text-slate-300">
+                      <MessageSquare className="w-8 h-8 mb-2" />
+                      <p className="text-xs font-bold">No comments yet. Be the first to add one.</p>
+                    </div>
+                  ) : (
+                    viewingGeneralIssue.comments.map((c: GeneralIssueComment) => {
+                      const isMe = c.author?.trim().toLowerCase() === userName?.trim().toLowerCase();
+                      const initials = c.author?.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase() || '?';
+                      return (
+                        <div key={c.id} className={cn('flex gap-3', isMe && 'flex-row-reverse')}>
+                          {/* Avatar */}
+                          <div className={cn(
+                            'flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-black text-white shadow-sm',
+                            isMe ? 'bg-teal-600' : 'bg-indigo-500'
+                          )}>
+                            {initials}
+                          </div>
+                          {/* Bubble */}
+                          <div className={cn(
+                            'flex-1 max-w-[80%] space-y-1',
+                            isMe && 'items-end flex flex-col'
+                          )}>
+                            <div className={cn(
+                              'flex items-baseline gap-2',
+                              isMe && 'flex-row-reverse'
+                            )}>
+                              <span className="text-[10px] font-black text-slate-700">{c.author}</span>
+                              <span className="text-[9px] text-slate-400" title={format(new Date(c.timestamp), 'dd MMM yyyy HH:mm')}>
+                                {format(new Date(c.timestamp), 'dd MMM, HH:mm')}
+                              </span>
+                            </div>
+                            <div className={cn(
+                              'px-3 py-2 rounded-2xl text-sm font-medium text-slate-700 shadow-sm',
+                              isMe
+                                ? 'bg-teal-50 border border-teal-100 rounded-tr-sm'
+                                : 'bg-slate-50 border border-slate-100 rounded-tl-sm'
+                            )}>
+                              {c.text}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                  <div ref={commentsEndRef} />
+                </div>
+
+                {/* New comment input */}
+                <div className="flex gap-2 pt-2 border-t border-slate-100">
+                  <div className="flex-shrink-0 w-8 h-8 rounded-full bg-teal-600 flex items-center justify-center text-[10px] font-black text-white shadow-sm">
+                    {(userName || 'U').split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
+                  </div>
+                  <div className="flex-1 flex gap-2 items-end">
+                    <textarea
+                      className="flex-1 px-3 py-2 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-medium outline-none focus:ring-4 focus:ring-teal-500/10 focus:border-teal-400 transition-all resize-none"
+                      placeholder="Add a comment or update..."
+                      rows={2}
+                      value={newCommentText}
+                      onChange={e => setNewCommentText(e.target.value)}
+                      onKeyDown={e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) handleAddComment(); }}
+                    />
+                    <button
+                      onClick={handleAddComment}
+                      disabled={postingComment || !newCommentText.trim()}
+                      className="flex-shrink-0 p-2.5 bg-teal-600 text-white rounded-xl hover:bg-teal-700 disabled:opacity-40 transition-all shadow-lg shadow-teal-600/20 flex items-center justify-center"
+                      title="Post comment (Ctrl+Enter)"
+                    >
+                      {postingComment ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
               </div>
 
               {/* History */}
