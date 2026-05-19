@@ -1,4 +1,4 @@
-import { Project, User, AuditLog, AppConfig, DigestData, ServiceExtension, IMilestone, MappingStatus, ServiceSubService, ExtensionRequest, ExtensionHistoryEntry, AssignmentHistoryEntry, SuspensionRequest, ImplementationIssue, DBNotification, ImplementationDigestData, GeneralIssue, GeneralIssueComment, ReactivationRequest } from '../types';
+import { Project, User, AuditLog, AppConfig, DigestData, ServiceExtension, IMilestone, MappingStatus, ServiceSubService, ExtensionRequest, ExtensionHistoryEntry, AssignmentHistoryEntry, SuspensionRequest, ImplementationIssue, DBNotification, ImplementationDigestData, GeneralIssue, GeneralIssueComment, ReactivationRequest, ExtensionDeliverable } from '../types';
 import { MOCK_PROJECTS, MOCK_USERS, MOCK_AUDIT_LOGS, INITIAL_CONFIG } from '../mockData';
 import { supabase } from './supabase';
 
@@ -542,6 +542,7 @@ export const api = {
       targetClosureDate: r.target_closure_date,
       status: r.status,
       milestones: r.milestones || [],
+      deliverables: r.deliverables || [],
       linkedProjectId: r.linked_project_id,
       mappingStatus: r.mapping_status,
       mappingRequestedAt: r.mapping_requested_at,
@@ -572,6 +573,7 @@ export const api = {
       target_closure_date: ext.targetClosureDate,
       status: ext.status,
       milestones: ext.milestones,
+      deliverables: ext.deliverables,
       linked_project_id: ext.linkedProjectId,
       mapping_status: ext.mappingStatus,
       mapping_requested_at: ext.mappingRequestedAt,
@@ -754,6 +756,20 @@ export const api = {
           }
         }
       }
+      return api.serviceExtensions._fromDb(data);
+    },
+
+    updateDeliverables: async (
+      id: string,
+      deliverables: ExtensionDeliverable[],
+    ): Promise<ServiceExtension> => {
+      const { data, error } = await supabase
+        .from('service_extensions')
+        .update({ deliverables })
+        .eq('id', id)
+        .select()
+        .single();
+      if (error) throw error;
       return api.serviceExtensions._fromDb(data);
     },
 
@@ -1091,7 +1107,8 @@ export const api = {
       serviceVariant: string,
       subServiceId: string | null,
       baselineDays: number,
-      milestones: IMilestone[]
+      milestones: IMilestone[],
+      deliverables: ExtensionDeliverable[]
     ): Promise<ServiceExtension> => {
       const { data, error } = await supabase
         .from('service_extensions')
@@ -1103,6 +1120,7 @@ export const api = {
           sub_service_id: subServiceId,
           baseline_days: baselineDays,
           milestones: milestones,
+          deliverables: deliverables,
           updated_at: new Date().toISOString()
         })
         .eq('id', id)

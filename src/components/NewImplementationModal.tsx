@@ -46,6 +46,7 @@ export const NewImplementationModal: React.FC<NewImplementationModalProps> = ({
   const hasSubServices = (selectedService?.subServices?.length ?? 0) > 0;
   const effectiveBaseline = selectedSubService?.baselineDays ?? selectedService?.baselineDays ?? 0;
   const effectiveMilestones: string[] = (selectedSubService?.milestones?.length ? selectedSubService.milestones : selectedService?.milestones) ?? [];
+  const effectiveDeliverables: string[] = selectedSubService?.deliverables ?? selectedService?.deliverables ?? [];
 
   // Auto-suggest target date when sub-service/service is selected
   const suggestDate = (baselineDays: number, fromDate: string = startDate) => {
@@ -56,11 +57,10 @@ export const NewImplementationModal: React.FC<NewImplementationModalProps> = ({
   const handleServiceSelect = (service: ServiceBaseline) => {
     setSelectedService(service);
     setSelectedSubService(null);
-    // Auto-suggest if no sub-services
     if (!service.subServices?.length) {
       suggestDate(service.baselineDays);
-      // Default: all top-level milestones selected
-      setSelectedDeliverables(service.milestones ?? []);
+      // Default: all top-level deliverables selected
+      setSelectedDeliverables(service.deliverables ?? []);
     } else {
       setSelectedDeliverables([]);
     }
@@ -69,9 +69,8 @@ export const NewImplementationModal: React.FC<NewImplementationModalProps> = ({
   const handleSubServiceSelect = (ss: ServiceSubService) => {
     setSelectedSubService(ss);
     suggestDate(ss.baselineDays);
-    // Default: all sub-service milestones selected
-    const pool = ss.milestones?.length ? ss.milestones : (selectedService?.milestones ?? []);
-    setSelectedDeliverables(pool);
+    // Default: all sub-service deliverables selected
+    setSelectedDeliverables(ss.deliverables ?? selectedService?.deliverables ?? []);
   };
 
   const toggleDeliverable = (name: string) => {
@@ -107,8 +106,16 @@ export const NewImplementationModal: React.FC<NewImplementationModalProps> = ({
     setLoading(true);
     setError(null);
     try {
-      const milestones = selectedDeliverables.map(m => ({
+      // All milestones (execution steps) are always added
+      const milestones = effectiveMilestones.map(m => ({
         name: m,
+        completed: false,
+        completedAt: null,
+        completedBy: null,
+      }));
+      // Only selected deliverables are added
+      const deliverables = selectedDeliverables.map(d => ({
+        name: d,
         completed: false,
         completedAt: null,
         completedBy: null,
@@ -126,6 +133,7 @@ export const NewImplementationModal: React.FC<NewImplementationModalProps> = ({
         targetClosureDate: targetDate,
         status: 'Not Started',
         milestones,
+        deliverables,
         linkedProjectId: null,
         mappingStatus: 'None',
         mappingRequestedAt: null,
@@ -279,20 +287,20 @@ export const NewImplementationModal: React.FC<NewImplementationModalProps> = ({
                   </div>
                 )}
 
-                {/* Deliverables Picker — shown when milestones are available */}
-                {effectiveMilestones.length > 0 && (selectedSubService || (selectedService && !hasSubServices)) && (
+                {/* Deliverables Picker — shown when deliverables pool is configured */}
+                {effectiveDeliverables.length > 0 && (selectedSubService || (selectedService && !hasSubServices)) && (
                   <div className="space-y-3 animate-in fade-in slide-in-from-top-2 duration-200">
                     <div className="flex items-center justify-between">
                       <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">
                         Deliverables
                         <span className="ml-2 px-1.5 py-0.5 bg-teal-50 text-teal-700 border border-teal-200 rounded-md text-[9px]">
-                          {selectedDeliverables.length} / {effectiveMilestones.length} selected
+                          {selectedDeliverables.length} / {effectiveDeliverables.length} selected
                         </span>
                       </label>
                       <div className="flex gap-2">
                         <button
                           type="button"
-                          onClick={() => setSelectedDeliverables(effectiveMilestones)}
+                          onClick={() => setSelectedDeliverables(effectiveDeliverables)}
                           className="text-[10px] font-black uppercase tracking-widest text-teal-600 hover:text-teal-700 transition-colors"
                         >
                           All
@@ -308,7 +316,7 @@ export const NewImplementationModal: React.FC<NewImplementationModalProps> = ({
                       </div>
                     </div>
                     <div className="flex flex-wrap gap-2 p-4 bg-slate-50 border border-slate-100 rounded-2xl min-h-[56px]">
-                      {effectiveMilestones.map(deliverable => {
+                      {effectiveDeliverables.map(deliverable => {
                         const isSelected = selectedDeliverables.includes(deliverable);
                         return (
                           <button
@@ -329,7 +337,7 @@ export const NewImplementationModal: React.FC<NewImplementationModalProps> = ({
                     </div>
                     {selectedDeliverables.length === 0 && (
                       <p className="text-[10px] text-amber-600 font-bold px-1">
-                        ⚠ No deliverables selected — the implementation will have no trackable milestones.
+                        ⚠ No deliverables selected — implementation will have no trackable deliverables.
                       </p>
                     )}
                   </div>

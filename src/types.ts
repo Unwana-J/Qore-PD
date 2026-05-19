@@ -241,12 +241,20 @@ export interface ProductLineConfig {
   services: string[]; // service IDs
 }
 
+export interface ExtensionDeliverable {
+  name: string;
+  completed: boolean;
+  completedAt: string | null;
+  completedBy: string | null;
+}
+
 export interface ServiceSubService {
   id: string;
   name: string;
   baselineDays: number;
   complexityWeight?: number; // default 1.0
-  milestones?: string[];     // specific milestones for this sub-service
+  milestones?: string[];     // execution steps for this sub-service
+  deliverables?: string[];   // client-facing deliverable pool
 }
 
 export interface ServiceBaseline {
@@ -255,6 +263,7 @@ export interface ServiceBaseline {
   baselineDays: number;        // parent-level fallback duration
   complexityWeight?: number;   // parent-level fallback weight
   milestones?: string[];       // parent-level milestone steps (used when no sub-service)
+  deliverables?: string[];     // parent-level deliverable pool
   subServices?: ServiceSubService[]; // per-gateway / per-sub-service config
   /** @deprecated Use subServices instead */
   variants?: string[];
@@ -349,6 +358,7 @@ export interface ServiceExtension {
   baselineDays: number;         // locked at creation from sub-service or parent
   status: ExtensionStatus;
   milestones: IMilestone[];
+  deliverables: ExtensionDeliverable[];
   // Mapping
   linkedProjectId: string | null;
   mappingStatus: MappingStatus;

@@ -6,7 +6,7 @@ import {
   RefreshCw, Briefcase, Check, Shield, AlertTriangle, Plus,
   Pencil, Trash2, Edit2
 } from 'lucide-react';
-import { ServiceExtension, IMilestone, AppConfig, User, ImplementationIssue, ServiceBaseline, ServiceSubService, Project } from '../types';
+import { ServiceExtension, IMilestone, AppConfig, User, ImplementationIssue, ServiceBaseline, ServiceSubService, Project, ExtensionDeliverable } from '../types';
 import { api } from '../lib/api';
 import { cn, isRole, calculateWorkingDays } from '../lib/utils';
 import { MapToProjectModal } from './MapToProjectModal';
@@ -29,6 +29,7 @@ export const ManageImplementationModal: React.FC<ManageImplementationModalProps>
   extension, isOpen, onClose, onUpdated, userRole, userName, config, onShowToast, onViewProject, projects = []
 }) => {
   const [milestones, setMilestones] = useState<IMilestone[]>(extension.milestones);
+  const [deliverables, setDeliverables] = useState<ExtensionDeliverable[]>(extension.deliverables || []);
   const [saving, setSaving] = useState(false);
   const [showMapModal, setShowMapModal] = useState(false);
   const [unmapping, setUnmapping] = useState(false);
@@ -127,6 +128,13 @@ export const ManageImplementationModal: React.FC<ManageImplementationModalProps>
     if (isLead && isOpen) loadUsers();
   }, [isLead, isOpen]);
 
+  React.useEffect(() => {
+    if (isOpen) {
+      setMilestones(extension.milestones);
+      setDeliverables(extension.deliverables || []);
+    }
+  }, [isOpen, extension.milestones, extension.deliverables]);
+
   const toggleMilestone = async (idx: number) => {
     if (isSuspended) {
       onShowToast('This implementation is suspended.', 'error');
@@ -162,6 +170,38 @@ export const ManageImplementationModal: React.FC<ManageImplementationModalProps>
     } catch (err: any) {
       onShowToast(err.message, 'error');
       setMilestones(extension.milestones);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const toggleDeliverable = async (idx: number) => {
+    if (isSuspended) {
+      onShowToast('This implementation is suspended.', 'error');
+      return;
+    }
+    const updated = deliverables.map((d, i) => {
+      if (i !== idx) return d;
+      return {
+        ...d,
+        completed: !d.completed,
+        completedAt: !d.completed ? new Date().toISOString() : null,
+        completedBy: !d.completed ? userName : null,
+      };
+    });
+    setDeliverables(updated);
+
+    setSaving(true);
+    try {
+      const result = await api.serviceExtensions.updateDeliverables(
+        extension.id,
+        updated,
+      );
+      onUpdated(result);
+      onShowToast('Deliverable status updated.');
+    } catch (err: any) {
+      onShowToast(err.message, 'error');
+      setDeliverables(extension.deliverables || []);
     } finally {
       setSaving(false);
     }
@@ -334,6 +374,7 @@ export const ManageImplementationModal: React.FC<ManageImplementationModalProps>
 
       const effectiveBaseline = tempSelectedSubService?.baselineDays ?? tempSelectedService.baselineDays;
       const effectiveMilestones: string[] = (tempSelectedSubService?.milestones?.length ? tempSelectedSubService.milestones : tempSelectedService.milestones) ?? [];
+      const effectiveDeliverables: string[] = (tempSelectedSubService?.deliverables?.length ? tempSelectedSubService.deliverables : tempSelectedService.deliverables) ?? [];
 
       const existingMilestonesMap = extension.milestones.reduce((acc, m) => {
         acc[m.name] = m;
@@ -352,6 +393,23 @@ export const ManageImplementationModal: React.FC<ManageImplementationModalProps>
         };
       });
 
+      const existingDeliverablesMap = (extension.deliverables || []).reduce((acc, d) => {
+        acc[d.name] = d;
+        return acc;
+      }, {} as Record<string, ExtensionDeliverable>);
+
+      const newDeliverables = effectiveDeliverables.map(d => {
+        if (existingDeliverablesMap[d]) {
+          return existingDeliverablesMap[d];
+        }
+        return {
+          name: d,
+          completed: false,
+          completedAt: null,
+          completedBy: null,
+        };
+      });
+
       const updated = await api.serviceExtensions.updateDetails(
         extension.id,
         tempClientName.trim(),
@@ -360,10 +418,12 @@ export const ManageImplementationModal: React.FC<ManageImplementationModalProps>
         variantName,
         tempSelectedSubService?.id ?? null,
         effectiveBaseline,
-        newMilestones
+        newMilestones,
+        newDeliverables
       );
       onUpdated(updated);
       setMilestones(updated.milestones);
+      setDeliverables(updated.deliverables);
       onShowToast('Implementation details updated.');
       setIsEditingHeader(false);
     } catch (err: any) {
@@ -935,48 +995,97 @@ export const ManageImplementationModal: React.FC<ManageImplementationModalProps>
                 </div>
               )}
 
-              <div className="px-8 pb-6 space-y-2">
-                {milestones.length === 0 ? (
-                  <div className="py-8 text-center text-slate-400">
-                    <Circle className="w-10 h-10 mx-auto mb-3 opacity-20" />
-                    <p className="font-bold text-sm">No milestones defined for this service.</p>
-                    <p className="text-xs mt-1">Configure milestones in Settings → Packages & Services.</p>
-                  </div>
-                ) : (
-                  milestones.map((m, idx) => (
-                    <button
-                      key={idx}
-                      onClick={() => toggleMilestone(idx)}
-                      disabled={saving || isSuspended}
-                      className={cn(
-                        "w-full flex items-center gap-4 p-4 rounded-2xl border text-left transition-all group",
-                        m.completed
-                          ? "bg-emerald-50/50 border-emerald-200"
-                          : "bg-white border-slate-200 hover:border-teal-300 hover:bg-teal-50/20",
-                        isSuspended && "opacity-60 cursor-not-allowed",
-                      )}
-                    >
-                      {m.completed
-                        ? <CheckCircle2 className="w-5 h-5 text-emerald-500 flex-shrink-0" />
-                        : <Circle className="w-5 h-5 text-slate-300 flex-shrink-0 group-hover:text-teal-400 transition-colors" />
-                      }
-                      <div className="flex-1 min-w-0">
-                        <span className={cn(
-                          "text-sm font-bold block truncate",
-                          m.completed ? "text-emerald-700 line-through" : "text-slate-700"
-                        )}>{m.name}</span>
-                        {m.completed && m.completedAt && (
-                          <span className="text-[10px] font-bold text-emerald-500 block mt-0.5">
-                            Completed by {m.completedBy} · {new Date(m.completedAt).toLocaleDateString()}
-                          </span>
+              {/* Milestones / Steps */}
+              <div className="px-8 pb-4">
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-3">Implementation Steps</span>
+                <div className="space-y-2">
+                  {milestones.length === 0 ? (
+                    <div className="py-4 text-center text-slate-400 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                      <Circle className="w-8 h-8 mx-auto mb-2 opacity-20" />
+                      <p className="font-bold text-xs">No milestones defined for this service.</p>
+                    </div>
+                  ) : (
+                    milestones.map((m, idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => toggleMilestone(idx)}
+                        disabled={saving || isSuspended}
+                        className={cn(
+                          "w-full flex items-center gap-4 p-4 rounded-2xl border text-left transition-all group",
+                          m.completed
+                            ? "bg-emerald-50/50 border-emerald-200"
+                            : "bg-white border-slate-200 hover:border-teal-300 hover:bg-teal-50/20",
+                          isSuspended && "opacity-60 cursor-not-allowed",
                         )}
-                      </div>
-                      {saving && idx === milestones.findIndex((_, i) => i === idx) && (
-                        <Loader2 className="w-4 h-4 animate-spin text-slate-400 flex-shrink-0" />
-                      )}
-                    </button>
-                  ))
-                )}
+                      >
+                        {m.completed
+                          ? <CheckCircle2 className="w-5 h-5 text-emerald-500 flex-shrink-0" />
+                          : <Circle className="w-5 h-5 text-slate-300 flex-shrink-0 group-hover:text-teal-400 transition-colors" />
+                        }
+                        <div className="flex-1 min-w-0">
+                          <span className={cn(
+                            "text-sm font-bold block truncate",
+                            m.completed ? "text-emerald-700 line-through" : "text-slate-700"
+                          )}>{m.name}</span>
+                          {m.completed && m.completedAt && (
+                            <span className="text-[10px] font-bold text-emerald-500 block mt-0.5">
+                              Completed by {m.completedBy} · {new Date(m.completedAt).toLocaleDateString()}
+                            </span>
+                          )}
+                        </div>
+                        {saving && idx === milestones.findIndex((_, i) => i === idx) && (
+                          <Loader2 className="w-4 h-4 animate-spin text-slate-400 flex-shrink-0" />
+                        )}
+                      </button>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              {/* Deliverables Section */}
+              <div className="px-8 pb-6 border-t border-slate-100 pt-6">
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-3">Client-Facing Deliverables</span>
+                <div className="space-y-2">
+                  {deliverables.length === 0 ? (
+                    <div className="py-8 text-center text-slate-400 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                      <p className="font-bold text-xs">No deliverables selected for this client.</p>
+                    </div>
+                  ) : (
+                    deliverables.map((d, idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => toggleDeliverable(idx)}
+                        disabled={saving || isSuspended}
+                        className={cn(
+                          "w-full flex items-center gap-4 p-4 rounded-2xl border text-left transition-all group",
+                          d.completed
+                            ? "bg-emerald-50/50 border-emerald-200"
+                            : "bg-white border-slate-200 hover:border-teal-300 hover:bg-teal-50/20",
+                          isSuspended && "opacity-60 cursor-not-allowed",
+                        )}
+                      >
+                        {d.completed
+                          ? <CheckCircle2 className="w-5 h-5 text-emerald-500 flex-shrink-0" />
+                          : <Circle className="w-5 h-5 text-slate-300 flex-shrink-0 group-hover:text-teal-400 transition-colors" />
+                        }
+                        <div className="flex-1 min-w-0">
+                          <span className={cn(
+                            "text-sm font-bold block truncate",
+                            d.completed ? "text-emerald-700 line-through" : "text-slate-700"
+                          )}>{d.name}</span>
+                          {d.completed && d.completedAt && (
+                            <span className="text-[10px] font-bold text-emerald-500 block mt-0.5">
+                              Completed by {d.completedBy} · {new Date(d.completedAt).toLocaleDateString()}
+                            </span>
+                          )}
+                        </div>
+                        {saving && idx === deliverables.findIndex((_, i) => i === idx) && (
+                          <Loader2 className="w-4 h-4 animate-spin text-slate-400 flex-shrink-0" />
+                        )}
+                      </button>
+                    ))
+                  )}
+                </div>
               </div>
 
               <div className="mx-8 mb-8 p-6 bg-slate-50 rounded-2xl border border-slate-100 space-y-4">

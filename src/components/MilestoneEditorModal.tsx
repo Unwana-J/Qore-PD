@@ -5,9 +5,12 @@ import { cn } from '../lib/utils';
 interface MilestoneEditorModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (milestones: string[]) => void;
-  initialMilestones: string[];
+  onSave: (items: string[]) => void;
+  initialMilestones: string[]; // Keep the prop name for compatibility
   serviceName: string;
+  title?: string;
+  label?: string;
+  placeholder?: string;
 }
 
 export const MilestoneEditorModal: React.FC<MilestoneEditorModalProps> = ({
@@ -15,7 +18,10 @@ export const MilestoneEditorModal: React.FC<MilestoneEditorModalProps> = ({
   onClose,
   onSave,
   initialMilestones,
-  serviceName
+  serviceName,
+  title = "Configure Milestones",
+  label = "Implementation Steps",
+  placeholder = "e.g. Technical Setup"
 }) => {
   const [milestones, setMilestones] = useState<string[]>(initialMilestones.length > 0 ? initialMilestones : ['']);
 
@@ -50,7 +56,7 @@ export const MilestoneEditorModal: React.FC<MilestoneEditorModalProps> = ({
               <CheckCircle2 className="w-5 h-5 text-teal-600" />
             </div>
             <div>
-              <h3 className="text-lg font-black text-slate-900 tracking-tight">Configure Milestones</h3>
+              <h3 className="text-lg font-black text-slate-900 tracking-tight">{title}</h3>
               <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">{serviceName}</p>
             </div>
           </div>
@@ -60,7 +66,7 @@ export const MilestoneEditorModal: React.FC<MilestoneEditorModalProps> = ({
         </div>
 
         <div className="p-6 max-h-[60vh] overflow-y-auto space-y-3 custom-scrollbar">
-          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Implementation Steps</p>
+          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">{label}</p>
           
           {milestones.map((m, i) => (
             <div key={i} className="flex gap-2 group">
@@ -71,7 +77,7 @@ export const MilestoneEditorModal: React.FC<MilestoneEditorModalProps> = ({
                 <input
                   autoFocus={i === milestones.length - 1 && m === ''}
                   className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold text-slate-700 outline-none focus:ring-4 focus:ring-teal-500/10 focus:border-teal-500 transition-all"
-                  placeholder="e.g. Technical Setup"
+                  placeholder={placeholder}
                   value={m}
                   onChange={e => handleChange(i, e.target.value)}
                   onKeyDown={e => e.key === 'Enter' && handleAdd()}
@@ -91,7 +97,7 @@ export const MilestoneEditorModal: React.FC<MilestoneEditorModalProps> = ({
             className="w-full py-4 border-2 border-dashed border-slate-200 rounded-2xl flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:border-teal-500/30 hover:text-teal-600 hover:bg-teal-50/50 transition-all group"
           >
             <Plus className="w-4 h-4 transition-transform group-hover:scale-125" />
-            Add Milestone
+            Add Item
           </button>
         </div>
 
