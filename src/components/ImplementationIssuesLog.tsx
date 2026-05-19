@@ -823,14 +823,23 @@ export const ImplementationIssuesLog: React.FC<ImplementationIssuesLogProps> = (
       {viewingGeneralIssue && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-white w-full max-w-xl rounded-[2.5rem] shadow-2xl shadow-slate-900/40 overflow-hidden animate-in zoom-in-95 duration-200 border border-slate-200/50">
-            {/* Modal Header */}
             <div className="px-8 pt-8 pb-4 flex justify-between items-start">
               <div className="space-y-1">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 bg-indigo-50 rounded-2xl flex items-center justify-center">
                     <Layers className="w-5 h-5 text-indigo-600" />
                   </div>
-                  <h3 className="text-xl font-black text-slate-900 tracking-tight">General Issue Details</h3>
+                  <div>
+                    <h3 className="text-xl font-black text-slate-900 tracking-tight">General Issue Details</h3>
+                    {(() => {
+                      const isOwner = viewingGeneralIssue.loggedBy?.trim().toLowerCase() === userName?.trim().toLowerCase();
+                      return isOwner && !isLead ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-teal-50 border border-teal-200 text-teal-700 rounded-lg text-[9px] font-black uppercase tracking-widest mt-0.5">
+                          <Edit3 className="w-2.5 h-2.5" /> Your Issue
+                        </span>
+                      ) : null;
+                    })()}
+                  </div>
                 </div>
                 <p className="text-xs font-medium text-slate-400 ml-13">View and update service-level issues.</p>
               </div>
@@ -843,18 +852,29 @@ export const ImplementationIssuesLog: React.FC<ImplementationIssuesLogProps> = (
             </div>
 
             <div className="px-8 py-6 space-y-6 overflow-y-auto max-h-[70vh]">
-              {/* Description (Editable) */}
-              <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Issue Description</label>
-                <textarea
-                  className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold text-slate-800 leading-relaxed outline-none focus:ring-4 focus:ring-teal-500/10 focus:border-teal-400 transition-all resize-none"
-                  rows={3}
-                  value={viewingGeneralIssue.description}
-                  onChange={e => setViewingGeneralIssue({ ...viewingGeneralIssue, description: e.target.value })}
-                  onBlur={() => handleUpdateGeneralIssue(viewingGeneralIssue.id, { description: viewingGeneralIssue.description })}
-                />
-                <p className="text-[10px] text-slate-400 font-medium italic px-1">Description auto-saves on blur.</p>
-              </div>
+              {/* Description */}
+              {(() => {
+                const canEdit = isLead || viewingGeneralIssue.loggedBy?.trim().toLowerCase() === userName?.trim().toLowerCase();
+                return (
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Issue Description</label>
+                    <textarea
+                      className={cn(
+                        "w-full px-4 py-3 border rounded-2xl text-sm font-bold text-slate-800 leading-relaxed outline-none transition-all resize-none",
+                        canEdit
+                          ? "bg-slate-50 border-slate-100 focus:ring-4 focus:ring-teal-500/10 focus:border-teal-400"
+                          : "bg-slate-50/50 border-slate-100 text-slate-600 cursor-default"
+                      )}
+                      rows={3}
+                      readOnly={!canEdit}
+                      value={viewingGeneralIssue.description}
+                      onChange={canEdit ? e => setViewingGeneralIssue({ ...viewingGeneralIssue, description: e.target.value }) : undefined}
+                      onBlur={canEdit ? () => handleUpdateGeneralIssue(viewingGeneralIssue.id, { description: viewingGeneralIssue.description }) : undefined}
+                    />
+                    {canEdit && <p className="text-[10px] text-slate-400 font-medium italic px-1">Description auto-saves on blur.</p>}
+                  </div>
+                );
+              })()}
 
               {/* Status Update (Full width to avoid overlap) */}
               <div className="space-y-2">
@@ -910,19 +930,30 @@ export const ImplementationIssuesLog: React.FC<ImplementationIssuesLogProps> = (
                 </div>
               </div>
 
-              {/* Notes (Editable) */}
-              <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Resolution / Workaround</label>
-                <textarea
-                  className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-medium outline-none focus:ring-4 focus:ring-teal-500/10 focus:border-teal-400 transition-all resize-none"
-                  placeholder="Notes on resolution or current workaround..."
-                  rows={4}
-                  value={viewingGeneralIssue.notes || ''}
-                  onChange={e => setViewingGeneralIssue({ ...viewingGeneralIssue, notes: e.target.value })}
-                  onBlur={() => handleUpdateGeneralIssue(viewingGeneralIssue.id, { notes: viewingGeneralIssue.notes })}
-                />
-                <p className="text-[10px] text-slate-400 font-medium italic px-1">Notes are auto-saved on blur.</p>
-              </div>
+              {/* Notes */}
+              {(() => {
+                const canEdit = isLead || viewingGeneralIssue.loggedBy?.trim().toLowerCase() === userName?.trim().toLowerCase();
+                return (
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Resolution / Workaround</label>
+                    <textarea
+                      className={cn(
+                        "w-full px-4 py-3 border rounded-2xl text-sm font-medium outline-none transition-all resize-none",
+                        canEdit
+                          ? "bg-slate-50 border-slate-100 focus:ring-4 focus:ring-teal-500/10 focus:border-teal-400"
+                          : "bg-slate-50/50 border-slate-100 text-slate-500 cursor-default"
+                      )}
+                      placeholder={canEdit ? "Notes on resolution or current workaround..." : "No resolution notes added yet."}
+                      rows={4}
+                      readOnly={!canEdit}
+                      value={viewingGeneralIssue.notes || ''}
+                      onChange={canEdit ? e => setViewingGeneralIssue({ ...viewingGeneralIssue, notes: e.target.value }) : undefined}
+                      onBlur={canEdit ? () => handleUpdateGeneralIssue(viewingGeneralIssue.id, { notes: viewingGeneralIssue.notes }) : undefined}
+                    />
+                    {canEdit && <p className="text-[10px] text-slate-400 font-medium italic px-1">Notes are auto-saved on blur.</p>}
+                  </div>
+                );
+              })()}
 
               {/* Comments Section */}
               <div className="space-y-3">
@@ -1024,7 +1055,7 @@ export const ImplementationIssuesLog: React.FC<ImplementationIssuesLogProps> = (
                     {format(parseISO(viewingGeneralIssue.createdAt), 'dd MMM yyyy HH:mm')}
                   </span>
                 </div>
-                {isLead && (
+                {(isLead || viewingGeneralIssue.loggedBy?.trim().toLowerCase() === userName?.trim().toLowerCase()) && (
                   <button 
                     onClick={() => handleDeleteGeneralIssue(viewingGeneralIssue.id)}
                     className="text-rose-400 hover:text-rose-600 transition-colors flex items-center gap-1.5"
