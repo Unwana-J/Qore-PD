@@ -29,6 +29,7 @@ export const NewImplementationModal: React.FC<NewImplementationModalProps> = ({
   const [selectedService, setSelectedService] = useState<ServiceBaseline | null>(null);
   const [selectedSubService, setSelectedSubService] = useState<ServiceSubService | null>(null);
   const [implementationManager, setImplementationManager] = useState(userName);
+  const [selectedDeliverables, setSelectedDeliverables] = useState<string[]>([]);
 
   const isLead = userRole === 'IM Lead' || userRole === 'Superadmin' || userRole === 'Manager';
   const availableIMs = React.useMemo(() => {
@@ -58,12 +59,25 @@ export const NewImplementationModal: React.FC<NewImplementationModalProps> = ({
     // Auto-suggest if no sub-services
     if (!service.subServices?.length) {
       suggestDate(service.baselineDays);
+      // Default: all top-level milestones selected
+      setSelectedDeliverables(service.milestones ?? []);
+    } else {
+      setSelectedDeliverables([]);
     }
   };
 
   const handleSubServiceSelect = (ss: ServiceSubService) => {
     setSelectedSubService(ss);
     suggestDate(ss.baselineDays);
+    // Default: all sub-service milestones selected
+    const pool = ss.milestones?.length ? ss.milestones : (selectedService?.milestones ?? []);
+    setSelectedDeliverables(pool);
+  };
+
+  const toggleDeliverable = (name: string) => {
+    setSelectedDeliverables(prev =>
+      prev.includes(name) ? prev.filter(d => d !== name) : [...prev, name]
+    );
   };
 
   const handleNext = async () => {
@@ -93,7 +107,7 @@ export const NewImplementationModal: React.FC<NewImplementationModalProps> = ({
     setLoading(true);
     setError(null);
     try {
-      const milestones = effectiveMilestones.map(m => ({
+      const milestones = selectedDeliverables.map(m => ({
         name: m,
         completed: false,
         completedAt: null,
@@ -265,6 +279,62 @@ export const NewImplementationModal: React.FC<NewImplementationModalProps> = ({
                   </div>
                 )}
 
+                {/* Deliverables Picker — shown when milestones are available */}
+                {effectiveMilestones.length > 0 && (selectedSubService || (selectedService && !hasSubServices)) && (
+                  <div className="space-y-3 animate-in fade-in slide-in-from-top-2 duration-200">
+                    <div className="flex items-center justify-between">
+                      <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">
+                        Deliverables
+                        <span className="ml-2 px-1.5 py-0.5 bg-teal-50 text-teal-700 border border-teal-200 rounded-md text-[9px]">
+                          {selectedDeliverables.length} / {effectiveMilestones.length} selected
+                        </span>
+                      </label>
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setSelectedDeliverables(effectiveMilestones)}
+                          className="text-[10px] font-black uppercase tracking-widest text-teal-600 hover:text-teal-700 transition-colors"
+                        >
+                          All
+                        </button>
+                        <span className="text-slate-200">|</span>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedDeliverables([])}
+                          className="text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-slate-600 transition-colors"
+                        >
+                          None
+                        </button>
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap gap-2 p-4 bg-slate-50 border border-slate-100 rounded-2xl min-h-[56px]">
+                      {effectiveMilestones.map(deliverable => {
+                        const isSelected = selectedDeliverables.includes(deliverable);
+                        return (
+                          <button
+                            key={deliverable}
+                            type="button"
+                            onClick={() => toggleDeliverable(deliverable)}
+                            className={cn(
+                              'px-3 py-1.5 rounded-xl text-xs font-black border transition-all',
+                              isSelected
+                                ? 'bg-teal-600 border-teal-600 text-white shadow-sm shadow-teal-600/20'
+                                : 'bg-white border-slate-200 text-slate-400 hover:border-slate-300 hover:text-slate-600'
+                            )}
+                          >
+                            {isSelected && <span className="mr-1">✓</span>}{deliverable}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {selectedDeliverables.length === 0 && (
+                      <p className="text-[10px] text-amber-600 font-bold px-1">
+                        ⚠ No deliverables selected — the implementation will have no trackable milestones.
+                      </p>
+                    )}
+                  </div>
+                )}
+
                 {/* IM Selection for Leads/Managers */}
                 {isLead && (
                   <div className="space-y-2 animate-in fade-in">
@@ -292,7 +362,7 @@ export const NewImplementationModal: React.FC<NewImplementationModalProps> = ({
                     {selectedSubService ? ` — ${selectedSubService.name}` : ''}
                   </p>
                   <p className="text-xs text-teal-600 font-medium">
-                    {effectiveBaseline} working day baseline · {effectiveMilestones.length} milestones
+                    {effectiveBaseline} working day baseline · {selectedDeliverables.length} deliverable{selectedDeliverables.length !== 1 ? 's' : ''} selected
                   </p>
                   <button onClick={() => setStep(1)} className="text-[10px] font-black uppercase tracking-widest text-teal-500 hover:text-teal-700 underline mt-1">Edit</button>
                 </div>
