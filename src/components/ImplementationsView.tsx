@@ -153,7 +153,7 @@ const IMPersonalDashboard: React.FC<{ extensions: ServiceExtension[]; userName: 
       )}
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
         <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
           <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Total Assigned</p>
           <p className="text-4xl font-black text-slate-900">{stats.total}</p>
@@ -161,7 +161,30 @@ const IMPersonalDashboard: React.FC<{ extensions: ServiceExtension[]; userName: 
         <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
           <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Performance Index</p>
           <p className="text-4xl font-black text-emerald-600">{stats.performanceIndex}%</p>
-          <p className="text-[10px] font-bold text-slate-400 mt-1">{stats.completed} done · {stats.suspensionRate}% suspended</p>
+          <p className="text-[10px] font-bold text-slate-400 mt-1">{stats.completed} projects completed</p>
+        </div>
+        <div className={cn("rounded-2xl border p-5 shadow-sm flex flex-col justify-between", 
+          stats.suspensionRate >= 30 ? "bg-red-50 border-red-200" : 
+          stats.suspensionRate >= 20 ? "bg-orange-50 border-orange-200" : "bg-white border-slate-200"
+        )}>
+          <p className={cn("text-[10px] font-black uppercase tracking-widest mb-2", 
+            stats.suspensionRate >= 30 ? "text-red-500" : 
+            stats.suspensionRate >= 20 ? "text-orange-500" : "text-slate-400"
+          )}>Portfolio Health</p>
+          <div>
+            <div className="flex items-baseline gap-1">
+              <p className={cn("text-4xl font-black", 
+                stats.suspensionRate >= 30 ? "text-red-600" : 
+                stats.suspensionRate >= 20 ? "text-orange-600" : "text-slate-900"
+              )}>{stats.suspensionRate}%</p>
+              <p className={cn("text-[10px] font-bold",
+                stats.suspensionRate >= 30 ? "text-red-500" : 
+                stats.suspensionRate >= 20 ? "text-orange-500" : "text-slate-400"
+              )}>suspended</p>
+            </div>
+            {stats.suspensionRate >= 30 && <p className="text-[10px] font-bold text-red-500 mt-1">-5% Penalty Active</p>}
+            {stats.suspensionRate >= 20 && stats.suspensionRate < 30 && <p className="text-[10px] font-bold text-orange-500 mt-1">Warning: Nearing 30%</p>}
+          </div>
         </div>
         <div className={cn("rounded-2xl border p-5 shadow-sm", stats.overdue > 0 ? "bg-red-50 border-red-200" : "bg-white border-slate-200")}>
           <p className={cn("text-[10px] font-black uppercase tracking-widest mb-2", stats.overdue > 0 ? "text-red-500" : "text-slate-400")}>Overdue</p>
