@@ -627,6 +627,13 @@ export function useProjects(userRole: Role, config: AppConfig, userName: string 
       const normalizedUserName = userName?.trim().toLowerCase();
       return projects.filter(p => p.assignedPM?.trim().toLowerCase() === normalizedUserName);
     }
+    // Pure IMs (not IM Leads/Superadmins/Managers) should only see projects they are mapped to
+    if (userRole === 'IM') {
+      const normalizedUserName = userName?.trim().toLowerCase();
+      return projects.filter(p => 
+        (p.implementationManagers || []).some(im => im.trim().toLowerCase() === normalizedUserName)
+      );
+    }
     return projects;
   }, [projects, userRole, userName]);
 
