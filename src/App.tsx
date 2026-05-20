@@ -21,7 +21,7 @@ import { DeactivatedScreen } from './components/DeactivatedScreen';
 import { ImplementationsView } from './components/ImplementationsView';
 import { ResourceDashboard } from './components/ResourceDashboard';
 import { INITIAL_CONFIG } from './mockData';
-import { Role, AppConfig, SettingsTab, Project, ProjectState } from './types';
+import { Role, AppConfig, SettingsTab, Project, ProjectState, User } from './types';
 import { useProjects } from './hooks/useProjects';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { NotificationProvider, useNotifications } from './contexts/NotificationContext';
@@ -45,6 +45,7 @@ function AppContent() {
   const [projectListPMFilter, setProjectListPMFilter] = useState<string | null>(null);
   const [implementationsFilter, setImplementationsFilter] = useState<string | 'All'>('All');
   const [implementationsIMFilter, setImplementationsIMFilter] = useState<string | 'All'>('All');
+  const [implementationsTab, setImplementationsTab] = useState<'mine' | 'all' | 'insights' | 'requests-queue' | 'mapping-queue' | 'issues' | 'pm-dashboard' | undefined>(undefined);
   const [openedFromDigest, setOpenedFromDigest] = useState(false);
   const [openedImplementationsFromDigest, setOpenedImplementationsFromDigest] = useState(false);
   const [isBulkImportOpen, setIsBulkImportOpen] = useState(false);
@@ -332,6 +333,7 @@ function AppContent() {
           if (view === 'implementations') {
             setImplementationsFilter('All');
             setImplementationsIMFilter('All');
+            setImplementationsTab(undefined);
           }
           setOpenedFromDigest(false);
           setOpenedImplementationsFromDigest(false);
@@ -493,10 +495,12 @@ function AppContent() {
                             setSelectedProject(proj);
                           }
                         }}
-                        onNavigate={(view, filter) => {
+                        onNavigate={(view, filter, tab) => {
                           setCurrentView(view as any);
-                          if (view === 'implementations' && filter) {
-                            setImplementationsFilter(filter);
+                          if (view === 'implementations') {
+                            if (filter) setImplementationsFilter(filter);
+                            if (tab) setImplementationsTab(tab as any);
+                            else setImplementationsTab(undefined);
                           }
                         }}
                       />
@@ -591,18 +595,21 @@ function AppContent() {
                         }}
                         initialFilter={implementationsFilter}
                         initialIM={implementationsIMFilter}
-                        defaultTab={isRole(userRole, 'IM Lead') || isRole(userRole, 'Superadmin') ? 'all' : (isRole(userRole, 'PM') ? 'pm-dashboard' : 'mine')}
+                        defaultTab={implementationsTab || (isRole(userRole, 'IM Lead') || isRole(userRole, 'Superadmin') ? 'all' : (isRole(userRole, 'PM') ? 'pm-dashboard' : 'mine'))}
                         mode="list"
+                        onTabChange={setImplementationsTab}
                         onViewProject={(pid) => {
                           const proj = projects.find(p => p.id === pid);
                           if (proj) {
                             setSelectedProject(proj);
                           }
                         }}
-                        onNavigate={(view, filter) => {
+                        onNavigate={(view, filter, tab) => {
                           setCurrentView(view as any);
-                          if (view === 'implementations' && filter) {
-                            setImplementationsFilter(filter);
+                          if (view === 'implementations') {
+                            if (filter) setImplementationsFilter(filter);
+                            if (tab) setImplementationsTab(tab as any);
+                            else setImplementationsTab(undefined);
                           }
                         }}
                       />

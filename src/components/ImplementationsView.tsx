@@ -22,11 +22,12 @@ interface ImplementationsViewProps {
   defaultTab?: 'mine' | 'all' | 'insights' | 'suspension-queue' | 'mapping-queue' | 'issues';
   mode?: 'dashboard' | 'list';
   onImportExtensions?: () => void;
-  onNavigate?: (view: string, filter?: string) => void;
+  onNavigate?: (view: string, filter?: string, tab?: string) => void;
+  onTabChange?: (tab: any) => void;
 }
 
 // ── IM Personal Dashboard Analytics ──────────────────────────────────────────
-const IMPersonalDashboard: React.FC<{ extensions: ServiceExtension[]; userName: string; config: AppConfig; onManage: (ext: ServiceExtension) => void; onNavigate?: (view: string, filter?: string) => void }> = ({ extensions, userName, config, onManage, onNavigate }) => {
+const IMPersonalDashboard: React.FC<{ extensions: ServiceExtension[]; userName: string; config: AppConfig; onManage: (ext: ServiceExtension) => void; onNavigate?: (view: string, filter?: string, tab?: string) => void }> = ({ extensions, userName, config, onManage, onNavigate }) => {
   const [periodFilter, setPeriodFilter] = useState<string>('All Time');
   
   const today = new Date();
@@ -117,10 +118,10 @@ const IMPersonalDashboard: React.FC<{ extensions: ServiceExtension[]; userName: 
     }
 
     return { total, completed, inProgress, notStarted, frozen, overdue, mapped, openIssues, performanceIndex, suspensionRate };
-  }, [extensions, config]);
+  }, [filteredExtensions, config]);
 
   const upcoming = useMemo(() =>
-    extensions
+    filteredExtensions
       .filter(e => {
         if (e.status === 'Completed' || e.status === 'Suspended' || e.status === 'Frozen') return false;
         if (!e.targetClosureDate) return false;
@@ -129,7 +130,7 @@ const IMPersonalDashboard: React.FC<{ extensions: ServiceExtension[]; userName: 
       })
       .sort((a, b) => new Date(a.targetClosureDate).getTime() - new Date(b.targetClosureDate).getTime())
       .slice(0, 5),
-    [extensions]);
+    [filteredExtensions]);
 
   const getDaysLabel = (dateStr: string) => {
     if (!dateStr) return { label: 'No date', color: 'text-slate-400 bg-slate-50 border-slate-200' };
@@ -143,7 +144,7 @@ const IMPersonalDashboard: React.FC<{ extensions: ServiceExtension[]; userName: 
     return { label: `${diff}d left`, color: 'text-emerald-600 bg-emerald-50 border-emerald-200' };
   };
 
-  const overduelist = extensions.filter(e => 
+  const overduelist = filteredExtensions.filter(e => 
     e.status !== 'Completed' && 
     e.status !== 'Suspended' && 
     !e.serviceName.toLowerCase().includes('api') &&
@@ -236,7 +237,7 @@ const IMPersonalDashboard: React.FC<{ extensions: ServiceExtension[]; userName: 
         </div>
         <div 
           className={cn("rounded-2xl border p-5 shadow-sm transition-colors", stats.openIssues > 0 ? "bg-amber-50 border-amber-200 hover:bg-amber-100 cursor-pointer" : "bg-white border-slate-200 cursor-pointer hover:bg-slate-50")}
-          onClick={() => onNavigate?.('risks')}
+          onClick={() => onNavigate?.('implementations', undefined, 'issues')}
         >
           <p className={cn("text-[10px] font-black uppercase tracking-widest mb-2", stats.openIssues > 0 ? "text-amber-500" : "text-slate-400")}>Open Issues</p>
           <p className={cn("text-4xl font-black", stats.openIssues > 0 ? "text-amber-600" : "text-slate-300")}>{stats.openIssues}</p>
@@ -322,7 +323,7 @@ const IMPersonalDashboard: React.FC<{ extensions: ServiceExtension[]; userName: 
 
 // ── Main View ─────────────────────────────────────────────────────────────────
 export const ImplementationsView: React.FC<ImplementationsViewProps> = ({
-  userRole, userName, config, projects, users, onShowToast, initialFilter, initialIM, defaultTab, mode, onImportExtensions, onNavigate
+  userRole, userName, config, projects, users, onShowToast, initialFilter, initialIM, defaultTab, mode, onImportExtensions, onNavigate, onTabChange
 }) => {
   const [extensions, setExtensions] = useState<ServiceExtension[]>([]);
   const [loading, setLoading] = useState(true);
@@ -360,6 +361,18 @@ export const ImplementationsView: React.FC<ImplementationsViewProps> = ({
     }
     setCurrentPage(1);
   }, [initialFilter, initialIM, isLead]);
+
+  useEffect(() => {
+    if (defaultTab && defaultTab !== activeTab) {
+      setActiveTab(defaultTab as any);
+    }
+  }, [defaultTab, activeTab]);
+
+  useEffect(() => {
+    if (onTabChange) {
+      onTabChange(activeTab);
+    }
+  }, [activeTab, onTabChange]);
 
   const loadExtensions = async () => {
     try {
@@ -673,6 +686,7 @@ export const ImplementationsView: React.FC<ImplementationsViewProps> = ({
                 <option value="In Progress">In Progress</option>
                 <option value="Completed">Completed</option>
                 <option value="Suspended">Suspended</option>
+                <option value="Delayed">Overdue</option>
               </select>
             </div>
             {(searchTerm || managerFilter !== 'All' || statusFilter !== 'All' || serviceFilters.length > 0 || monthFilter !== 'All') && (
