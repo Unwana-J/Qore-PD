@@ -260,7 +260,7 @@ const weightMap = useMemo(() => {
         active: exts.filter(e => e.status !== 'Completed' && e.status !== 'Suspended').length,
         suspended: exts.filter(e => e.status === 'Suspended').length,
         completed: exts.filter(e => e.status === 'Completed').length,
-        overdue: exts.filter(e => e.status !== 'Completed' && !e.serviceName.toLowerCase().includes('api') && new Date(e.targetClosureDate) < today).length,
+        overdue: exts.filter(e => e.status !== 'Completed' && e.status !== 'Suspended' && !e.serviceName.toLowerCase().includes('api') && new Date(e.targetClosureDate) < today).length,
         bd,
         totalUtilizedPoints,
         wipLimit,
@@ -306,7 +306,7 @@ const weightMap = useMemo(() => {
   }, [fd, config.packages, weightMap]);
 
   const overdue = useMemo(() =>
-    fd.filter(e=>e.status!=='Completed' && !e.serviceName.toLowerCase().includes('api') && new Date(e.targetClosureDate)<today)
+    fd.filter(e=>e.status!=='Completed' && e.status!=='Suspended' && !e.serviceName.toLowerCase().includes('api') && new Date(e.targetClosureDate)<today)
       .sort((a,b)=>new Date(a.targetClosureDate).getTime()-new Date(b.targetClosureDate).getTime()),
   [fd]);
 
