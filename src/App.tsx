@@ -514,6 +514,7 @@ function AppContent() {
                         onUpdateProject={updateProject}
                         onShowToast={(msg, type) => type === 'error' ? notifyError(msg) : type === 'info' ? info(msg) : success(msg)}
                         onUpdateUser={updateUser}
+                        themeColor={config.brand.themeColor}
                       />
                     )}
                     {currentView === 'projects' && (
