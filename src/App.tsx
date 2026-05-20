@@ -595,9 +595,8 @@ function AppContent() {
                         }}
                         initialFilter={implementationsFilter}
                         initialIM={implementationsIMFilter}
-                        defaultTab={implementationsTab || (isRole(userRole, 'IM Lead') || isRole(userRole, 'Superadmin') ? 'all' : (isRole(userRole, 'PM') ? 'pm-dashboard' : 'mine'))}
+                        defaultTab={isRole(userRole, 'IM Lead') || isRole(userRole, 'Superadmin') ? 'all' : (isRole(userRole, 'PM') ? 'pm-dashboard' : 'mine')}
                         mode="list"
-                        onTabChange={setImplementationsTab}
                         onViewProject={(pid) => {
                           const proj = projects.find(p => p.id === pid);
                           if (proj) {

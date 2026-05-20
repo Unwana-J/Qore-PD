@@ -332,7 +332,8 @@ export const ImplementationsView: React.FC<ImplementationsViewProps> = ({
   const [extensionToDelete, setExtensionToDelete] = useState<ServiceExtension | null>(null);
 
   const isLead = isRole(userRole, 'IM Lead') || isRole(userRole, 'Superadmin');
-  const [activeTab, setActiveTab] = useState<'mine' | 'all' | 'insights' | 'requests-queue' | 'mapping-queue' | 'issues' | 'pm-dashboard'>(defaultTab as any || (isLead ? 'insights' : 'mine'));
+  const initialTab = defaultTab as any || (isLead ? 'insights' : 'mine');
+  const [activeTab, setActiveTab] = useState<'mine' | 'all' | 'insights' | 'requests-queue' | 'mapping-queue' | 'issues' | 'pm-dashboard'>(initialTab);
 
   // Filter state
   const [searchTerm, setSearchTerm] = useState('');
@@ -362,17 +363,9 @@ export const ImplementationsView: React.FC<ImplementationsViewProps> = ({
     setCurrentPage(1);
   }, [initialFilter, initialIM, isLead]);
 
-  useEffect(() => {
-    if (defaultTab && defaultTab !== activeTab) {
-      setActiveTab(defaultTab as any);
-    }
-  }, [defaultTab, activeTab]);
-
-  useEffect(() => {
-    if (onTabChange) {
-      onTabChange(activeTab);
-    }
-  }, [activeTab, onTabChange]);
+  // NOTE: defaultTab is intentionally only used for initial state to avoid circular updates.
+  // Do not add an effect that syncs defaultTab → activeTab or activeTab → onTabChange,
+  // as that creates an infinite re-render loop (activeTab → onTabChange → parent state → defaultTab → effect → activeTab...).
 
   const loadExtensions = async () => {
     try {
