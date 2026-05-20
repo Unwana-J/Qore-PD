@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { Project, User, PackageConfig, ServiceBaseline } from '../../types';
-import { calculatePhaseScores, getServiceNames } from '../../lib/utils';
+import { getServiceNames } from '../../lib/utils';
 
 export type CapState = 'over' | 'near' | 'good';
 
@@ -46,18 +46,19 @@ export function useResourceStats(
       const activeProjects = totalProjects.filter(p => !DONE_STATES.includes(p.state));
       const completedProjects = totalProjects.filter(p => DONE_STATES.includes(p.state));
 
-      // Compute remaining weight per project
+      // Compute WIP weight = count of outstanding (Not Started / In Progress) services
+      // across all active projects. Each unfinished service = 1 unit of WIP.
       const projectWeights: Record<string, number> = {};
       let serviceWeight = 0;
 
       activeProjects.forEach(proj => {
-        const pkg = packages.find(p => p.name === proj.packageName);
-        const base = proj.storyPoints ?? pkg?.storyPoints ?? 0;
-        const pct = calculatePhaseScores(proj).totalPercentage / 100;
-        const remaining = base * (1 - pct);
-        projectWeights[proj.id] = remaining;
-        serviceWeight += remaining;
+        const outstanding = (proj.services || []).filter(
+          s => proj.serviceStates?.[s] !== 'Closed'
+        ).length;
+        projectWeights[proj.id] = outstanding;
+        serviceWeight += outstanding;
       });
+
 
       const wipLimit = pm.wipLimit || 30;
       const utilizationPct = wipLimit > 0 ? (serviceWeight / wipLimit) * 100 : 0;

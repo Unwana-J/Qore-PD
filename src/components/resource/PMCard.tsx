@@ -81,7 +81,7 @@ export const PMCard: React.FC<PMCardProps> = ({ pm, index, themeLight, themeText
         {[
           { label: 'Done', value: `${donePct}%`, sub: `${pm.completedProjects.length}/${pm.totalProjects.length}` },
           { label: 'Active', value: pm.activeProjects.length, sub: 'projects' },
-          { label: 'WIP Pts', value: pm.serviceWeight.toFixed(0), sub: `of ${pm.wipLimit}` },
+          { label: 'WIP Svcs', value: pm.serviceWeight, sub: `of ${pm.wipLimit} limit` },
         ].map(s => (
           <div key={s.label} className="bg-slate-50 rounded-2xl p-2.5 text-center">
             <p className="text-[9px] uppercase tracking-widest text-slate-400 font-black">{s.label}</p>
