@@ -85,8 +85,13 @@ const IMPersonalDashboard: React.FC<{ extensions: ServiceExtension[]; userName: 
       }
     });
 
-    const performanceIndex = tw > 0 ? Math.max(0, Math.round((ws / tw) * 100)) : 0;
+    let performanceIndex = tw > 0 ? Math.max(0, Math.round((ws / tw) * 100)) : 0;
     const suspensionRate = total > 0 ? Math.round((frozen / total) * 100) : 0;
+
+    // Portfolio Health Penalty: -5% if suspension rate > 30%
+    if (suspensionRate > 30) {
+      performanceIndex = Math.max(0, performanceIndex - 5);
+    }
 
     return { total, completed, inProgress, notStarted, frozen, overdue, mapped, openIssues, performanceIndex, suspensionRate };
   }, [extensions, config]);

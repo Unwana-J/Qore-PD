@@ -249,7 +249,13 @@ const weightMap = useMemo(() => {
         }
       });
 
-      const score = tw > 0 ? Math.max(0, (ws / tw)) : 0;
+      let score = tw > 0 ? Math.max(0, (ws / tw)) : 0;
+      
+      const suspendedCount = exts.filter(e => e.status === 'Suspended').length;
+      const suspensionRate = exts.length > 0 ? suspendedCount / exts.length : 0;
+      if (suspensionRate > 0.3) {
+        score = Math.max(0, score - 0.05); // 5% penalty
+      }
       const wipLimit = im.wipLimit || 30;
       const utilizationPct = (totalUtilizedPoints / wipLimit) * 100;
 

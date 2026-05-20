@@ -35,6 +35,9 @@ Qore is a mission-critical internal operating system designed for high-stakes pr
     - Impact scoring (Low to High).
     - Lifecycle (Open -> Addressing -> Resolved).
 - **REQ-08: Request Workflows**: Formalized requests for "Date Extensions" and "Suspensions" with mandatory justification fields.
+    - **Minimum Effort Gate**: IMs must complete Milestone 1 before requesting a suspension.
+    - **Time-Boxed Suspensions**: Suspensions must have a defined duration (14, 30, or 60 days) and an `autoReactivateAt` schedule.
+    - **Portfolio Health Penalty**: IMs incur a 5% Performance Index penalty if their total portfolio suspension rate exceeds 30%.
 
 ### 3.3. Advanced Analytics & Insights
 - **REQ-09: IM Leaderboard**: A performance engine that ranks IMs based on:

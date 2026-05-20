@@ -327,12 +327,14 @@ export interface AssignmentHistoryEntry {
 
 export interface SuspensionRequest {
   reason: string;
+  durationDays?: number;
   requestedAt: string;
   requestedBy: string;
   status: 'Pending' | 'Approved' | 'Rejected';
   resolvedAt?: string;
   resolvedBy?: string;
   rejectionComment?: string;
+  autoReactivateAt?: string;
 }
 
 export interface ReactivationRequest {

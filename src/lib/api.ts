@@ -848,9 +848,10 @@ export const api = {
     },
 
     // ── Suspension Workflow ──────────────────────────────────────────────────
-    requestSuspension: async (id: string, reason: string, requestedBy: string): Promise<void> => {
+    requestSuspension: async (id: string, reason: string, durationDays: number, requestedBy: string): Promise<void> => {
       const pendingRequest: SuspensionRequest = {
         reason,
+        durationDays,
         requestedAt: new Date().toISOString(),
         requestedBy,
         status: 'Pending',
@@ -864,7 +865,21 @@ export const api = {
 
     approveSuspension: async (id: string, resolvedBy: string): Promise<void> => {
       const { data: ext } = await supabase.from('service_extensions').select('suspension_request, implementation_manager, client_name, service_name, linked_project_id').eq('id', id).single();
-      const updated = { ...ext?.suspension_request, status: 'Approved', resolvedAt: new Date().toISOString(), resolvedBy };
+      
+      let autoReactivateAt: string | undefined = undefined;
+      if (ext?.suspension_request?.durationDays) {
+        const date = new Date();
+        date.setDate(date.getDate() + ext.suspension_request.durationDays);
+        autoReactivateAt = date.toISOString();
+      }
+
+      const updated = { 
+        ...ext?.suspension_request, 
+        status: 'Approved', 
+        resolvedAt: new Date().toISOString(), 
+        resolvedBy,
+        autoReactivateAt
+      };
       
       const { error } = await supabase
         .from('service_extensions')
