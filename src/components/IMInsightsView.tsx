@@ -212,6 +212,8 @@ const weightMap = useMemo(() => {
       let activeApiPoints = 0;
 
       exts.forEach(ext => {
+        if (ext.status === 'Suspended') return;
+
         // Find most specific weight and map it to a max-3 Fibonacci score
         const pkg = config.packages?.find(p => p.name === ext.serviceName || p.name === ext.serviceVariant);
         const rawWeight = pkg?.storyPoints || weightMap[ext.serviceVariant] || weightMap[ext.serviceName] || 
@@ -222,7 +224,6 @@ const weightMap = useMemo(() => {
 
         let progress = 0;
         if (ext.status === 'Completed') progress = 1;
-        else if (ext.status === 'Suspended') progress = 0;
         else {
           const totalMilestones = ext.milestones?.length || 0;
           const completedMilestones = ext.milestones?.filter(m => m.completed).length || 0;
@@ -235,7 +236,7 @@ const weightMap = useMemo(() => {
 
         // If it's an active API, only include its progressive weight in the denominator
         // to avoid diluting the completion index, while still rewarding progress in the numerator!
-        if (isApi && ext.status !== 'Completed' && ext.status !== 'Suspended') {
+        if (isApi && ext.status !== 'Completed') {
           tw += progress * baseWeight;
           activeApiPoints += progress * baseWeight;
         } else {
@@ -243,7 +244,7 @@ const weightMap = useMemo(() => {
         }
 
         // Calculate remaining effort for active projects only
-        if (ext.status !== 'Completed' && ext.status !== 'Suspended') {
+        if (ext.status !== 'Completed') {
           totalUtilizedPoints += baseWeight * (1 - progress);
         }
       });
@@ -276,6 +277,8 @@ const weightMap = useMemo(() => {
     let globalWs = 0;
     let globalTw = 0;
     fd.forEach(ext => {
+      if (ext.status === 'Suspended') return;
+
       const pkg = config.packages?.find(p => p.name === ext.serviceName || p.name === ext.serviceVariant);
       const rawWeight = pkg?.storyPoints || weightMap[ext.serviceVariant] || weightMap[ext.serviceName] || 
                         Object.entries(weightMap).find(([k]) => ext.serviceName.includes(k))?.[1] || 1;
@@ -284,7 +287,6 @@ const weightMap = useMemo(() => {
 
       let progress = 0;
       if (ext.status === 'Completed') progress = 1;
-      else if (ext.status === 'Suspended') progress = 0;
       else {
         const totalM = ext.milestones?.length || 0;
         const completedM = ext.milestones?.filter(m => m.completed).length || 0;
@@ -294,7 +296,7 @@ const weightMap = useMemo(() => {
       if (ext.status !== 'Completed' && !isApi && new Date(ext.targetClosureDate) < today) penalty = 0.15; 
       
       globalWs += (progress - penalty) * baseWeight;
-      if (isApi && ext.status !== 'Completed' && ext.status !== 'Suspended') {
+      if (isApi && ext.status !== 'Completed') {
         globalTw += progress * baseWeight;
       } else {
         globalTw += baseWeight;

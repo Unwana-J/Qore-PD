@@ -45,10 +45,15 @@ Qore is a mission-critical internal operating system designed for high-stakes pr
     - Specific Year (e.g., "Show me 2025 implementations").
     - Custom Date Range (e.g., "Last 7 days" or "Specific Week").
 
-### 3.4. Bulk Data Ingestion
-- **REQ-11: Resumable Drafts**: If a user starts a bulk import and closes the browser, the draft must persist (LocalStorage) and offer "Resume" or "Abandon" upon return.
-- **REQ-12: Notes-to-Comment Mapping**: The system must automatically parse a "Key Updates" or "Notes" column in CSVs and inject it as the first implementation comment.
-- **REQ-13: Validation Preview**: Users must be able to edit rows inline before finalized database insertion.
+### 3.4. Resource Management
+- **REQ-11: WIP Tracking & Story Points**: Real-time tracking of Project Manager (PM) utilization based on Agile Story Points versus assigned Work-In-Progress (WIP) limits.
+- **REQ-12: Burnout Alerts**: System must proactively alert when PMs operate over 100% capacity for extended periods (e.g., 14+ days).
+- **REQ-13: Story Point Adjustments**: Automated queue for managers to review and approve/decline pending story point adjustment requests from projects.
+
+### 3.5. Bulk Data Ingestion
+- **REQ-14: Resumable Drafts**: If a user starts a bulk import and closes the browser, the draft must persist (LocalStorage) and offer "Resume" or "Abandon" upon return.
+- **REQ-15: Notes-to-Comment Mapping**: The system must automatically parse a "Key Updates" or "Notes" column in CSVs and inject it as the first implementation comment.
+- **REQ-16: Validation Preview**: Users must be able to edit rows inline before finalized database insertion.
 
 ---
 
