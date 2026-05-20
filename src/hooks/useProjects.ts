@@ -155,14 +155,24 @@ export function useProjects(userRole: Role, config: AppConfig, userName: string 
     return mon.toISOString().split('T')[0];
   };
 
-  // Gate: only surface digest notifications on Monday >= 09:00 WAT (UTC+1).
+  // Gate: only surface digest notifications when current time satisfies the configured schedule.
   // The digest is still computed & saved to DB at any time for accuracy;
   // this only controls when the bell notification is shown to users.
   const isDigestTime = () => {
+    const schedule = config.digestSchedule || { dayOfWeek: 1, time: "09:00" };
     const now = new Date();
-    const isMonday = now.getDay() === 1;          // 0=Sun, 1=Mon
-    const hourWAT  = now.getUTCHours() + 1;       // WAT = UTC+1
-    return isMonday && hourWAT >= 9;
+    
+    // Check day of week
+    if (now.getDay() !== schedule.dayOfWeek) return false;
+    
+    // Parse target time
+    const [schedHour, schedMin] = schedule.time.split(':').map(Number);
+    const hourWAT = now.getUTCHours() + 1; // WAT = UTC+1
+    const minWAT = now.getUTCMinutes();
+    
+    if (hourWAT < schedHour) return false;
+    if (hourWAT === schedHour && minWAT < schedMin) return false;
+    return true;
   };
 
   useEffect(() => {
@@ -244,14 +254,18 @@ export function useProjects(userRole: Role, config: AppConfig, userName: string 
       oldestRebaselineDays,
     };
 
-    // Always surface the latest digest notification
-    setWeeklyDigest(digest);
+    // Surface the latest digest notification according to time gate
+    if (isDigestTime()) {
+      setWeeklyDigest(digest);
+    } else {
+      setWeeklyDigest(null);
+    }
     
     // Always save to archive regardless of time gate
     api.digests.save(digest).catch(err => console.error("Digest save error:", err));
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rawProjects.length, userRole]);
+  }, [rawProjects.length, userRole, config.digestSchedule]);
 
   // ── Implementation Weekly Digest ──────────────────────────────────────────
   useEffect(() => {
@@ -354,8 +368,12 @@ export function useProjects(userRole: Role, config: AppConfig, userName: string 
           upcomingDeadlines
         };
 
-        // Always surface the latest digest notification
-        setImplementationDigest(digest);
+        // Surface the latest digest notification according to time gate
+        if (isDigestTime()) {
+          setImplementationDigest(digest);
+        } else {
+          setImplementationDigest(null);
+        }
         api.implementationDigests.save(digest).catch(err => console.error("Impl digest save error:", err));
       } catch (err) {
         console.error("Failed to calculate implementation digest", err);
@@ -363,7 +381,7 @@ export function useProjects(userRole: Role, config: AppConfig, userName: string 
     };
 
     calculateImplDigest();
-  }, [userRole, rawProjects.length]); // Refresh when projects refresh as they are often linked
+  }, [userRole, rawProjects.length, config.digestSchedule]); // Refresh when projects refresh as they are often linked
 
   // ── Realtime: instant notification when webhook inserts a new project ──────
   useEffect(() => {

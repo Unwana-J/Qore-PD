@@ -843,6 +843,54 @@ const ProjectConfig = ({ config, setConfig, userRole, theme, showToast, projects
         </div>
 
         <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100 space-y-4">
+          <h4 className="text-sm font-bold text-slate-900">Weekly Digest Notification Schedule</h4>
+          <p className="text-xs text-slate-500 font-medium">Specify the day of the week and the hour the weekly digest drops for leadership and team members.</p>
+          <div className="grid grid-cols-2 gap-4">
+             <div className="space-y-1.5">
+               <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">
+                 Day of Week
+               </label>
+               <select
+                 className={cn("w-full px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm font-bold outline-none", theme.focusBorder)}
+                 value={config.digestSchedule?.dayOfWeek ?? 1}
+                 onChange={(e) => setConfig({ 
+                   ...config, 
+                   digestSchedule: { 
+                     dayOfWeek: parseInt(e.target.value), 
+                     time: config.digestSchedule?.time ?? "09:00" 
+                   } 
+                 })}
+               >
+                 <option value={0}>Sunday</option>
+                 <option value={1}>Monday</option>
+                 <option value={2}>Tuesday</option>
+                 <option value={3}>Wednesday</option>
+                 <option value={4}>Thursday</option>
+                 <option value={5}>Friday</option>
+                 <option value={6}>Saturday</option>
+               </select>
+             </div>
+             <div className="space-y-1.5">
+               <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">
+                 Release Time (WAT / UTC+1)
+               </label>
+               <input
+                 type="time"
+                 className={cn("w-full px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm font-bold outline-none", theme.focusBorder)}
+                 value={config.digestSchedule?.time ?? "09:00"}
+                 onChange={(e) => setConfig({ 
+                   ...config, 
+                   digestSchedule: { 
+                     dayOfWeek: config.digestSchedule?.dayOfWeek ?? 1, 
+                     time: e.target.value 
+                   } 
+                 })}
+               />
+             </div>
+          </div>
+        </div>
+
+        <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100 space-y-4">
           <h4 className="text-sm font-bold text-slate-900">SPI Status Thresholds</h4>
           <p className="text-xs text-slate-500 font-medium pb-2">Set the thresholds for Schedule Performance Index statuses.</p>
           <div className="grid grid-cols-2 gap-4">

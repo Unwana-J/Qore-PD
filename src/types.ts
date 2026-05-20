@@ -446,6 +446,10 @@ export interface AppConfig {
   pmScorecardWeights: PMScorecardWeights;
   maxImportRows: number;
   hideImportGuide: boolean;
+  digestSchedule?: {
+    dayOfWeek: number; // 0 = Sunday, 1 = Monday, etc.
+    time: string; // HH:MM format
+  };
   
   // Onboarding & Setup
   orgName?: string;
