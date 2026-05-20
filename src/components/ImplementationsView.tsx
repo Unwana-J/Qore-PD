@@ -25,7 +25,7 @@ interface ImplementationsViewProps {
 }
 
 // ── IM Personal Dashboard Analytics ──────────────────────────────────────────
-const IMPersonalDashboard: React.FC<{ extensions: ServiceExtension[]; userName: string; onManage: (ext: ServiceExtension) => void }> = ({ extensions, userName, onManage }) => {
+const IMPersonalDashboard: React.FC<{ extensions: ServiceExtension[]; userName: string; config: AppConfig; onManage: (ext: ServiceExtension) => void }> = ({ extensions, userName, config, onManage }) => {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
@@ -43,9 +43,53 @@ const IMPersonalDashboard: React.FC<{ extensions: ServiceExtension[]; userName: 
     ).length;
     const mapped = extensions.filter(e => e.mappingStatus === 'Approved').length;
     const openIssues = extensions.reduce((acc, e) => acc + (e.issues || []).filter(i => i.status !== 'Closed').length, 0);
-    const completionRate = total > 0 ? Math.round((completed / total) * 100) : 0;
-    return { total, completed, inProgress, notStarted, frozen, overdue, mapped, openIssues, completionRate };
-  }, [extensions]);
+    // Calculate Weighted Performance Index
+    let ws = 0;
+    let tw = 0;
+    
+    const weightMap: Record<string, number> = {};
+    config.packages?.forEach(p => { weightMap[p.name] = p.storyPoints; });
+    
+    const getIMStoryPoint = (raw: number) => {
+      if (raw >= 13) return 3;
+      if (raw >= 5) return 2;
+      return 1;
+    };
+
+    extensions.forEach(ext => {
+      if (ext.status === 'Suspended') return;
+
+      const pkg = config.packages?.find(p => p.name === ext.serviceName || p.name === ext.serviceVariant);
+      const rawWeight = pkg?.storyPoints || weightMap[ext.serviceVariant] || weightMap[ext.serviceName] || 
+                        Object.entries(weightMap).find(([k]) => ext.serviceName.includes(k))?.[1] || 1;
+      const baseWeight = getIMStoryPoint(rawWeight);
+      const isApi = ext.serviceName.toLowerCase().includes('api') || (ext.serviceVariant || '').toLowerCase().includes('api');
+
+      let progress = 0;
+      if (ext.status === 'Completed') progress = 1;
+      else {
+        const totalMilestones = ext.milestones?.length || 0;
+        const completedMilestones = ext.milestones?.filter(m => m.completed).length || 0;
+        progress = totalMilestones > 0 ? (completedMilestones / totalMilestones) : 0.1;
+      }
+      
+      let penalty = 0;
+      if (ext.status !== 'Completed' && !isApi && new Date(ext.targetClosureDate) < today) penalty = 0.15; 
+      
+      ws += (progress - penalty) * baseWeight;
+      
+      if (isApi && ext.status !== 'Completed') {
+        tw += progress * baseWeight;
+      } else {
+        tw += baseWeight;
+      }
+    });
+
+    const performanceIndex = tw > 0 ? Math.max(0, Math.round((ws / tw) * 100)) : 0;
+    const suspensionRate = total > 0 ? Math.round((frozen / total) * 100) : 0;
+
+    return { total, completed, inProgress, notStarted, frozen, overdue, mapped, openIssues, performanceIndex, suspensionRate };
+  }, [extensions, config]);
 
   const upcoming = useMemo(() =>
     extensions
@@ -110,9 +154,9 @@ const IMPersonalDashboard: React.FC<{ extensions: ServiceExtension[]; userName: 
           <p className="text-4xl font-black text-slate-900">{stats.total}</p>
         </div>
         <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
-          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Completion Rate</p>
-          <p className="text-4xl font-black text-emerald-600">{stats.completionRate}%</p>
-          <p className="text-[10px] font-bold text-slate-400 mt-1">{stats.completed} of {stats.total} done</p>
+          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Performance Index</p>
+          <p className="text-4xl font-black text-emerald-600">{stats.performanceIndex}%</p>
+          <p className="text-[10px] font-bold text-slate-400 mt-1">{stats.completed} done · {stats.suspensionRate}% suspended</p>
         </div>
         <div className={cn("rounded-2xl border p-5 shadow-sm", stats.overdue > 0 ? "bg-red-50 border-red-200" : "bg-white border-slate-200")}>
           <p className={cn("text-[10px] font-black uppercase tracking-widest mb-2", stats.overdue > 0 ? "text-red-500" : "text-slate-400")}>Overdue</p>
@@ -916,6 +960,7 @@ export const ImplementationsView: React.FC<ImplementationsViewProps> = ({
                 <IMPersonalDashboard
                   extensions={extensions}
                   userName={userName}
+                  config={config}
                   onManage={setManagingExtension}
                 />
               )}
