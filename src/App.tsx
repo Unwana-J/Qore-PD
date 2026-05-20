@@ -490,8 +490,13 @@ function AppContent() {
                         onViewProject={(pid) => {
                           const proj = projects.find(p => p.id === pid);
                           if (proj) {
-                            setViewingProject(proj);
-                            setCurrentView('projects');
+                            setSelectedProject(proj);
+                          }
+                        }}
+                        onNavigate={(view, filter) => {
+                          setCurrentView(view as any);
+                          if (view === 'implementations' && filter) {
+                            setImplementationsFilter(filter);
                           }
                         }}
                       />
@@ -591,8 +596,13 @@ function AppContent() {
                         onViewProject={(pid) => {
                           const proj = projects.find(p => p.id === pid);
                           if (proj) {
-                            setViewingProject(proj);
-                            setCurrentView('projects');
+                            setSelectedProject(proj);
+                          }
+                        }}
+                        onNavigate={(view, filter) => {
+                          setCurrentView(view as any);
+                          if (view === 'implementations' && filter) {
+                            setImplementationsFilter(filter);
                           }
                         }}
                       />

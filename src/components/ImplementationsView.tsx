@@ -22,27 +22,50 @@ interface ImplementationsViewProps {
   defaultTab?: 'mine' | 'all' | 'insights' | 'suspension-queue' | 'mapping-queue' | 'issues';
   mode?: 'dashboard' | 'list';
   onImportExtensions?: () => void;
+  onNavigate?: (view: string, filter?: string) => void;
 }
 
 // ── IM Personal Dashboard Analytics ──────────────────────────────────────────
-const IMPersonalDashboard: React.FC<{ extensions: ServiceExtension[]; userName: string; config: AppConfig; onManage: (ext: ServiceExtension) => void }> = ({ extensions, userName, config, onManage }) => {
+const IMPersonalDashboard: React.FC<{ extensions: ServiceExtension[]; userName: string; config: AppConfig; onManage: (ext: ServiceExtension) => void; onNavigate?: (view: string, filter?: string) => void }> = ({ extensions, userName, config, onManage, onNavigate }) => {
+  const [periodFilter, setPeriodFilter] = useState<string>('All Time');
+  
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
+  const filteredExtensions = useMemo(() => {
+    if (periodFilter === 'All Time') return extensions;
+    return extensions.filter(e => {
+      const d = e.targetClosureDate ? new Date(e.targetClosureDate) : new Date(e.startDate);
+      if (isNaN(d.getTime())) return true;
+      if (periodFilter === 'Q1') return d.getMonth() >= 0 && d.getMonth() <= 2;
+      if (periodFilter === 'Q2') return d.getMonth() >= 3 && d.getMonth() <= 5;
+      if (periodFilter === 'Q3') return d.getMonth() >= 6 && d.getMonth() <= 8;
+      if (periodFilter === 'Q4') return d.getMonth() >= 9 && d.getMonth() <= 11;
+      
+      const yearMatch = periodFilter.match(/^Year: (\d+)$/);
+      if (yearMatch) return d.getFullYear() === parseInt(yearMatch[1]);
+
+      const monthMatch = periodFilter.match(/^Month: (\d+)$/);
+      if (monthMatch) return d.getMonth() === parseInt(monthMatch[1]);
+      
+      return true;
+    });
+  }, [extensions, periodFilter]);
+
   const stats = useMemo(() => {
-    const total = extensions.length;
-    const completed = extensions.filter(e => e.status === 'Completed').length;
-    const inProgress = extensions.filter(e => e.status === 'In Progress').length;
-    const notStarted = extensions.filter(e => e.status === 'Not Started').length;
-    const frozen = extensions.filter(e => e.status === 'Suspended').length;
-    const overdue = extensions.filter(e => 
+    const total = filteredExtensions.length;
+    const completed = filteredExtensions.filter(e => e.status === 'Completed').length;
+    const inProgress = filteredExtensions.filter(e => e.status === 'In Progress').length;
+    const notStarted = filteredExtensions.filter(e => e.status === 'Not Started').length;
+    const frozen = filteredExtensions.filter(e => e.status === 'Suspended').length;
+    const overdue = filteredExtensions.filter(e => 
       e.status !== 'Completed' && 
       e.status !== 'Suspended' && 
       !e.serviceName.toLowerCase().includes('api') &&
       new Date(e.targetClosureDate) < today
     ).length;
-    const mapped = extensions.filter(e => e.mappingStatus === 'Approved').length;
-    const openIssues = extensions.reduce((acc, e) => acc + (e.issues || []).filter(i => i.status !== 'Closed').length, 0);
+    const mapped = filteredExtensions.filter(e => e.mappingStatus === 'Approved').length;
+    const openIssues = filteredExtensions.reduce((acc, e) => acc + (e.issues || []).filter(i => i.status !== 'Closed').length, 0);
     // Calculate Weighted Performance Index
     let ws = 0;
     let tw = 0;
@@ -56,7 +79,7 @@ const IMPersonalDashboard: React.FC<{ extensions: ServiceExtension[]; userName: 
       return 1;
     };
 
-    extensions.forEach(ext => {
+    filteredExtensions.forEach(ext => {
       if (ext.status === 'Suspended') return;
 
       const pkg = config.packages?.find(p => p.name === ext.serviceName || p.name === ext.serviceVariant);
@@ -129,6 +152,24 @@ const IMPersonalDashboard: React.FC<{ extensions: ServiceExtension[]; userName: 
 
   return (
     <div className="space-y-6">
+      {/* Period Filter Bar */}
+      <div className="flex bg-slate-50 p-1.5 rounded-2xl border border-slate-200 shadow-sm w-fit">
+        {['All Time', 'Q1', 'Q2', 'Q3', 'Q4', `Year: ${today.getFullYear()}`].map(period => (
+          <button
+            key={period}
+            onClick={() => setPeriodFilter(period)}
+            className={cn(
+              "px-4 py-1.5 rounded-xl text-[10px] font-black transition-all uppercase tracking-wider",
+              periodFilter === period
+                ? "bg-white text-slate-900 shadow-sm ring-1 ring-slate-200"
+                : "text-slate-500 hover:text-slate-700 hover:bg-white/50"
+            )}
+          >
+            {period === `Year: ${today.getFullYear()}` ? 'This Year' : period}
+          </button>
+        ))}
+      </div>
+
       {/* Overdue Alert */}
       {overduelist.length > 0 && (
         <div className="flex items-start gap-4 p-5 bg-red-50 border border-red-200 rounded-2xl">
@@ -186,16 +227,25 @@ const IMPersonalDashboard: React.FC<{ extensions: ServiceExtension[]; userName: 
             {stats.suspensionRate >= 20 && stats.suspensionRate < 30 && <p className="text-[10px] font-bold text-orange-500 mt-1">Warning: Nearing 30%</p>}
           </div>
         </div>
-        <div className={cn("rounded-2xl border p-5 shadow-sm", stats.overdue > 0 ? "bg-red-50 border-red-200" : "bg-white border-slate-200")}>
+        <div 
+          className={cn("rounded-2xl border p-5 shadow-sm transition-colors", stats.overdue > 0 ? "bg-red-50 border-red-200 hover:bg-red-100 cursor-pointer" : "bg-white border-slate-200 cursor-pointer hover:bg-slate-50")}
+          onClick={() => onNavigate?.('implementations', 'Delayed')}
+        >
           <p className={cn("text-[10px] font-black uppercase tracking-widest mb-2", stats.overdue > 0 ? "text-red-500" : "text-slate-400")}>Overdue</p>
           <p className={cn("text-4xl font-black", stats.overdue > 0 ? "text-red-600" : "text-slate-300")}>{stats.overdue}</p>
         </div>
-        <div className={cn("rounded-2xl border p-5 shadow-sm", stats.openIssues > 0 ? "bg-amber-50 border-amber-200" : "bg-white border-slate-200")}>
+        <div 
+          className={cn("rounded-2xl border p-5 shadow-sm transition-colors", stats.openIssues > 0 ? "bg-amber-50 border-amber-200 hover:bg-amber-100 cursor-pointer" : "bg-white border-slate-200 cursor-pointer hover:bg-slate-50")}
+          onClick={() => onNavigate?.('risks')}
+        >
           <p className={cn("text-[10px] font-black uppercase tracking-widest mb-2", stats.openIssues > 0 ? "text-amber-500" : "text-slate-400")}>Open Issues</p>
           <p className={cn("text-4xl font-black", stats.openIssues > 0 ? "text-amber-600" : "text-slate-300")}>{stats.openIssues}</p>
         </div>
-        <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
-          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Mapped to Projects</p>
+        <div 
+          className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm cursor-pointer hover:bg-indigo-50 transition-colors group"
+          onClick={() => onNavigate?.('projects')}
+        >
+          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 group-hover:text-indigo-500 transition-colors">Mapped to Projects</p>
           <p className="text-4xl font-black text-indigo-600">{stats.mapped}</p>
         </div>
       </div>
@@ -272,7 +322,7 @@ const IMPersonalDashboard: React.FC<{ extensions: ServiceExtension[]; userName: 
 
 // ── Main View ─────────────────────────────────────────────────────────────────
 export const ImplementationsView: React.FC<ImplementationsViewProps> = ({
-  userRole, userName, config, projects, users, onShowToast, initialFilter, initialIM, defaultTab, mode, onImportExtensions
+  userRole, userName, config, projects, users, onShowToast, initialFilter, initialIM, defaultTab, mode, onImportExtensions, onNavigate
 }) => {
   const [extensions, setExtensions] = useState<ServiceExtension[]>([]);
   const [loading, setLoading] = useState(true);
@@ -990,6 +1040,7 @@ export const ImplementationsView: React.FC<ImplementationsViewProps> = ({
                   userName={userName}
                   config={config}
                   onManage={setManagingExtension}
+                  onNavigate={onNavigate}
                 />
               )}
               {mode !== 'dashboard' && (
