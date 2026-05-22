@@ -92,23 +92,25 @@ const IMPersonalDashboard: React.FC<{ extensions: ServiceExtension[]; userName: 
       const isApi = ext.serviceName.toLowerCase().includes('api') || (ext.serviceVariant || '').toLowerCase().includes('api');
 
       let progress = 0;
-      if (ext.status === 'Completed') progress = 1;
-      else {
-        const totalMilestones = ext.milestones?.length || 0;
-        const completedMilestones = ext.milestones?.filter(m => m.completed).length || 0;
-        progress = totalMilestones > 0 ? (completedMilestones / totalMilestones) : 0.1;
+      if (ext.status === 'Completed') {
+        progress = 1;
+      } else if (ext.milestones?.length > 0) {
+        progress = ext.milestones.filter(m => m.completed).length / ext.milestones.length;
+      } else {
+        // Fallback if no milestones exist
+        progress = ext.status === 'In Progress' ? 0.5 : 0;
       }
       
       let penalty = 0;
-      if (ext.status !== 'Completed' && !isApi && new Date(ext.targetClosureDate) < today) penalty = 0.15; 
+      if (ext.status !== 'Completed' && !isApi && new Date(ext.targetClosureDate) < today) {
+        const daysOverdue = Math.floor((today.getTime() - new Date(ext.targetClosureDate).getTime()) / (1000 * 60 * 60 * 24));
+        if (daysOverdue <= 7) penalty = 0.05;
+        else if (daysOverdue <= 14) penalty = 0.10;
+        else penalty = 0.20;
+      }
       
       ws += (progress - penalty) * baseWeight;
-      
-      if (isApi && ext.status !== 'Completed') {
-        tw += progress * baseWeight;
-      } else {
-        tw += baseWeight;
-      }
+      tw += baseWeight; // Denominator ALWAYS takes full weight
     });
 
     let performanceIndex = tw > 0 ? Math.max(0, Math.round((ws / tw) * 100)) : 0;
