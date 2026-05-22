@@ -282,7 +282,13 @@ export interface DBNotification {
 
 // ── Service Extensions (IM-managed ancillary implementations) ─────────────────
 
-export type ExtensionStatus = 'Not Started' | 'In Progress' | 'Completed' | 'Suspended';
+export type ExtensionStatus = 'Not Started' | 'In Progress' | 'Completed' | 'Suspended' | 'Cancelled';
+
+export interface CancellationInfo {
+  reason: string;
+  cancelledBy: string;
+  cancelledAt: string;
+}
 export type MappingStatus = 'None' | 'Pending' | 'Approved' | 'Rejected' | 'Unmapped';
 
 export interface IMilestone {
@@ -374,6 +380,7 @@ export interface ServiceExtension {
   assignmentHistory: AssignmentHistoryEntry[];
   suspensionRequest: SuspensionRequest | null;
   reactivationRequest: ReactivationRequest | null;
+  cancellation: CancellationInfo | null;
   comments: ServiceComment[];
   issues: ImplementationIssue[];
   // Metadata

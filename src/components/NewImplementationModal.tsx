@@ -146,6 +146,7 @@ export const NewImplementationModal: React.FC<NewImplementationModalProps> = ({
         assignmentHistory: [],
         suspensionRequest: null,
         reactivationRequest: null,
+        cancellation: null,
         comments: [],
         issues: [],
       });

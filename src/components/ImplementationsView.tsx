@@ -54,14 +54,16 @@ const IMPersonalDashboard: React.FC<{ extensions: ServiceExtension[]; userName: 
   }, [extensions, periodFilter]);
 
   const stats = useMemo(() => {
-    const total = filteredExtensions.length;
+    const total = filteredExtensions.filter(e => e.status !== 'Cancelled').length;
     const completed = filteredExtensions.filter(e => e.status === 'Completed').length;
     const inProgress = filteredExtensions.filter(e => e.status === 'In Progress').length;
     const notStarted = filteredExtensions.filter(e => e.status === 'Not Started').length;
     const frozen = filteredExtensions.filter(e => e.status === 'Suspended').length;
+    const cancelled = filteredExtensions.filter(e => e.status === 'Cancelled').length;
     const overdue = filteredExtensions.filter(e => 
       e.status !== 'Completed' && 
       e.status !== 'Suspended' && 
+      e.status !== 'Cancelled' &&
       !e.serviceName.toLowerCase().includes('api') &&
       new Date(e.targetClosureDate) < today
     ).length;
@@ -81,7 +83,7 @@ const IMPersonalDashboard: React.FC<{ extensions: ServiceExtension[]; userName: 
     };
 
     filteredExtensions.forEach(ext => {
-      if (ext.status === 'Suspended') return;
+      if (ext.status === 'Suspended' || ext.status === 'Cancelled') return;
 
       const pkg = config.packages?.find(p => p.name === ext.serviceName || p.name === ext.serviceVariant);
       const rawWeight = pkg?.storyPoints || weightMap[ext.serviceVariant] || weightMap[ext.serviceName] || 
@@ -117,13 +119,13 @@ const IMPersonalDashboard: React.FC<{ extensions: ServiceExtension[]; userName: 
       performanceIndex = Math.max(0, performanceIndex - 5);
     }
 
-    return { total, completed, inProgress, notStarted, frozen, overdue, mapped, openIssues, performanceIndex, suspensionRate };
+    return { total, completed, inProgress, notStarted, frozen, cancelled, overdue, mapped, openIssues, performanceIndex, suspensionRate };
   }, [filteredExtensions, config]);
 
   const upcoming = useMemo(() =>
     filteredExtensions
       .filter(e => {
-        if (e.status === 'Completed' || e.status === 'Suspended' || e.status === 'Frozen') return false;
+        if (e.status === 'Completed' || e.status === 'Suspended' || e.status === 'Cancelled') return false;
         if (!e.targetClosureDate) return false;
         const d = new Date(e.targetClosureDate);
         return !isNaN(d.getTime());
@@ -147,6 +149,7 @@ const IMPersonalDashboard: React.FC<{ extensions: ServiceExtension[]; userName: 
   const overduelist = filteredExtensions.filter(e => 
     e.status !== 'Completed' && 
     e.status !== 'Suspended' && 
+    e.status !== 'Cancelled' &&
     !e.serviceName.toLowerCase().includes('api') &&
     new Date(e.targetClosureDate) < today
   );
@@ -417,13 +420,13 @@ export const ImplementationsView: React.FC<ImplementationsViewProps> = ({
     return extensions.filter(ext => {
       const matchesSearch = ext.clientName.toLowerCase().includes(searchTerm.toLowerCase());
       
-      let matchesStatus = statusFilter === 'All' || ext.status === statusFilter;
+      let matchesStatus = statusFilter === 'All' ? ext.status !== 'Cancelled' : ext.status === statusFilter;
       
       // Special digest filters
       if (statusFilter === 'Mapping Pending') matchesStatus = ext.mappingStatus === 'Pending';
       if (statusFilter === 'Suspension Pending') matchesStatus = ext.suspensionRequest?.status === 'Pending';
       if (statusFilter === 'Extension Pending') matchesStatus = ext.extensionRequest?.status === 'Pending';
-      if (statusFilter === 'Delayed') matchesStatus = ext.status !== 'Completed' && ext.status !== 'Suspended' && !ext.serviceName.toLowerCase().includes('api') && new Date(ext.targetClosureDate) < new Date();
+      if (statusFilter === 'Delayed') matchesStatus = ext.status !== 'Completed' && ext.status !== 'Suspended' && ext.status !== 'Cancelled' && !ext.serviceName.toLowerCase().includes('api') && new Date(ext.targetClosureDate) < new Date();
 
       const matchesManager = managerFilter === 'All' || ext.implementationManager === managerFilter;
       const matchesService = serviceFilters.length === 0 || serviceFilters.includes(ext.serviceName);
@@ -557,6 +560,7 @@ export const ImplementationsView: React.FC<ImplementationsViewProps> = ({
       'Completed': 'bg-emerald-100 text-emerald-700',
       'Suspended': 'bg-slate-200 text-slate-600',
       'Frozen': 'bg-slate-200 text-slate-600',
+      'Cancelled': 'bg-rose-100 text-rose-700',
     };
 
     const mappingStatusColors: Record<string, string> = {
@@ -679,6 +683,7 @@ export const ImplementationsView: React.FC<ImplementationsViewProps> = ({
                 <option value="In Progress">In Progress</option>
                 <option value="Completed">Completed</option>
                 <option value="Suspended">Suspended</option>
+                <option value="Cancelled">Cancelled</option>
                 <option value="Delayed">Overdue</option>
               </select>
             </div>

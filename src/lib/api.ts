@@ -555,6 +555,7 @@ export const api = {
       assignmentHistory: r.assignment_history || [],
       suspensionRequest: r.suspension_request || null,
       reactivationRequest: r.reactivation_request || null,
+      cancellation: r.cancellation || null,
       comments: r.comments || [],
       issues: r.issues || [],
       createdAt: r.created_at,
@@ -586,6 +587,7 @@ export const api = {
       assignment_history: ext.assignmentHistory,
       suspension_request: ext.suspensionRequest,
       reactivation_request: ext.reactivationRequest,
+      cancellation: ext.cancellation,
       comments: ext.comments,
       issues: ext.issues,
     }),
@@ -792,6 +794,22 @@ export const api = {
         .update({ 
           implementation_manager: newIM,
           assignment_history: history
+        })
+        .eq('id', id);
+      if (error) throw error;
+    },
+
+    cancelImplementation: async (id: string, reason: string, cancelledBy: string): Promise<void> => {
+      const cancellationInfo = {
+        reason,
+        cancelledBy,
+        cancelledAt: new Date().toISOString(),
+      };
+      const { error } = await supabase
+        .from('service_extensions')
+        .update({
+          status: 'Cancelled',
+          cancellation: cancellationInfo,
         })
         .eq('id', id);
       if (error) throw error;

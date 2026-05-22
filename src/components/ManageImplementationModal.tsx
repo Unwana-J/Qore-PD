@@ -45,9 +45,14 @@ export const ManageImplementationModal: React.FC<ManageImplementationModalProps>
   const [processingReactivation, setProcessingReactivation] = useState(false);
   const [users, setUsers] = useState<User[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
+  // Cancellation
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [cancelReason, setCancelReason] = useState('');
+  const [processingCancel, setProcessingCancel] = useState(false);
 
   const isLead = isRole(userRole, 'IM Lead') || isRole(userRole, 'Superadmin');
   const isSuspended = extension.status === 'Suspended';
+  const isCancelled = extension.status === 'Cancelled';
 
   const [unmapComment, setUnmapComment] = useState('');
   const [showUnmapDialog, setShowUnmapDialog] = useState(false);
@@ -1005,6 +1010,59 @@ export const ManageImplementationModal: React.FC<ManageImplementationModalProps>
                             className="px-4 py-2 bg-emerald-600 text-white text-xs font-bold rounded-lg hover:bg-emerald-700 transition-colors disabled:opacity-50 flex items-center gap-1.5"
                           >
                             {processingReactivation ? <><Loader2 className="w-3 h-3 animate-spin" /> Submitting...</> : 'Submit Request'}
+                          </button>
+                        </div>
+                      </div>
+                    )
+                  )}
+
+                  {/* Cancel Implementation — Lead/Superadmin only */}
+                  {isLead && !isCancelled && !extension.cancellation && (
+                    !showCancelModal ? (
+                      <button
+                        onClick={() => setShowCancelModal(true)}
+                        className="w-full py-3 bg-slate-50 border border-slate-200 rounded-2xl text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-rose-600 hover:border-rose-200 hover:bg-rose-50/30 transition-all flex items-center justify-center gap-2"
+                      >
+                        <X className="w-3.5 h-3.5" /> Cancel Implementation
+                      </button>
+                    ) : (
+                      <div className="p-4 bg-rose-50 border border-rose-200 rounded-2xl space-y-3 animate-in fade-in">
+                        <p className="text-[10px] font-black text-rose-700 uppercase tracking-widest">Cancel Implementation</p>
+                        <p className="text-xs font-semibold text-rose-600">
+                          This marks the implementation as Cancelled. It will be excluded from all scores and metrics. This action cannot be undone.
+                        </p>
+                        <textarea
+                          className="w-full px-3 py-2.5 bg-white border border-rose-200 rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-400 transition-all resize-none"
+                          placeholder="Reason for cancellation (required)..."
+                          rows={3}
+                          value={cancelReason}
+                          onChange={e => setCancelReason(e.target.value)}
+                        />
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => { setShowCancelModal(false); setCancelReason(''); }}
+                            className="px-4 py-2 text-slate-500 text-xs font-bold rounded-lg hover:bg-slate-100 transition-colors"
+                          >
+                            Go Back
+                          </button>
+                          <button
+                            onClick={async () => {
+                              if (!cancelReason.trim()) return;
+                              setProcessingCancel(true);
+                              try {
+                                await api.serviceExtensions.cancelImplementation(extension.id, cancelReason, userName);
+                                onShowToast('Implementation cancelled.');
+                                onClose();
+                              } catch (err: any) {
+                                onShowToast(err.message, 'error');
+                              } finally {
+                                setProcessingCancel(false);
+                              }
+                            }}
+                            disabled={processingCancel || !cancelReason.trim()}
+                            className="flex-1 py-2 bg-rose-600 text-white text-xs font-black rounded-lg hover:bg-rose-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5"
+                          >
+                            {processingCancel ? <><Loader2 className="w-3 h-3 animate-spin" /> Cancelling...</> : 'Confirm Cancellation'}
                           </button>
                         </div>
                       </div>
