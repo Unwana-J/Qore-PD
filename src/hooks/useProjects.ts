@@ -1,7 +1,7 @@
-import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { format, differenceInBusinessDays, parseISO } from 'date-fns';
-import { Project, Role, AppConfig, ProjectPriority, ProjectActivity, ActivityType, RebaselineRequest, Phase, ServiceState, ProjectState, BillingRejection, DigestData, PMActivityEntry } from '../types';
+import { Project, Role, AppConfig, ProjectPriority, ProjectActivity, ActivityType, RebaselineRequest, Phase, ServiceState, ProjectState, BillingRejection, DigestData, PMActivityEntry, User, ServiceExtension, ImplementationDigestData, IMDigestActivityEntry } from '../types';
 import { api } from '../lib/api';
 import { supabase } from '../lib/supabase';
 import { calculateWorkingDays, getActiveDaysCount, calculateSPI, getAutoProjectState, getEffectiveServiceIds, getLatestInteractionDate, isRole, hasRole } from '../lib/utils';
@@ -322,7 +322,7 @@ export function useProjects(userRole: Role, config: AppConfig, userName: string 
           );
         }
 
-        const active = extensionsToDigest.filter(e => e.status !== 'Completed' && e.status !== 'Suspended' && e.status !== 'Frozen');
+        const active = extensionsToDigest.filter(e => e.status !== 'Completed' && e.status !== 'Suspended');
         const completedThisWeek = extensionsToDigest.filter(e => e.status === 'Completed' && new Date(e.updatedAt) >= sevenDaysAgo).length;
         const overdueCount = active.filter(e => 
           e.status !== 'Suspended' && 
@@ -341,7 +341,7 @@ export function useProjects(userRole: Role, config: AppConfig, userName: string 
           
           const daysSinceUpdate = Math.floor((today.getTime() - new Date(e.updatedAt).getTime()) / 86400000);
 
-          const isActive = e.status !== 'Completed' && e.status !== 'Suspended' && e.status !== 'Frozen';
+          const isActive = e.status !== 'Completed' && e.status !== 'Suspended';
           const isOverdue = isActive && !e.serviceName.toLowerCase().includes('api') && new Date(e.targetClosureDate) < today;
 
           if (isActive) {
@@ -436,9 +436,9 @@ export function useProjects(userRole: Role, config: AppConfig, userName: string 
           const webhookKey = `webhook-${projectId}`;
           if (!notifKeysRef.current.has(webhookKey)) {
             notifKeysRef.current.add(webhookKey);
-            setNotifications(prev => [
-              ...prev,
+            queryClient.setQueryData(['notifications', userId], (prev: any) => [
               { id: notifId, message: `New project received: "${clientName}"`, projectId, createdAt: new Date(), isRead: false, key: webhookKey },
+              ...(prev || [])
             ]);
           }
         }
@@ -1050,6 +1050,63 @@ export function useProjects(userRole: Role, config: AppConfig, userName: string 
     return updateProject(updatedProject);
   };
 
+  const bulkReassignProjects = async (projectIds: string[], newPmName: string, reason?: string) => {
+    const now = new Date();
+    const formattedNow = format(now, 'yyyy-MM-dd HH:mm');
+    const updatedProjectsList: Project[] = [];
+
+    const updatedProjects = projects.map(p => {
+      if (projectIds.includes(p.id)) {
+        const previousPm = p.assignedPM;
+        const updated = {
+          ...p,
+          assignedPM: newPmName,
+          updatedAt: now.toISOString().split('T')[0],
+          activities: [
+            {
+              id: Math.random().toString(36).substr(2, 9),
+              type: 'System' as const,
+              user: userName,
+              description: `Project reassigned from ${previousPm} to ${newPmName}${reason ? ` · Reason: ${reason}` : ''}`,
+              timestamp: formattedNow
+            },
+            ...(p.activities || [])
+          ]
+        };
+        // Auto-sync On-Track/Delayed state — only for non-terminal states
+        const terminalStates: ProjectState[] = ['Signed Off', 'Billed', 'Closed', 'Suspended'];
+        if (!terminalStates.includes(updated.state)) {
+          const autoState = getAutoProjectState(updated, config.spiThresholds);
+          if (autoState !== updated.state) {
+            updated.state = autoState;
+            updated.activities.unshift({
+              id: Math.random().toString(36).substr(2, 9),
+              type: 'StateChange',
+              user: 'System',
+              description: `Auto-updated status to "${autoState}" based on SPI/schedule`,
+              timestamp: formattedNow
+            });
+          }
+        }
+        updatedProjectsList.push(updated);
+        return updated;
+      }
+      return p;
+    });
+
+    if (updatedProjectsList.length === 0) return;
+
+    // Execute database updates in parallel
+    const promises = updatedProjectsList.map(async (proj) => {
+      return api.projects.update(proj);
+    });
+    
+    await Promise.all(promises);
+
+    // Update state and React Query cache
+    queryClient.setQueryData<Project[]>(['projects'], updatedProjects);
+  };
+
   const submitRebaselineRequest = async (projectId: string, extensionDays: number, comment: string) => {
     const project = projects.find(p => p.id === projectId);
     if (!project) return;
@@ -1216,6 +1273,7 @@ export function useProjects(userRole: Role, config: AppConfig, userName: string 
     billProject,
     rejectBilling,
     reassignProject,
+    bulkReassignProjects,
     submitRebaselineRequest,
     approveRebaselineRequest,
     declineRebaselineRequest,

@@ -13,6 +13,9 @@ interface ResourceDashboardProps {
   users: User[];
   packages: PackageConfig[];
   serviceBaselines: ServiceBaseline[];
+  getPMWorkload: (pmName: string) => Record<string, number>;
+  workloadThresholds: Record<string, number>;
+  onBulkReassign: (projectIds: string[], newPmName: string, reason?: string) => Promise<void>;
   onUpdateProject?: (project: Project) => void;
   onShowToast?: (msg: string, type?: 'success' | 'error' | 'info') => void;
   onUpdateUser?: (userId: string, updates: Partial<User>) => Promise<void>;
@@ -25,6 +28,7 @@ const PAGE_SIZE = 10;
 
 export const ResourceDashboard: React.FC<ResourceDashboardProps> = ({
   projects, users, packages, serviceBaselines,
+  getPMWorkload, workloadThresholds, onBulkReassign,
   onUpdateProject, onShowToast, onUpdateUser, onViewProject, themeColor = 'teal'
 }) => {
   const theme = getThemeClasses(themeColor);
@@ -86,6 +90,12 @@ export const ResourceDashboard: React.FC<ResourceDashboardProps> = ({
       <div className="p-6 max-w-5xl mx-auto">
         <PMDetailView
           pm={selectedPM}
+          users={users}
+          projects={projects}
+          getPMWorkload={getPMWorkload}
+          workloadThresholds={workloadThresholds}
+          onBulkReassign={onBulkReassign}
+          themeColor={themeColor}
           themeLight={theme.lightBg}
           themeText={theme.lightText}
           themeBg={theme.bg}

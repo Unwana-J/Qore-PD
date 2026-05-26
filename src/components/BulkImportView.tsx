@@ -5,7 +5,7 @@ import Papa from 'papaparse';
 import * as XLSX from 'xlsx';
 import { cn, formatCurrency, calculateWorkingDays, getActiveDaysCount, getPhaseListFromState, getWorkingDaysInRange, resolveServiceIds } from '../lib/utils';
 import { getThemeClasses } from '../lib/theme';
-import { Project, Role, AppConfig, ImportRow, ImportRowStatus, User, ServiceBaseline, ProductLine, ServiceState } from '../types';
+import { Project, Role, AppConfig, ImportRow, ImportRowStatus, User, ServiceBaseline, ProductLine, ServiceState, BulkImportViewProps, ServiceExtension } from '../types';
 import { ImportGuideModal } from './ImportGuideModal';
 
 const REQUIRED_FIELDS_PROJECTS = [

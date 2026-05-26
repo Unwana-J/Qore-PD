@@ -400,6 +400,7 @@ export interface User {
   invitedAt?: string;
   lastLogin?: string;
   wipLimit?: number; // Configurable maximum Work In Progress limit (Story Points)
+  workloadThresholds?: Record<string, number>;
 }
 
 export interface BulkImportViewProps {
@@ -533,4 +534,8 @@ export interface ImportRow {
   productLine?: string;
   expectedCompletionDate?: string;
   actualCompletionDate?: string;
+  serviceName?: string;
+  serviceVariant?: string;
+  implementationManager?: string;
+  targetClosureDate?: string;
 }

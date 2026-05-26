@@ -75,6 +75,7 @@ function AppContent() {
     billProject,
     rejectBilling,
     reassignProject: originalReassignProject,
+    bulkReassignProjects: originalBulkReassignProjects,
     submitRebaselineRequest,
     approveRebaselineRequest,
     declineRebaselineRequest,
@@ -166,6 +167,15 @@ function AppContent() {
       success('Project reassigned successfully!');
     } catch (err: any) {
       notifyError(err.message);
+    }
+  };
+
+  const bulkReassignProjects = async (projectIds: string[], newPm: string, reason?: string) => {
+    try {
+      await originalBulkReassignProjects(projectIds, newPm, reason);
+      success('Projects offloaded successfully!');
+    } catch (err: any) {
+      notifyError(err.message || 'Failed to offload projects.');
     }
   };
 
@@ -511,6 +521,9 @@ function AppContent() {
                         users={users}
                         packages={config.packages}
                         serviceBaselines={config.serviceBaselines || []}
+                        getPMWorkload={getPMWorkload}
+                        workloadThresholds={config.workloadThresholds}
+                        onBulkReassign={bulkReassignProjects}
                         onUpdateProject={updateProject}
                         onShowToast={(msg, type) => type === 'error' ? notifyError(msg) : type === 'info' ? info(msg) : success(msg)}
                         onUpdateUser={updateUser}

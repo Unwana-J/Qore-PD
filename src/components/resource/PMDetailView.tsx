@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { ArrowLeft, Pencil, Check, ExternalLink } from 'lucide-react';
 import { cn, getServiceNames } from '../../lib/utils';
 import { PMStat, PackageTypeStat } from './useResourceStats';
-import { Project, ServiceBaseline, PackageConfig } from '../../types';
+import { Project, ServiceBaseline, PackageConfig, User } from '../../types';
+import { OffloadProjectsModal } from '../OffloadProjectsModal';
 
 const CAP_BAR: Record<string, string> = {
   over: 'bg-rose-500', near: 'bg-amber-500', good: 'bg-emerald-500',
@@ -13,6 +14,12 @@ const CAP_TEXT: Record<string, string> = {
 
 interface Props {
   pm: PMStat;
+  users: User[];
+  projects: Project[];
+  getPMWorkload: (pmName: string) => Record<string, number>;
+  workloadThresholds: Record<string, number>;
+  onBulkReassign: (projectIds: string[], newPmName: string, reason?: string) => Promise<void>;
+  themeColor?: string;
   themeLight: string;
   themeText: string;
   themeBg: string;
@@ -30,10 +37,12 @@ interface Props {
 }
 
 export const PMDetailView: React.FC<Props> = ({
-  pm, themeLight, themeText, themeBg, serviceBaselines, packages,
+  pm, users, projects, getPMWorkload, workloadThresholds, onBulkReassign, themeColor = 'teal',
+  themeLight, themeText, themeBg, serviceBaselines, packages,
   onBack, onViewPackage, onViewProject, onEditWip,
   editingUserId, editWipValue, setEditWipValue, onSaveWip, isSaving
 }) => {
+  const [showOffloadModal, setShowOffloadModal] = useState(false);
   const [projectPage, setProjectPage] = useState(1);
   const PAGE_SIZE = 10;
   const donePct = pm.totalProjects.length > 0
@@ -187,6 +196,17 @@ export const PMDetailView: React.FC<Props> = ({
           <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-400">
             Active Projects ({pm.activeProjects.length})
           </h3>
+          {pm.activeProjects.length > 0 && (
+            <button
+              onClick={() => setShowOffloadModal(true)}
+              className={cn(
+                "px-3 py-1.5 text-xs font-black text-white rounded-xl transition-all shadow-sm",
+                themeBg, "hover:brightness-95"
+              )}
+            >
+              Offload Projects
+            </button>
+          )}
           {totalProjectPages > 1 && (
             <div className="flex items-center gap-2">
               <button disabled={projectPage === 1} onClick={() => setProjectPage(p => p - 1)}
@@ -253,6 +273,22 @@ export const PMDetailView: React.FC<Props> = ({
           );
         })}
       </div>
+
+      {showOffloadModal && (
+        <OffloadProjectsModal
+          isOpen={showOffloadModal}
+          onClose={() => setShowOffloadModal(false)}
+          sourcePm={pm}
+          users={users}
+          projects={projects}
+          packages={packages}
+          serviceBaselines={serviceBaselines}
+          getPMWorkload={getPMWorkload}
+          workloadThresholds={workloadThresholds}
+          onBulkReassign={onBulkReassign}
+          themeColor={themeColor}
+        />
+      )}
     </div>
   );
 };
