@@ -170,7 +170,7 @@ export const AuthView: React.FC = () => {
                 (isLogin && !isReset) ? "bg-white text-slate-900 shadow-sm" : "text-slate-400 hover:text-slate-600"
               )}
             >
-              Sign In
+              Log In
             </button>
             <button 
               type="button"
@@ -436,7 +436,7 @@ export const AuthView: React.FC = () => {
                 <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
               ) : (
                 <>
-                  {isLogin ? 'Sign In' : isReset ? 'Set Password' : activationStep === 'email' ? 'Verify Invitation' : 'Activate Account'}
+                  {isLogin ? 'Log In' : isReset ? 'Set Password' : activationStep === 'email' ? 'Verify Invitation' : 'Activate Account'}
                   <ArrowRight className="w-5 h-5" />
                 </>
               )}
@@ -448,7 +448,7 @@ export const AuthView: React.FC = () => {
                 onClick={() => handleTabChange(!isLogin)}
                 className="text-[10px] font-black text-slate-400 hover:text-teal-600 uppercase tracking-widest transition-colors"
               >
-                {isLogin ? "Have an invitation? Activate account" : "Already have an account? Sign in"}
+                {isLogin ? "Have an invitation? Activate account" : "Already have an account? Log in"}
               </button>
             </div>
           </form>
