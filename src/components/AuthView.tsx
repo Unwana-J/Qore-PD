@@ -9,7 +9,9 @@ import {
   ArrowRight,
   AlertTriangle,
   Fingerprint,
-  CheckCircle2
+  CheckCircle2,
+  ArrowLeft,
+  ShieldCheck
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { cn } from '../lib/utils';
@@ -26,8 +28,58 @@ export const AuthView: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
+  // States for invite verification
+  const [activationStep, setActivationStep] = useState<'email' | 'password'>('email');
+  const [assignedRole, setAssignedRole] = useState<string | null>(null);
+
+  const handleTabChange = (toLogin: boolean) => {
+    setIsLogin(toLogin);
+    setIsReset(false);
+    setError(null);
+    setSuccess(null);
+    setActivationStep('email');
+    setAssignedRole(null);
+  };
+
+  const handleVerifyInvite = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email) {
+      setError('Please enter your email address.');
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    setSuccess(null);
+
+    try {
+      const { data, error: rpcError } = await supabase.rpc('check_pending_invite', { email_to_check: email });
+      if (rpcError) throw rpcError;
+
+      if (data && data.exists) {
+        setAssignedRole(data.role);
+        if (data.name) {
+          setName(data.name);
+        }
+        setActivationStep('password');
+        setSuccess(`Invitation verified! Welcome, ${data.name || 'User'}.`);
+      } else {
+        throw new Error('This email has not been invited or the invitation has expired. Please contact your manager.');
+      }
+    } catch (err: any) {
+      setError(err.message || 'Verification failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!isLogin && !isReset && activationStep === 'email') {
+      await handleVerifyInvite(e);
+      return;
+    }
+
     setLoading(true);
     setError(null);
     setSuccess(null);
@@ -47,6 +99,7 @@ export const AuthView: React.FC = () => {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
       } else {
+        if (password !== confirmPassword) throw new Error("Passwords do not match");
         const { data, error } = await supabase.auth.signUp({ 
           email, 
           password,
@@ -110,7 +163,8 @@ export const AuthView: React.FC = () => {
         >
           <div className="flex bg-slate-50 p-1.5 rounded-2xl mb-8">
             <button 
-              onClick={() => { setIsLogin(true); setIsReset(false); }}
+              type="button"
+              onClick={() => handleTabChange(true)}
               className={cn(
                 "flex-1 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all",
                 (isLogin && !isReset) ? "bg-white text-slate-900 shadow-sm" : "text-slate-400 hover:text-slate-600"
@@ -119,113 +173,238 @@ export const AuthView: React.FC = () => {
               Sign In
             </button>
             <button 
-              onClick={() => { setIsLogin(false); setIsReset(false); }}
+              type="button"
+              onClick={() => handleTabChange(false)}
               className={cn(
                 "flex-1 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all",
                 (!isLogin && !isReset) ? "bg-white text-slate-900 shadow-sm" : "text-slate-400 hover:text-slate-600"
               )}
             >
-              Create Account
+              Activate Account
             </button>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">
             <h2 className="text-xl font-black text-slate-900 text-center mb-2">
-              {isReset ? 'Set New Password' : isLogin ? 'Welcome Back' : 'Create Account'}
+              {isReset ? 'Set New Password' : isLogin ? 'Welcome Back' : 'Activate Account'}
             </h2>
 
             <AnimatePresence mode="wait">
-              {!isLogin && !isReset && (
+              {isReset ? (
                 <motion.div 
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: 'auto', opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }}
-                  className="space-y-2 overflow-hidden"
+                  key="reset-fields" 
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  className="space-y-4"
                 >
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Full Name</label>
-                  <div className="relative">
-                    <Fingerprint className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300" />
-                    <input 
-                      type="text" 
-                      required
-                      className="w-full pl-11 pr-5 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl font-bold focus:outline-none focus:border-teal-500 transition-all"
-                      placeholder="John Doe"
-                      value={name}
-                      onChange={e => setName(e.target.value)}
-                    />
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">New Password</label>
+                    <div className="relative">
+                      <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300" />
+                      <input 
+                        type={showPassword ? 'text' : 'password'} 
+                        required
+                        className="w-full pl-11 pr-12 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl font-bold focus:outline-none focus:border-teal-500 transition-all"
+                        placeholder="••••••••"
+                        value={password}
+                        onChange={e => setPassword(e.target.value)}
+                      />
+                      <button 
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-300 hover:text-slate-500 p-1"
+                      >
+                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
                   </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Confirm New Password</label>
+                    <div className="relative">
+                      <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300" />
+                      <input 
+                        type={showPassword ? 'text' : 'password'} 
+                        required
+                        className="w-full pl-11 pr-12 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl font-bold focus:outline-none focus:border-teal-500 transition-all"
+                        placeholder="••••••••"
+                        value={confirmPassword}
+                        onChange={e => setConfirmPassword(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                </motion.div>
+              ) : isLogin ? (
+                <motion.div 
+                  key="login-fields" 
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  className="space-y-4"
+                >
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Email Address</label>
+                    <div className="relative">
+                      <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300" />
+                      <input 
+                        type="email" 
+                        required
+                        className="w-full pl-11 pr-5 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl font-bold focus:outline-none focus:border-teal-500 transition-all"
+                        placeholder="name@company.com"
+                        value={email}
+                        onChange={e => setEmail(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between pl-1">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Password</label>
+                      <button 
+                        type="button" 
+                        onClick={handleForgotPassword}
+                        className="text-[10px] font-black text-teal-600 hover:text-teal-700 uppercase tracking-widest"
+                      >
+                        Forgot?
+                      </button>
+                    </div>
+                    <div className="relative">
+                      <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300" />
+                      <input 
+                        type={showPassword ? 'text' : 'password'} 
+                        required
+                        className="w-full pl-11 pr-12 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl font-bold focus:outline-none focus:border-teal-500 transition-all"
+                        placeholder="••••••••"
+                        value={password}
+                        onChange={e => setPassword(e.target.value)}
+                      />
+                      <button 
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-300 hover:text-slate-500 p-1"
+                      >
+                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </div>
+                </motion.div>
+              ) : (
+                <motion.div 
+                  key="signup-fields" 
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  className="space-y-4"
+                >
+                  {activationStep === 'email' ? (
+                    <div className="space-y-4">
+                      <p className="text-xs text-slate-500 text-center leading-relaxed">
+                        Access to Qore is invite-only. Enter your pre-authorized work email to verify your access.
+                      </p>
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Email Address</label>
+                        <div className="relative">
+                          <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300" />
+                          <input 
+                            type="email" 
+                            required
+                            className="w-full pl-11 pr-5 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl font-bold focus:outline-none focus:border-teal-500 transition-all"
+                            placeholder="name@company.com"
+                            value={email}
+                            onChange={e => setEmail(e.target.value)}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      <div className="p-4 bg-teal-50 border border-teal-100 rounded-2xl flex items-center gap-3 text-teal-800 text-left">
+                        <ShieldCheck className="w-5 h-5 text-teal-600 shrink-0" />
+                        <div>
+                          <p className="text-xs font-black leading-snug">Invitation Verified!</p>
+                          <p className="text-[10px] text-teal-600 mt-0.5 font-bold uppercase">Pre-assigned Role: {assignedRole}</p>
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Full Name</label>
+                        <div className="relative">
+                          <Fingerprint className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300" />
+                          <input 
+                            type="text" 
+                            required
+                            className="w-full pl-11 pr-5 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl font-bold focus:outline-none focus:border-teal-500 transition-all"
+                            placeholder="Sarah Jenkins"
+                            value={name}
+                            onChange={e => setName(e.target.value)}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Email Address (Verified)</label>
+                        <div className="relative">
+                          <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300 opacity-50" />
+                          <input 
+                            type="email" 
+                            disabled
+                            className="w-full pl-11 pr-5 py-4 bg-slate-100 border-2 border-slate-200 rounded-2xl font-bold text-slate-500 cursor-not-allowed"
+                            value={email}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Password</label>
+                        <div className="relative">
+                          <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300" />
+                          <input 
+                            type={showPassword ? 'text' : 'password'} 
+                            required
+                            className="w-full pl-11 pr-12 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl font-bold focus:outline-none focus:border-teal-500 transition-all"
+                            placeholder="••••••••"
+                            value={password}
+                            onChange={e => setPassword(e.target.value)}
+                          />
+                          <button 
+                            type="button"
+                            onClick={() => setShowPassword(!showPassword)}
+                            className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-300 hover:text-slate-500 p-1"
+                          >
+                            {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Confirm Password</label>
+                        <div className="relative">
+                          <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300" />
+                          <input 
+                            type={showPassword ? 'text' : 'password'} 
+                            required
+                            className="w-full pl-11 pr-12 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl font-bold focus:outline-none focus:border-teal-500 transition-all"
+                            placeholder="••••••••"
+                            value={confirmPassword}
+                            onChange={e => setConfirmPassword(e.target.value)}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="text-center pt-2">
+                        <button 
+                          type="button" 
+                          onClick={() => { setActivationStep('email'); setSuccess(null); }}
+                          className="text-[10px] font-black text-slate-400 hover:text-teal-600 uppercase tracking-widest transition-colors flex items-center justify-center gap-1 mx-auto"
+                        >
+                          <ArrowLeft className="w-3.5 h-3.5" />
+                          Back to Email Verification
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </motion.div>
               )}
             </AnimatePresence>
-
-            {!isReset && (
-              <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Email Address</label>
-                <div className="relative">
-                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300" />
-                  <input 
-                    type="email" 
-                    required
-                    className="w-full pl-11 pr-5 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl font-bold focus:outline-none focus:border-teal-500 transition-all"
-                    placeholder="name@company.com"
-                    value={email}
-                    onChange={e => setEmail(e.target.value)}
-                  />
-                </div>
-              </div>
-            )}
-
-            <div className="space-y-2">
-              <div className="flex items-center justify-between pl-1">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                  {isReset ? 'New Password' : 'Password'}
-                </label>
-                {isLogin && !isReset && (
-                  <button 
-                    type="button" 
-                    onClick={handleForgotPassword}
-                    className="text-[10px] font-black text-teal-600 hover:text-teal-700 uppercase tracking-widest"
-                  >
-                    Forgot?
-                  </button>
-                )}
-              </div>
-              <div className="relative">
-                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300" />
-                <input 
-                  type={showPassword ? 'text' : 'password'} 
-                  required
-                  className="w-full pl-11 pr-12 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl font-bold focus:outline-none focus:border-teal-500 transition-all"
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={e => setPassword(e.target.value)}
-                />
-                <button 
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-300 hover:text-slate-500 p-1"
-                >
-                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </button>
-              </div>
-            </div>
-
-            {isReset && (
-              <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Confirm New Password</label>
-                <div className="relative">
-                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300" />
-                  <input 
-                    type={showPassword ? 'text' : 'password'} 
-                    required
-                    className="w-full pl-11 pr-12 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl font-bold focus:outline-none focus:border-teal-500 transition-all"
-                    placeholder="••••••••"
-                    value={confirmPassword}
-                    onChange={e => setConfirmPassword(e.target.value)}
-                  />
-                </div>
-              </div>
-            )}
 
             {success && (
               <motion.div 
@@ -257,7 +436,7 @@ export const AuthView: React.FC = () => {
                 <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
               ) : (
                 <>
-                  {isLogin ? 'Sign In' : 'Create Account'}
+                  {isLogin ? 'Sign In' : isReset ? 'Set Password' : activationStep === 'email' ? 'Verify Invitation' : 'Activate Account'}
                   <ArrowRight className="w-5 h-5" />
                 </>
               )}
@@ -266,10 +445,10 @@ export const AuthView: React.FC = () => {
             <div className="pt-6 text-center">
               <button 
                 type="button"
-                onClick={() => setIsLogin(!isLogin)}
+                onClick={() => handleTabChange(!isLogin)}
                 className="text-[10px] font-black text-slate-400 hover:text-teal-600 uppercase tracking-widest transition-colors"
               >
-                {isLogin ? "Don't have an account? Create one" : "Already have an account? Sign in"}
+                {isLogin ? "Have an invitation? Activate account" : "Already have an account? Sign in"}
               </button>
             </div>
           </form>
