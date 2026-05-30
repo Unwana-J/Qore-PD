@@ -58,6 +58,13 @@ Qore is a mission-critical internal operating system designed for high-stakes pr
 - **REQ-15: Notes-to-Comment Mapping**: The system must automatically parse a "Key Updates" or "Notes" column in CSVs and inject it as the first implementation comment.
 - **REQ-16: Validation Preview**: Users must be able to edit rows inline before finalized database insertion.
 
+### 3.6. User Onboarding & Authentication Lifecycle
+- **REQ-17: Invite-Only Registration**: Open registration is strictly disabled. Users can only sign up if their email address matches a pending, non-expired record in the `invites` table.
+- **REQ-18: Two-Step Activation Wizard**: The signup page ("Activate Account") must employ a two-step validation flow:
+  1. *Step 1 (Verification)*: User enters their email to perform a secure backend query. If uninvited, registration is blocked.
+  2. *Step 2 (Configuration)*: Locks the verified email, loads the pre-assigned role/name, and prompts the user to set their password.
+- **REQ-19: Database-Level Security Enforcement**: The database-level signup trigger must assert invitation checks during user creation in Supabase auth, throwing a standard SQL exception if an uninvited user attempts to register directly.
+
 ---
 
 ## 4. Core User Flows
@@ -79,6 +86,13 @@ Qore is a mission-critical internal operating system designed for high-stakes pr
 1. **Baseline Update**: Superadmin adds a "Security Audit" milestone to the "Transfers" service in Settings.
 2. **Save**: Upon clicking Save, a prompt appears: "Sync with 12 active implementations?".
 3. **Sync**: System iterates through all 12 active "Transfers" projects, appends the new milestone, and maintains the order without clearing previously completed steps.
+
+### 4.4. Account Activation Flow
+1. **Invite**: Superadmin creates an invitation (Email, Name, Role) inside Settings.
+2. **Access**: User navigates to the portal, selects "Activate Account", and enters their work email.
+3. **Verification**: System executes RPC function `check_pending_invite` and verifies the pending invite exists.
+4. **Setup**: The UI unlocks Step 2, displaying: *"Invitation Verified! Pre-assigned Role: IM"*.
+5. **Completion**: User completes password registration. Supabase trigger changes invitation status to `Accepted` and inserts their profile with the assigned role.
 
 ---
 
