@@ -24,6 +24,7 @@ interface ImplementationsViewProps {
   onImportExtensions?: () => void;
   onNavigate?: (view: string, filter?: string, tab?: string) => void;
   onTabChange?: (tab: any) => void;
+  onUpdateConfig?: (updates: Partial<AppConfig>) => Promise<void>;
 }
 
 // ── IM Personal Dashboard Analytics ──────────────────────────────────────────
@@ -328,7 +329,7 @@ const IMPersonalDashboard: React.FC<{ extensions: ServiceExtension[]; userName: 
 
 // ── Main View ─────────────────────────────────────────────────────────────────
 export const ImplementationsView: React.FC<ImplementationsViewProps> = ({
-  userRole, userName, config, projects, users, onShowToast, initialFilter, initialIM, defaultTab, mode, onImportExtensions, onNavigate, onTabChange
+  userRole, userName, config, projects, users, onShowToast, initialFilter, initialIM, defaultTab, mode, onImportExtensions, onNavigate, onTabChange, onUpdateConfig
 }) => {
   const [extensions, setExtensions] = useState<ServiceExtension[]>([]);
   const [loading, setLoading] = useState(true);
@@ -953,6 +954,8 @@ export const ImplementationsView: React.FC<ImplementationsViewProps> = ({
               extensions={extensions} 
               users={users} 
               config={config} 
+              userRole={userRole}
+              onUpdateConfig={onUpdateConfig}
               onFilter={(status, manager) => {
                 setActiveTab('all');
                 setStatusFilter(status);

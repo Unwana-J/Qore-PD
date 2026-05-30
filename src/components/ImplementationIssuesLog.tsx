@@ -1,8 +1,8 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { ServiceExtension, ImplementationIssue, GeneralIssue, GeneralIssueComment, ServiceState } from '../types';
 import { cn } from '../lib/utils';
-import { AlertTriangle, Shield, Clock, CheckCircle, Filter, Search, Users, Calendar, X, ChevronDown, Wrench, Plus, Loader2, Layers, Trash2, Edit3, MessageSquare, Send } from 'lucide-react';
-import { format, parseISO, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
+import { AlertTriangle, Shield, Clock, CheckCircle, Filter, Search, Users, Calendar, X, ChevronDown, Wrench, Plus, Loader2, Layers, Trash2, Edit3, MessageSquare, Send, Flame } from 'lucide-react';
+import { format, parseISO, isWithinInterval, startOfDay, endOfDay, differenceInDays } from 'date-fns';
 import { api } from '../lib/api';
 
 interface ImplementationIssuesLogProps {
@@ -562,67 +562,94 @@ export const ImplementationIssuesLog: React.FC<ImplementationIssuesLogProps> = (
                   </td>
                 </tr>
               ) : (
-                paginatedIssues.map(issue => (
-                  <tr key={issue.id} className="hover:bg-slate-50/50 transition-colors group">
-                    <td className="px-6 py-4">
-                      {issue.isGeneral ? (
-                        <button 
-                          onClick={() => {
-                            const gi = generalIssues.find(g => g.id === issue.id);
-                            if (gi) setViewingGeneralIssue(gi);
-                          }} 
-                          className="text-left group/btn"
-                        >
-                          <p className="text-sm font-black text-slate-800 line-clamp-2 group-hover/btn:text-indigo-600 transition-colors">{issue.description}</p>
-                          {issue.notes && <p className="text-[10px] text-slate-400 mt-1 line-clamp-1 italic">{issue.notes}</p>}
-                        </button>
-                      ) : (
-                        <button onClick={() => issue.extension && onManage(issue.extension)} className="text-left">
-                          <p className="text-sm font-black text-slate-800 line-clamp-2 group-hover:text-teal-700 transition-colors">{issue.description}</p>
-                          {issue.notes && <p className="text-[10px] text-slate-400 mt-1 line-clamp-1 italic">{issue.notes}</p>}
-                        </button>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 min-w-0">
-                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block truncate" title={issue.category || 'General'}>{issue.category || 'General'}</span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex flex-col gap-0.5 min-w-0">
+                paginatedIssues.map(issue => {
+                  const daysOpen = differenceInDays(new Date(), parseISO(issue.createdAt));
+                  const isStale = issue.status !== 'Closed' && daysOpen >= 7;
+
+                  return (
+                    <tr key={issue.id} className="hover:bg-slate-50/50 transition-colors group">
+                      <td className="px-6 py-4">
                         {issue.isGeneral ? (
-                          <span className="px-2 py-0.5 bg-indigo-50 text-indigo-600 rounded text-[10px] font-black uppercase tracking-widest w-fit mb-1 border border-indigo-100">
-                            General
-                          </span>
+                          <button 
+                            onClick={() => {
+                              const gi = generalIssues.find(g => g.id === issue.id);
+                              if (gi) setViewingGeneralIssue(gi);
+                            }} 
+                            className="text-left group/btn"
+                          >
+                            <p className="text-sm font-black text-slate-800 line-clamp-2 group-hover/btn:text-indigo-600 transition-colors">{issue.description}</p>
+                            <div className="flex flex-wrap items-center gap-2 mt-1">
+                              {isStale && (
+                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-rose-50 text-rose-600 border border-rose-100 text-[8px] font-black uppercase tracking-widest rounded animate-pulse">
+                                  <Flame className="w-2.5 h-2.5 text-rose-500" /> Stale (7+ days)
+                                </span>
+                              )}
+                              {issue.notes && <p className="text-[10px] text-slate-400 line-clamp-1 italic">{issue.notes}</p>}
+                            </div>
+                          </button>
                         ) : (
-                          <p className="text-xs font-black text-slate-800 truncate" title={issue.clientName}>{issue.clientName}</p>
+                          <button onClick={() => issue.extension && onManage(issue.extension)} className="text-left">
+                            <p className="text-sm font-black text-slate-800 line-clamp-2 group-hover:text-teal-700 transition-colors">{issue.description}</p>
+                            <div className="flex flex-wrap items-center gap-2 mt-1">
+                              {isStale && (
+                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-rose-50 text-rose-600 border border-rose-100 text-[8px] font-black uppercase tracking-widest rounded animate-pulse">
+                                  <Flame className="w-2.5 h-2.5 text-rose-500" /> Stale (7+ days)
+                                </span>
+                              )}
+                              {issue.notes && <p className="text-[10px] text-slate-400 line-clamp-1 italic">{issue.notes}</p>}
+                            </div>
+                          </button>
                         )}
-                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest truncate" title={issue.serviceName}>{issue.serviceName}</p>
-                        <p className="text-[10px] font-black text-teal-600 uppercase tracking-widest truncate mt-0.5" title={issue.manager}>{issue.manager}</p>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex justify-center">
-                        <span className={cn('px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider', impactColors[issue.impact as keyof typeof impactColors] || 'bg-slate-100 text-slate-500')}>
-                          {issue.impact}
-                        </span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex justify-center">
-                        <span className={cn('flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider border', statusColors[issue.status as keyof typeof statusColors] || 'border-slate-100')}>
-                          {issue.status === 'Open' && <AlertTriangle className="w-3 h-3" />}
-                          {issue.status === 'Addressing' && <Clock className="w-3 h-3" />}
-                          {issue.status === 'Closed' && <CheckCircle className="w-3 h-3" />}
-                          {issue.status}
-                        </span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                        {format(parseISO(issue.createdAt), 'dd MMM yyyy')}
-                      </p>
-                    </td>
-                  </tr>
-                ))
+                      </td>
+                      <td className="px-6 py-4 min-w-0">
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block truncate" title={issue.category || 'General'}>{issue.category || 'General'}</span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex flex-col gap-0.5 min-w-0">
+                          {issue.isGeneral ? (
+                            <span className="px-2 py-0.5 bg-indigo-50 text-indigo-600 rounded text-[10px] font-black uppercase tracking-widest w-fit mb-1 border border-indigo-100">
+                              General
+                            </span>
+                          ) : (
+                            <p className="text-xs font-black text-slate-800 truncate" title={issue.clientName}>{issue.clientName}</p>
+                          )}
+                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest truncate" title={issue.serviceName}>{issue.serviceName}</p>
+                          <p className="text-[10px] font-black text-teal-600 uppercase tracking-widest truncate mt-0.5" title={issue.manager}>{issue.manager}</p>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex justify-center">
+                          <span className={cn('px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider', impactColors[issue.impact as keyof typeof impactColors] || 'bg-slate-100 text-slate-500')}>
+                            {issue.impact}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex justify-center">
+                          <span className={cn('flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider border', statusColors[issue.status as keyof typeof statusColors] || 'border-slate-100')}>
+                            {issue.status === 'Open' && <AlertTriangle className="w-3 h-3" />}
+                            {issue.status === 'Addressing' && <Clock className="w-3 h-3" />}
+                            {issue.status === 'Closed' && <CheckCircle className="w-3 h-3" />}
+                            {issue.status}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <div className="flex flex-col items-end gap-1">
+                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                            {format(parseISO(issue.createdAt), 'dd MMM yyyy')}
+                          </p>
+                          <span className={cn(
+                            "px-1.5 py-0.5 text-[9px] font-bold uppercase rounded border",
+                            isStale ? "bg-red-50 text-red-600 border-red-100" : "bg-slate-50 text-slate-500 border-slate-100"
+                          )}>
+                            {daysOpen}d open
+                          </span>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>

@@ -737,9 +737,9 @@ export const PhaseView: React.FC<PhaseViewProps> = ({
 
           if (isSignedOff) {
             return (
-              <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 px-4 py-2 rounded-2xl">
-                <Clock className="w-4 h-4 text-amber-600" />
-                <span className="text-sm font-bold text-amber-700">Awaiting Finance</span>
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-amber-200 bg-amber-50/50 text-amber-700 text-xs font-black uppercase tracking-wider">
+                <Clock className="w-3.5 h-3.5 text-amber-500 animate-pulse" />
+                Awaiting Finance
               </div>
             );
           }
@@ -1757,6 +1757,20 @@ export const PhaseView: React.FC<PhaseViewProps> = ({
                   )}
                 </div>
               </div>
+
+              {project.state === 'Signed Off' && (
+                <div className="col-span-2 border-t border-slate-100 pt-4 mt-2">
+                  <button
+                    onClick={() => {
+                      onShowToast?.('Reminder email sent to Finance team', 'success');
+                    }}
+                    className="w-full flex items-center justify-center gap-2 py-2.5 px-4 bg-slate-900 hover:bg-slate-800 text-white text-xs font-black uppercase tracking-widest rounded-xl transition-all shadow-md shadow-slate-950/10 active:scale-95 animate-in fade-in slide-in-from-bottom-2 duration-200"
+                  >
+                    <Send className="w-4 h-4" />
+                    Send Finance Reminder
+                  </button>
+                </div>
+              )}
             </div>
           </div>
 

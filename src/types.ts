@@ -473,6 +473,7 @@ export interface AppConfig {
   customTags?: { id: string; name: string; color: string }[];
   riskCategories?: string[];
   issueCategories?: string[];
+  monthlyTrendAnnotations?: Record<string, string>;
 }
 
 export interface WeightHistory {

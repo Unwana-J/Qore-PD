@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ComposedChart, Line } from 'recharts';
-import { TrendingUp, Activity, Users, Package, Filter, Award, AlertTriangle, CheckCircle2, Layers, Clock, Link, HelpCircle } from 'lucide-react';
-import { ServiceExtension, User, AppConfig } from '../types';
+import { TrendingUp, Activity, Users, Package, Filter, Award, AlertTriangle, CheckCircle2, Layers, Clock, Link, HelpCircle, X, MessageSquare } from 'lucide-react';
+import { ServiceExtension, User, AppConfig, Role } from '../types';
 import { cn } from '../lib/utils';
 import { getThemeClasses } from '../lib/theme';
 
@@ -9,9 +9,16 @@ interface IMInsightsViewProps {
   extensions: ServiceExtension[]; 
   users: User[]; 
   config: AppConfig; 
+  userRole?: Role;
+  onUpdateConfig?: (updates: Partial<AppConfig>) => Promise<void>;
   onFilter?: (status: string, manager?: string) => void;
   onManage?: (projectId: string) => void;
 }
+
+const getAnnotationKey = (year: number | 'All', monthName: string) => {
+  const y = year === 'All' ? new Date().getFullYear() : year;
+  return `${y}-${monthName}`;
+};
 
 // Product Weights moved to dynamic config
 const MN = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -50,7 +57,15 @@ const KPI = ({label,value,sub,rate,inv,icon,color,onClick}:any) => {
   );
 };
 
-export const IMInsightsView: React.FC<IMInsightsViewProps> = ({ extensions=[], users=[], config, onFilter, onManage }) => {
+export const IMInsightsView: React.FC<IMInsightsViewProps> = ({ 
+  extensions=[], 
+  users=[], 
+  config, 
+  userRole,
+  onUpdateConfig,
+  onFilter, 
+  onManage 
+}) => {
   const [yr, setYr] = useState<number|'All'>(new Date().getFullYear());
   const [mo, setMo] = useState<number|'All'>('All');
   const [q, setQ] = useState<number|'All'>('All');
@@ -58,6 +73,9 @@ export const IMInsightsView: React.FC<IMInsightsViewProps> = ({ extensions=[], u
   const [customRange, setCustomRange] = useState({ start: '', end: '' });
   const [expandedIM, setExpandedIM] = useState<string|null>(null);
   const [showApiInfo, setShowApiInfo] = useState(false);
+  const [editingAnnotationKey, setEditingAnnotationKey] = useState<string|null>(null);
+  const [annotationText, setAnnotationText] = useState<string>('');
+  const [isSavingAnnotation, setIsSavingAnnotation] = useState(false);
   const theme = getThemeClasses(config.brand.themeColor);
   const today = new Date();
 
@@ -174,6 +192,47 @@ export const IMInsightsView: React.FC<IMInsightsViewProps> = ({ extensions=[], u
     const su=trends.reduce((a,m)=>a+m.suspended,0);
     return {started:s, completed:c, suspended:su, rate: s>0?Math.round((c/s)*100):0};
   }, [trends]);
+
+  const outlierMonths = useMemo(() => {
+    if (!trends || trends.length === 0) return [];
+    const completions = trends.map(t => t.completed);
+    const sum = completions.reduce((acc, val) => acc + val, 0);
+    const mean = sum / completions.length;
+    const variance = completions.reduce((acc, val) => acc + Math.pow(val - mean, 2), 0) / completions.length;
+    const stdDev = Math.sqrt(variance);
+    return trends
+      .map((t, index) => {
+        const isOutlier = (t.completed - mean) > 1.5 * stdDev && t.completed > 10;
+        return {
+          ...t,
+          index,
+          isOutlier
+        };
+      })
+      .filter(t => t.isOutlier);
+  }, [trends]);
+
+  const handleSaveAnnotation = async () => {
+    if (!editingAnnotationKey || !onUpdateConfig) return;
+    setIsSavingAnnotation(true);
+    try {
+      const currentAnnotations = config.monthlyTrendAnnotations || {};
+      const updatedAnnotations = { ...currentAnnotations };
+      if (annotationText.trim()) {
+        updatedAnnotations[editingAnnotationKey] = annotationText.trim();
+      } else {
+        delete updatedAnnotations[editingAnnotationKey];
+      }
+      await onUpdateConfig({
+        monthlyTrendAnnotations: updatedAnnotations
+      });
+      setEditingAnnotationKey(null);
+    } catch (err) {
+      console.error("Failed to save trend annotation:", err);
+    } finally {
+      setIsSavingAnnotation(false);
+    }
+  };
 
 const getIMStoryPoint = (w: number | undefined | null): number => {
   if (w == null) return 1;
@@ -319,6 +378,47 @@ const weightMap = useMemo(() => {
     fd.filter(e=>e.status!=='Completed' && e.status!=='Suspended' && !e.serviceName.toLowerCase().includes('api') && new Date(e.targetClosureDate)<today)
       .sort((a,b)=>new Date(a.targetClosureDate).getTime()-new Date(b.targetClosureDate).getTime()),
   [fd]);
+
+  const CustomTooltip = ({ active, payload, label }: any) => {
+    if (active && payload && payload.length) {
+      const annotationKey = getAnnotationKey(yr, label);
+      const annotation = config.monthlyTrendAnnotations?.[annotationKey];
+
+      return (
+        <div className="bg-white p-4 rounded-3xl border border-slate-200 shadow-xl space-y-2 animate-in fade-in duration-200 z-[99]">
+          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{label} {yr !== 'All' ? yr : ''}</p>
+          <div className="space-y-1.5 min-w-[120px]">
+            {payload.map((p: any) => {
+              const colorMap: Record<string, string> = {
+                'Started': 'text-slate-600',
+                'Completed': 'text-emerald-600',
+                'Suspended': 'text-amber-500',
+                'Rate %': 'text-teal-600'
+              };
+              const isRate = p.name === 'Rate %';
+              return (
+                <div key={p.name} className="flex justify-between items-center gap-6 text-xs">
+                  <span className="font-bold text-slate-500">{p.name}</span>
+                  <span className={cn("font-black", colorMap[p.name] || "text-slate-900")}>
+                    {p.value}{isRate ? '%' : ''}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+          {annotation && (
+            <div className="pt-2 border-t border-slate-100 max-w-[240px]">
+              <p className="text-[9px] font-black uppercase text-amber-500 tracking-wider mb-0.5 flex items-center gap-1">
+                <MessageSquare className="w-2.5 h-2.5" /> Note
+              </p>
+              <p className="text-xs font-semibold text-slate-600 leading-relaxed whitespace-pre-wrap">{annotation}</p>
+            </div>
+          )}
+        </div>
+      );
+    }
+    return null;
+  };
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
@@ -625,7 +725,7 @@ const weightMap = useMemo(() => {
               <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill:'#94a3b8',fontSize:10,fontWeight:700}}/>
               <YAxis yAxisId="left" axisLine={false} tickLine={false} tick={{fill:'#94a3b8',fontSize:10}}/>
               <YAxis yAxisId="right" orientation="right" domain={[0,100]} axisLine={false} tickLine={false} tick={{fill:'#94a3b8',fontSize:10}} tickFormatter={(v)=>`${v}%`}/>
-              <Tooltip contentStyle={{borderRadius:'16px',border:'none',boxShadow:'0 20px 25px -5px rgb(0 0 0 / 0.1)'}}/>
+              <Tooltip content={<CustomTooltip />} />
               <Bar yAxisId="left" dataKey="started" fill="#e2e8f0" radius={[4,4,0,0]} name="Started"/>
               <Bar yAxisId="left" dataKey="completed" fill="#10b981" radius={[4,4,0,0]} name="Completed"/>
               <Bar yAxisId="left" dataKey="suspended" fill="#fbbf24" radius={[4,4,0,0]} name="Suspended"/>
@@ -642,6 +742,66 @@ const weightMap = useMemo(() => {
             </div>
           ))}
         </div>
+
+        {/* Outlier Annotations / Explanations section */}
+        {outlierMonths.length > 0 && (
+          <div className="mt-6 pt-4 border-t border-slate-100 space-y-3 animate-in fade-in duration-300">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5">
+                <AlertTriangle className="w-4 h-4 text-amber-500" />
+                <h4 className="text-xs font-black text-slate-900 uppercase tracking-wider">
+                  Outlier Completion Spikes
+                </h4>
+              </div>
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                Deviation &gt; 1.5 Std Dev
+              </span>
+            </div>
+            <div className="space-y-2">
+              {outlierMonths.map(m => {
+                const key = getAnnotationKey(yr, m.name);
+                const explanation = config.monthlyTrendAnnotations?.[key];
+                const canEdit = userRole === 'IM Lead' || userRole === 'Superadmin';
+                
+                return (
+                  <div key={m.name} className="flex items-start justify-between bg-slate-50/50 hover:bg-slate-50 p-3.5 rounded-2xl border border-slate-100 gap-4 transition-colors">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <span className="px-2 py-0.5 bg-amber-50 border border-amber-200 text-amber-700 text-[10px] font-black rounded-md uppercase tracking-wider">
+                          {m.name} Outlier
+                        </span>
+                        <span className="text-xs font-bold text-slate-500">
+                          {m.completed} completions (started: {m.started})
+                        </span>
+                      </div>
+                      {explanation ? (
+                        <p className="text-xs font-semibold text-slate-600 leading-relaxed pl-1 whitespace-pre-wrap">
+                          {explanation}
+                        </p>
+                      ) : (
+                        <p className="text-xs italic text-slate-400 pl-1">
+                          No explanation logged yet.
+                        </p>
+                      )}
+                    </div>
+                    {canEdit && (
+                      <button
+                        onClick={() => {
+                          setEditingAnnotationKey(key);
+                          setAnnotationText(explanation || '');
+                        }}
+                        className="flex items-center gap-1 text-[10px] font-black uppercase text-teal-600 hover:text-teal-700 hover:bg-teal-50 px-2.5 py-1.5 rounded-xl border border-teal-100 bg-white transition-all shadow-sm active:scale-95 whitespace-nowrap self-center"
+                      >
+                        <MessageSquare className="w-3 h-3" />
+                        {explanation ? 'Edit Explanation' : 'Log Explanation'}
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Attention Required Section */}
@@ -717,6 +877,70 @@ const weightMap = useMemo(() => {
         <p className="text-[10px] text-slate-400 mt-4 italic">* Complexity weights are configured in Settings. Click a row to see per-product breakdown.</p>
       </div>
 
+      {/* Explanation Modal */}
+      {editingAnnotationKey && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div 
+            className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300" 
+            onClick={() => setEditingAnnotationKey(null)} 
+          />
+          
+          <div className="relative bg-white w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="p-6 border-b border-slate-100 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-teal-50 rounded-xl">
+                  <MessageSquare className="w-5 h-5 text-teal-600" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-black text-slate-900 tracking-tight">Log Trend Explanation</h3>
+                  <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">
+                    Month: {editingAnnotationKey.split('-')[1]} ({editingAnnotationKey.split('-')[0]})
+                  </p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setEditingAnnotationKey(null)} 
+                className="p-2 hover:bg-slate-100 rounded-xl transition-colors"
+              >
+                <X className="w-5 h-5 text-slate-400" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">
+                  Explanation / Context
+                </label>
+                <textarea
+                  className="w-full min-h-[120px] p-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold text-slate-700 outline-none focus:ring-4 focus:ring-teal-500/10 focus:border-teal-500 transition-all resize-none placeholder:text-slate-400 placeholder:font-normal"
+                  placeholder="Provide context for this execution spike (e.g. Q2 bulk import — 120 historical records migrated)"
+                  value={annotationText}
+                  onChange={e => setAnnotationText(e.target.value)}
+                  disabled={isSavingAnnotation}
+                  maxLength={500}
+                />
+              </div>
+            </div>
+
+            <div className="p-6 bg-slate-50 border-t border-slate-100 flex gap-3">
+              <button
+                onClick={handleSaveAnnotation}
+                disabled={isSavingAnnotation}
+                className="flex-1 py-3.5 bg-teal-600 hover:bg-teal-700 disabled:bg-slate-300 text-white font-black rounded-2xl shadow-lg shadow-teal-600/20 transition-all active:scale-95 flex items-center justify-center gap-2"
+              >
+                {isSavingAnnotation ? 'Saving...' : 'Save Explanation'}
+              </button>
+              <button
+                onClick={() => setEditingAnnotationKey(null)}
+                disabled={isSavingAnnotation}
+                className="px-6 py-3.5 bg-white border border-slate-200 text-slate-600 font-bold rounded-2xl hover:bg-slate-100 transition-all disabled:opacity-50"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

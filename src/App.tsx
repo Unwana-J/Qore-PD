@@ -521,6 +521,7 @@ function AppContent() {
                         users={users}
                         defaultTab={isRole(userRole, 'PM') ? "pm-dashboard" : "insights"}
                         mode="dashboard"
+                        onUpdateConfig={handleUpdateConfig}
                         onViewProject={(pid) => {
                           const proj = projects.find(p => p.id === pid);
                           if (proj) {
@@ -626,6 +627,7 @@ function AppContent() {
                         projects={projects}
                         users={users}
                         onShowToast={(msg, type) => type === 'error' ? notifyError(msg) : success(msg)}
+                        onUpdateConfig={handleUpdateConfig}
                         onImportExtensions={() => {
                           setImportMode('implementations');
                           setIsBulkImportOpen(true);
