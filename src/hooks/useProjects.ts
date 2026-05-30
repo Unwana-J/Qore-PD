@@ -38,18 +38,8 @@ export function useProjects(userRole: Role, config: AppConfig, userName: string 
     };
   }, []);
 
-  // Re-dispatch whenever the project list or thresholds change
-  useEffect(() => {
-    if (!spiWorkerRef.current || rawProjects.length === 0) return;
-    spiWorkerRef.current.postMessage({
-      projects: rawProjects,
-      thresholds: config.spiThresholds,
-    });
-  // rawProjects.length is a stable proxy for list identity; re-running on every
-  // render would thrash the worker with identical data.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rawProjects.length, config.spiThresholds]);
-  
+
+
   // Persistent Notifications from DB
   const { data: notifications = [], refetch: refreshNotifications } = useQuery({
     queryKey: ['notifications', userId],
@@ -161,6 +151,18 @@ export function useProjects(userRole: Role, config: AppConfig, userName: string 
     staleTime: 5 * 60 * 1000, // 5 minutes fresh
     enabled: !!userId, // Prevent fetching until profile is fully loaded
   });
+
+  // Re-dispatch to SPI worker whenever the project list or thresholds change.
+  // This effect is placed AFTER rawProjects is declared to avoid a TDZ crash
+  // (dep array is evaluated synchronously during render).
+  useEffect(() => {
+    if (!spiWorkerRef.current || rawProjects.length === 0) return;
+    spiWorkerRef.current.postMessage({
+      projects: rawProjects,
+      thresholds: config.spiThresholds,
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rawProjects.length, config.spiThresholds]);
 
   // ── Weekly Digest ─────────────────────────────────────────────────────────
   const [weeklyDigest, setWeeklyDigest] = useState<DigestData | null>(null);
