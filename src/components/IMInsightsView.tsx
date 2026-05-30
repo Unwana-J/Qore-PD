@@ -279,6 +279,10 @@ const weightMap = useMemo(() => {
     return { rows, avg };
   }, [fd, ims, weightMap]);
 
+  const underperformingIMs = useMemo(() => {
+    return wp.rows.filter(row => row.score < 0.5);
+  }, [wp.rows]);
+
   const globalPerformance = useMemo(() => {
     let globalWs = 0;
     let globalTw = 0;
@@ -639,6 +643,38 @@ const weightMap = useMemo(() => {
           ))}
         </div>
       </div>
+
+      {/* Attention Required Section */}
+      {underperformingIMs.length > 0 && (
+        <div className="bg-red-50 border border-red-200 rounded-3xl p-6 space-y-4 shadow-sm animate-in fade-in slide-in-from-top-4 duration-300">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="w-5 h-5 text-red-600 animate-pulse" />
+            <h3 className="text-xs font-black text-red-900 uppercase tracking-widest">Attention Required: Underperforming IMs</h3>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {underperformingIMs.map(im => (
+              <div key={im.name} className="bg-white/80 backdrop-blur-sm border border-red-100 p-4 rounded-2xl flex items-center justify-between gap-4 shadow-sm hover:shadow transition-shadow">
+                <div className="space-y-1">
+                  <p className="font-black text-slate-900 text-sm">{im.name}</p>
+                  <p className="text-xs font-semibold text-slate-500">
+                    Overdue Items: <span className="text-red-600 font-bold">{im.overdue}</span>
+                  </p>
+                </div>
+                <div className="flex items-center gap-4 text-right">
+                  <div>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Active WIP</p>
+                    <p className="text-sm font-black text-slate-700">{im.active}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Index Score</p>
+                    <p className="text-sm font-black text-red-600">{(im.score * 100).toFixed(0)}%</p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Weighted Performance Leaderboard */}
       <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">

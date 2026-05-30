@@ -1,22 +1,35 @@
 import React, { useState, useMemo } from 'react';
-import { Project, AppConfig, Role } from '../types';
+import { Project, AppConfig, Role, User } from '../types';
 import { calculateSPI, getActiveDaysCount, cn, resolveServiceIds, getEffectiveServiceIds, calculatePhaseScores, getLatestInteractionDate } from '../lib/utils';
-import { ChevronDown, ChevronRight, AlertTriangle, TrendingDown, Clock, Search, Filter, Layers } from 'lucide-react';
+import { ChevronDown, ChevronRight, AlertTriangle, TrendingDown, Clock, Search, Filter, Layers, Flame } from 'lucide-react';
 import { differenceInDays, parseISO, isAfter, isBefore, subDays, startOfMonth, startOfQuarter, startOfYear } from 'date-fns';
 import { getThemeClasses } from '../lib/theme';
 import { StateBadge } from './ProjectList';
+import { useResourceStats } from './resource/useResourceStats';
 
 interface PMScorecardProps {
   projects: Project[];
+  users: User[];
   config: AppConfig;
   userRole: Role;
   onSelectProject?: (project: Project) => void;
   themeColor?: string;
 }
 
-export const PMScorecard: React.FC<PMScorecardProps> = ({ projects, config, userRole, themeColor = 'teal', onSelectProject }) => {
+export const PMScorecard: React.FC<PMScorecardProps> = ({ projects, users = [], config, userRole, themeColor = 'teal', onSelectProject }) => {
   const theme = getThemeClasses(themeColor);
   
+  const pmResourceStats = useResourceStats(
+    projects,
+    users,
+    config.packages || [],
+    config.serviceBaselines || []
+  );
+
+  const burnedOutPMs = useMemo(() => {
+    return pmResourceStats.filter(stat => stat.isBurnedOut);
+  }, [pmResourceStats]);
+
   const [dateFilter, setDateFilter] = useState('All time');
   const [statusFilter, setStatusFilter] = useState('All');
   const [sortBy, setSortBy] = useState('Weighted Score');
@@ -246,6 +259,38 @@ export const PMScorecard: React.FC<PMScorecardProps> = ({ projects, config, user
         </div>
       </div>
 
+      {/* Critical Burnout Alerts */}
+      {burnedOutPMs.length > 0 && (
+        <div className="bg-rose-50 border border-rose-200 text-rose-900 p-5 rounded-3xl shadow-sm space-y-3">
+          <div className="flex items-center gap-2">
+            <Flame className="w-5 h-5 text-rose-600 animate-pulse" />
+            <h3 className="font-bold text-rose-800 text-base">Critical Burnout Alerts</h3>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-in fade-in slide-in-from-top-4 duration-300">
+            {burnedOutPMs.map(pm => (
+              <div key={pm.id} className="bg-white/85 backdrop-blur-sm border border-rose-100 p-4 rounded-2xl flex items-center justify-between gap-4 shadow-sm hover:shadow transition-shadow">
+                <div className="space-y-1">
+                  <p className="font-black text-slate-900 text-sm">{pm.name}</p>
+                  <p className="text-xs font-semibold text-slate-500">
+                    Overloaded for <span className="text-rose-600 font-bold">{pm.daysOverloaded} days</span>
+                  </p>
+                </div>
+                <div className="flex items-center gap-4 text-right">
+                  <div>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">WIP / Limit</p>
+                    <p className="text-sm font-black text-slate-700">{pm.serviceWeight} / {pm.wipLimit}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Utilization</p>
+                    <p className="text-sm font-black text-rose-600">{pm.utilizationPct.toFixed(0)}%</p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm">
@@ -286,12 +331,13 @@ export const PMScorecard: React.FC<PMScorecardProps> = ({ projects, config, user
                 <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-widest text-center">Avg SPI</th>
                 <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-widest text-center">Rebaselines</th>
                 <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-widest text-center">Stale</th>
+                <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-widest text-center">Burnout</th>
                 <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-widest text-right">W. Score</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {pmStats.length === 0 ? (
-                <tr><td colSpan={7} className="p-8 text-center text-slate-400">No performance data found for active filters.</td></tr>
+                <tr><td colSpan={8} className="p-8 text-center text-slate-400">No performance data found for active filters.</td></tr>
               ) : pmStats.map((stat, i) => (
                 <React.Fragment key={i}>
                   <tr 
@@ -345,6 +391,16 @@ export const PMScorecard: React.FC<PMScorecardProps> = ({ projects, config, user
                         {stat.staleCount}
                       </span>
                     </td>
+                    <td className="px-6 py-4 text-center">
+                      {pmResourceStats.find(rs => rs.name === stat.name)?.isBurnedOut ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-black rounded bg-rose-50 text-rose-600 border border-rose-100 shadow-sm">
+                          <Flame className="w-3 h-3 text-rose-500 animate-pulse" />
+                          Burnout
+                        </span>
+                      ) : (
+                        <span className="text-[10px] text-slate-400 font-semibold italic">Normal</span>
+                      )}
+                    </td>
                     <td className="px-6 py-4 text-right">
                       <span className={cn("text-lg font-black", theme.text)}>
                         {stat.weightedScore.toFixed(2)}
@@ -355,7 +411,7 @@ export const PMScorecard: React.FC<PMScorecardProps> = ({ projects, config, user
                   {/* Expandable Content inside Table Row */}
                   {expandedPMs.includes(stat.name) && (
                     <tr className="bg-slate-50/50 outline-none">
-                      <td colSpan={7} className="px-6 py-6 border-b border-slate-100 p-0">
+                      <td colSpan={8} className="px-6 py-6 border-b border-slate-100 p-0">
                         <div className="ml-8 space-y-3">
                           <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-2 mb-2">Underlying Projects</p>
                           {stat.pList.length === 0 ? (

@@ -22,7 +22,7 @@ interface ProjectListProps {
   onDeleteProject: (projectId: string) => Promise<void>;
   spiThresholds: { onTrack: number, atRisk: number };
   initialSearch?: string;
-  initialStateFilter?: ProjectState | 'All';
+  initialStateFilter?: ProjectState | 'All' | 'At-Risk';
   initialPMFilter?: string;
   onBackToDigest?: () => void;
   loading?: boolean;
@@ -35,7 +35,7 @@ export const ProjectList: React.FC<ProjectListProps> = ({
   initialPMFilter, onBackToDigest, loading = false, customTags = []
 }) => {
   const [search, setSearch] = useState(initialSearch);
-  const [stateFilter, setStateFilter] = useState<ProjectState | 'All'>(initialStateFilter);
+  const [stateFilter, setStateFilter] = useState<ProjectState | 'All' | 'At-Risk'>(initialStateFilter);
   const [periodFilter, setPeriodFilter] = useState<string>('All Time');
   const [customDateRange, setCustomDateRange] = useState<{ from: string; to: string }>({ from: '', to: '' });
   const [selectedPackages, setSelectedPackages] = useState<string[]>([]);
@@ -68,7 +68,11 @@ export const ProjectList: React.FC<ProjectListProps> = ({
       if (!matchesSearch) return false;
 
       // 2. State
-      if (stateFilter !== 'All' && p.state !== stateFilter) return false;
+      if (stateFilter === 'At-Risk') {
+        if (p.state !== 'Delayed' && p.state !== 'Suspended') return false;
+      } else if (stateFilter !== 'All' && p.state !== stateFilter) {
+        return false;
+      }
 
       // 3. Portfolio
       if (portfolioFilter === 'Enterprise') {
@@ -281,6 +285,7 @@ export const ProjectList: React.FC<ProjectListProps> = ({
               onChange={(e) => { setStateFilter(e.target.value as any); setCurrentPage(1); }}
             >
               <option value="All">All States</option>
+              <option value="At-Risk">At-Risk</option>
               {PROJECT_STATES.map(state => (
                 <option key={state} value={state}>{state}</option>
               ))}

@@ -337,6 +337,19 @@ export const ImplementationsView: React.FC<ImplementationsViewProps> = ({
   const [extensionToDelete, setExtensionToDelete] = useState<ServiceExtension | null>(null);
 
   const isLead = isRole(userRole, 'IM Lead') || isRole(userRole, 'Superadmin');
+
+  const requestsCount = useMemo(() => {
+    return extensions.filter(e => e.suspensionRequest?.status === 'Pending' || e.reactivationRequest?.status === 'Pending').length;
+  }, [extensions]);
+
+  const mappingCountLead = useMemo(() => {
+    return extensions.filter(e => e.mappingStatus === 'Pending').length;
+  }, [extensions]);
+
+  const mappingCountPM = useMemo(() => {
+    return extensions.filter(e => e.mappingStatus === 'Pending' && projects.find(p => p.id === e.linkedProjectId)?.assignedPM === userName).length;
+  }, [extensions, projects, userName]);
+
   const initialTab = defaultTab as any || (isLead ? 'insights' : 'mine');
   const [activeTab, setActiveTab] = useState<'mine' | 'all' | 'insights' | 'requests-queue' | 'mapping-queue' | 'issues' | 'pm-dashboard'>(initialTab);
 
@@ -916,14 +929,18 @@ export const ImplementationsView: React.FC<ImplementationsViewProps> = ({
               <button onClick={() => setActiveTab('all')} className={cn("px-4 py-2 text-sm font-bold rounded-lg transition-all", activeTab === 'all' ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700")}>Team Dashboard</button>
               <button onClick={() => setActiveTab('requests-queue')} className={cn("px-4 py-2 text-sm font-bold rounded-lg transition-all flex items-center gap-2", activeTab === 'requests-queue' ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700")}>
                 Requests Queue
-                {extensions.filter(e => e.suspensionRequest?.status === 'Pending' || e.reactivationRequest?.status === 'Pending').length > 0 && (
-                  <span className="w-2 h-2 bg-orange-500 rounded-full animate-pulse" />
+                {requestsCount > 0 && (
+                  <span className="inline-flex items-center justify-center px-2 py-0.5 text-xs font-black rounded-full bg-orange-100 text-orange-800 leading-none animate-in fade-in zoom-in duration-200">
+                    {requestsCount}
+                  </span>
                 )}
               </button>
               <button onClick={() => setActiveTab('mapping-queue')} className={cn("px-4 py-2 text-sm font-bold rounded-lg transition-all flex items-center gap-2", activeTab === 'mapping-queue' ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700")}>
                 Mapping Queue
-                {extensions.filter(e => e.mappingStatus === 'Pending').length > 0 && (
-                  <span className="w-2 h-2 bg-amber-500 rounded-full animate-pulse" />
+                {mappingCountLead > 0 && (
+                  <span className="inline-flex items-center justify-center px-2 py-0.5 text-xs font-black rounded-full bg-amber-100 text-amber-800 leading-none animate-in fade-in zoom-in duration-200">
+                    {mappingCountLead}
+                  </span>
                 )}
               </button>
               <button onClick={() => setActiveTab('mine')} className={cn("px-4 py-2 text-sm font-bold rounded-lg transition-all", activeTab === 'mine' ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700")}>My Implementations</button>
@@ -1017,8 +1034,10 @@ export const ImplementationsView: React.FC<ImplementationsViewProps> = ({
                   <button onClick={() => setActiveTab('pm-dashboard')} className={cn("px-4 py-2 text-sm font-bold rounded-lg transition-all", activeTab === 'pm-dashboard' ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700")}>My Portfolio</button>
                   <button onClick={() => setActiveTab('mapping-queue')} className={cn("px-4 py-2 text-sm font-bold rounded-lg transition-all flex items-center gap-2", activeTab === 'mapping-queue' ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700")}>
                     Mapping Queue
-                    {extensions.some(e => e.mappingStatus === 'Pending' && projects.find(p => p.id === e.linkedProjectId)?.assignedPM === userName) && (
-                      <span className="w-2 h-2 bg-amber-500 rounded-full animate-pulse" />
+                    {mappingCountPM > 0 && (
+                      <span className="inline-flex items-center justify-center px-2 py-0.5 text-xs font-black rounded-full bg-amber-100 text-amber-800 leading-none animate-in fade-in zoom-in duration-200">
+                        {mappingCountPM}
+                      </span>
                     )}
                   </button>
                 </>

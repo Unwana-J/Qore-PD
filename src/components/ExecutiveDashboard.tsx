@@ -24,7 +24,7 @@ interface ExecutiveDashboardProps {
   staleThresholdDays: number;
   spiThresholds: { onTrack: number; atRisk: number };
   loading?: boolean;
-  onFilterClick?: (state: ProjectState | 'All') => void;
+  onFilterClick?: (state: ProjectState | 'All' | 'At-Risk') => void;
 }
 
 export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
@@ -562,6 +562,7 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
           subtitle="Delayed & Suspended projects"
           currencyFilter={currencyFilter}
           variant="red"
+          onClick={() => onFilterClick?.('At-Risk')}
         />
         <RevenueBox
           label="Receivable On-Track"
@@ -926,7 +927,7 @@ const KPIBox = ({ label, val, subtitle, variant = 'neutral', onClick }: any) => 
   );
 };
 
-const RevenueBox = ({ label, ngn, usd, subtitle, variant = 'neutral', themeColor = 'teal', currencyFilter = 'All' }: any) => {
+const RevenueBox = ({ label, ngn, usd, subtitle, variant = 'neutral', themeColor = 'teal', currencyFilter = 'All', onClick }: any) => {
   const theme = getThemeClasses(themeColor);
   const styles: any = {
     neutral: "bg-white border-slate-200 text-slate-900 border-b-4 border-b-slate-800",
@@ -936,10 +937,24 @@ const RevenueBox = ({ label, ngn, usd, subtitle, variant = 'neutral', themeColor
   };
 
   return (
-    <div className={cn("p-5 rounded-3xl border shadow-sm flex flex-col justify-between transition-all hover:shadow-md h-full", styles[variant])}>
-      <div className="mb-4">
-        <p className="text-[11px] font-black uppercase tracking-widest">{label}</p>
-        <p className="text-[9px] font-bold text-slate-500 opacity-80 uppercase mt-0.5">{subtitle}</p>
+    <div 
+      onClick={onClick}
+      className={cn(
+        "p-5 rounded-3xl border shadow-sm flex flex-col justify-between transition-all hover:shadow-md h-full relative group", 
+        styles[variant],
+        onClick && "cursor-pointer hover:border-red-300"
+      )}
+    >
+      <div className="flex justify-between items-start mb-4">
+        <div>
+          <p className="text-[11px] font-black uppercase tracking-widest">{label}</p>
+          <p className="text-[9px] font-bold text-slate-500 opacity-80 uppercase mt-0.5">{subtitle}</p>
+        </div>
+        {onClick && (
+          <span className="text-[10px] font-bold text-red-600 flex items-center gap-0.5 opacity-60 group-hover:opacity-100 transition-opacity">
+            View <ChevronRight className="w-3 h-3 transition-transform group-hover:translate-x-0.5" />
+          </span>
+        )}
       </div>
       <div className="space-y-1 overflow-hidden">
         {(currencyFilter === 'All' || currencyFilter === 'NGN') && (

@@ -40,7 +40,7 @@ function AppContent() {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [activeSettingsTab, setActiveSettingsTab] = useState<SettingsTab>('account');
-  const [projectListFilter, setProjectListFilter] = useState<ProjectState | 'All'>('All');
+  const [projectListFilter, setProjectListFilter] = useState<ProjectState | 'All' | 'At-Risk'>('All');
   const [projectListPMFilter, setProjectListPMFilter] = useState<string | null>(null);
   const [implementationsFilter, setImplementationsFilter] = useState<string | 'All'>('All');
   const [implementationsIMFilter, setImplementationsIMFilter] = useState<string | 'All'>('All');
@@ -492,6 +492,7 @@ function AppContent() {
                       ) : (
                         <Dashboard 
                           projects={filteredProjects} 
+                          users={users}
                           workloadThresholds={config.workloadThresholds}
                           currencies={config.currencies}
                           themeColor={config.brand.themeColor} 
@@ -503,6 +504,10 @@ function AppContent() {
                           onNavigateToSettings={(tab) => {
                             setCurrentView('settings');
                             setActiveSettingsTab(tab as SettingsTab);
+                          }}
+                          onNavigateToProjects={(stateFilter) => {
+                            setProjectListFilter(stateFilter);
+                            setCurrentView('projects');
                           }}
                         />
                       )

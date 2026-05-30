@@ -4,16 +4,17 @@ import {
   PieChart, Pie, Cell, Legend, LabelList 
 } from 'recharts';
 import { useQuery } from '@tanstack/react-query';
-import { Project, ProductLine, Role, AppConfig } from '../types';
+import { Project, ProductLine, Role, AppConfig, User, ProjectState } from '../types';
 import { cn, formatCurrency, formatCompactCurrency, calculateSPI } from '../lib/utils';
 import { supabase } from '../lib/supabase';
-import { TrendingUp, Briefcase, Layers, Award, DollarSign, Activity, Clock, RefreshCw } from 'lucide-react';
+import { TrendingUp, Briefcase, Layers, Award, DollarSign, Activity, Clock, RefreshCw, ChevronRight } from 'lucide-react';
 import { getThemeClasses } from '../lib/theme';
 import { PMScorecard } from './PMScorecard';
 import { SetupBanner } from './SetupBanner';
 
 interface DashboardProps {
   projects: Project[];
+  users: User[];
   workloadThresholds: Record<string, number>;
   currencies: any[];
   themeColor?: string;
@@ -22,11 +23,13 @@ interface DashboardProps {
   config: AppConfig;
   onUpdateConfig: (updates: Partial<AppConfig>) => Promise<void>;
   onNavigateToSettings: (tab: string) => void;
+  onNavigateToProjects?: (stateFilter: ProjectState | 'All' | 'At-Risk') => void;
   loading?: boolean;
 }
 
 export const Dashboard: React.FC<DashboardProps> = ({ 
   projects, 
+  users,
   workloadThresholds, 
   themeColor = 'teal', 
   userRole, 
@@ -34,6 +37,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
   config,
   onUpdateConfig,
   onNavigateToSettings,
+  onNavigateToProjects,
   loading = false
 }) => {
   const theme = getThemeClasses(themeColor);
@@ -239,9 +243,17 @@ export const Dashboard: React.FC<DashboardProps> = ({
               <p className="text-xs text-slate-500 uppercase font-semibold">Total Projects</p>
               <p className="text-2xl font-bold text-slate-900">{projects.length}</p>
             </div>
-            <div className="p-3 bg-red-50 rounded-xl border border-red-100">
-              <p className="text-xs text-red-500 uppercase font-semibold">At Risk</p>
-              <p className="text-2xl font-bold text-red-600">{atRiskCount}</p>
+            <div 
+              onClick={() => onNavigateToProjects?.('At-Risk')}
+              className="p-3 bg-red-50 rounded-xl border border-red-100 cursor-pointer hover:bg-red-100/50 hover:border-red-200 transition-all flex items-center justify-between group"
+            >
+              <div>
+                <p className="text-xs text-red-500 uppercase font-semibold">At Risk</p>
+                <p className="text-2xl font-bold text-red-600">{atRiskCount}</p>
+              </div>
+              <span className="text-[10px] font-bold text-red-600 flex items-center gap-0.5 opacity-60 group-hover:opacity-100 transition-opacity">
+                View <ChevronRight className="w-3 h-3 transition-transform group-hover:translate-x-0.5" />
+              </span>
             </div>
           </div>
         </div>
@@ -319,6 +331,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
       <section id="performance">
         <PMScorecard 
           projects={projects}
+          users={users}
           config={config}
           userRole={userRole!}
           themeColor={themeColor}
