@@ -28,7 +28,6 @@ import { NotificationProvider, useNotifications } from './contexts/NotificationC
 import { AuthView } from './components/AuthView';
 import { api } from './lib/api';
 import { OnboardingWizard } from './components/OnboardingWizard';
-import { calculateSPI } from './lib/utils';
 
 type View = 'dashboard' | 'projects' | 'risks' | 'settings' | 'rebaseline-requests' | 'implementations' | 'resources';
 
@@ -94,19 +93,37 @@ function AppContent() {
     dismissImplementationDigest,
     loading: projectsLoading,
     refreshProjects,
-    deleteProject
+    deleteProject,
+    spiResults,
   } = useProjects(userRole || 'PM', config, profile?.name || 'User', user?.id, users);
 
 
   useEffect(() => {
     if (!user || !profile) return;
     
-    // Load config and user/invite data
+    // Load config and user/invite data — all three fetches run in parallel.
+    // Promise.allSettled ensures one failure cannot block the others.
     const init = async () => {
       try {
-        const cloudConfig = await api.config.get();
-        const fetchedUsers = await api.users.getAll().catch(e => { console.error(e); return []; });
-        const fetchedInvites = await api.invites.getAll().catch(e => { console.error(e); return []; });
+        const [configResult, usersResult, invitesResult] = await Promise.allSettled([
+          api.config.get(),
+          api.users.getAll(),
+          api.invites.getAll(),
+        ]);
+
+        const cloudConfig = configResult.status === 'fulfilled'
+          ? configResult.value
+          : (() => { console.error('[Init] Config fetch failed:', (configResult as PromiseRejectedResult).reason); return null; })();
+
+        const fetchedUsers = usersResult.status === 'fulfilled'
+          ? usersResult.value
+          : (() => { console.warn('[Init] Users fetch failed:', (usersResult as PromiseRejectedResult).reason); return []; })();
+
+        const fetchedInvites = invitesResult.status === 'fulfilled'
+          ? invitesResult.value
+          : (() => { console.warn('[Init] Invites fetch failed:', (invitesResult as PromiseRejectedResult).reason); return []; })();
+
+        if (!cloudConfig) return; // Config is mandatory — bail without crashing
 
         setUsers(fetchedUsers);
         setInvites(fetchedInvites);
@@ -711,7 +728,7 @@ function AppContent() {
       )}
 
       {/* SPI Anomaly Banner — Only for Managers & Superadmins */}
-      {showSPIAnomaly && hasRole(userRole, ['Superadmin', 'Manager']) && projects.some(p => calculateSPI(p).isAnomaly) && (
+      {showSPIAnomaly && hasRole(userRole, ['Superadmin', 'Manager']) && projects.some(p => spiResults[p.id]?.isAnomaly) && (
         <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[100] w-full max-w-lg px-4 pointer-events-none">
           <motion.div 
             initial={{ opacity: 0, y: 20 }}

@@ -3,8 +3,10 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
   PieChart, Pie, Cell, Legend, LabelList 
 } from 'recharts';
+import { useQuery } from '@tanstack/react-query';
 import { Project, ProductLine, Role, AppConfig } from '../types';
 import { cn, formatCurrency, formatCompactCurrency, calculateSPI } from '../lib/utils';
+import { supabase } from '../lib/supabase';
 import { TrendingUp, Briefcase, Layers, Award, DollarSign, Activity, Clock, RefreshCw } from 'lucide-react';
 import { getThemeClasses } from '../lib/theme';
 import { PMScorecard } from './PMScorecard';
@@ -50,11 +52,44 @@ export const Dashboard: React.FC<DashboardProps> = ({
   const pendingGroups = getGroupedRevenue(p => p.state !== 'Billed' && p.state !== 'Closed');
   const achievedGroups = getGroupedRevenue(p => p.state === 'Billed' || p.state === 'Closed');
 
-  // Project Stats
-  const activeCount = projects.filter(p => p.state === 'On-Track').length;
-  const delayedCount = projects.filter(p => p.state === 'Delayed').length;
-  const suspendedCount = projects.filter(p => p.state === 'Suspended').length;
-  const closedCount = projects.filter(p => p.state === 'Closed').length;
+  // ── Postgres RPC: server-side aggregation of project counts ──────────────
+  // get_dashboard_metrics is a read-only PLPGSQL function (only SELECTs).
+  // If it fails or is unavailable we fall back to client-side counts below.
+  const { data: rpcMetrics } = useQuery({
+    queryKey: ['dashboard-metrics'],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc('get_dashboard_metrics', {});
+      if (error) {
+        console.warn('[Dashboard] get_dashboard_metrics RPC unavailable, using client-side counts:', error.message);
+        return null;
+      }
+      return data as {
+        projectCounts: {
+          total: number;
+          onTrack: number;
+          delayed: number;
+          onHold: number;
+          readyForBilling: number;
+          billed: number;
+          closed: number;
+        };
+        revenueStats: {
+          total: Record<string, number>;
+          recognized: Record<string, number>;
+          atRisk: Record<string, number>;
+        };
+        schedulePerformance: { completionRate: number };
+      };
+    },
+    staleTime: 5 * 60 * 1000, // 5 minutes — matches the projects query
+    retry: 1,
+  });
+
+  // Client-side counts (used as fallback when RPC is unavailable)
+  const activeCount = rpcMetrics?.projectCounts.onTrack ?? projects.filter(p => p.state === 'On-Track').length;
+  const delayedCount = rpcMetrics?.projectCounts.delayed ?? projects.filter(p => p.state === 'Delayed').length;
+  const suspendedCount = rpcMetrics?.projectCounts.onHold ?? projects.filter(p => p.state === 'Suspended').length;
+  const closedCount = rpcMetrics?.projectCounts.closed ?? projects.filter(p => p.state === 'Closed').length;
   const atRiskCount = delayedCount + suspendedCount;
   
   // Priority Stats

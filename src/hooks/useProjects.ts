@@ -6,9 +6,49 @@ import { api } from '../lib/api';
 import { supabase } from '../lib/supabase';
 import { calculateWorkingDays, getActiveDaysCount, calculateSPI, getAutoProjectState, getEffectiveServiceIds, getLatestInteractionDate, isRole, hasRole } from '../lib/utils';
 
+// SPI results computed off the main thread by spi.worker.ts
+export type SPIWorkerResults = Record<string, ReturnType<typeof calculateSPI>>;
+
 export function useProjects(userRole: Role, config: AppConfig, userName: string = 'User', userId?: string, users: User[] = []) {
   const queryClient = useQueryClient();
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+
+  // ── SPI Web Worker ─────────────────────────────────────────────────────────
+  // Keeps a stable ref to the worker across renders. Created once, terminated
+  // on hook unmount. Results arrive asynchronously and never block rendering.
+  const spiWorkerRef = useRef<Worker | null>(null);
+  const [spiResults, setSpiResults] = useState<SPIWorkerResults>({});
+
+  useEffect(() => {
+    // Vite module workers — zero extra config required
+    const worker = new Worker(
+      new URL('../workers/spi.worker.ts', import.meta.url),
+      { type: 'module' }
+    );
+    worker.onmessage = (e: MessageEvent<SPIWorkerResults>) => {
+      setSpiResults(e.data);
+    };
+    worker.onerror = (err) => {
+      console.warn('[SPI Worker] Error — falling back to main-thread SPI:', err.message);
+    };
+    spiWorkerRef.current = worker;
+    return () => {
+      worker.terminate();
+      spiWorkerRef.current = null;
+    };
+  }, []);
+
+  // Re-dispatch whenever the project list or thresholds change
+  useEffect(() => {
+    if (!spiWorkerRef.current || rawProjects.length === 0) return;
+    spiWorkerRef.current.postMessage({
+      projects: rawProjects,
+      thresholds: config.spiThresholds,
+    });
+  // rawProjects.length is a stable proxy for list identity; re-running on every
+  // render would thrash the worker with identical data.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rawProjects.length, config.spiThresholds]);
   
   // Persistent Notifications from DB
   const { data: notifications = [], refetch: refreshNotifications } = useQuery({
@@ -1290,6 +1330,8 @@ export function useProjects(userRole: Role, config: AppConfig, userName: string 
     implementationHistoricalDigests,
     dismissImplementationDigest,
     loading,
-    refreshProjects
+    refreshProjects,
+    /** Pre-computed SPI results from the background worker thread */
+    spiResults,
   };
 }
