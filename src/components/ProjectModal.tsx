@@ -72,6 +72,10 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
   const [implStartDate, setImplStartDate] = useState('');
   const [implManager, setImplManager] = useState('');
 
+  const isStandard = formData.deliveryTrack === 'Standard';
+  const isCustomization = formData.deliveryTrack === 'Customization';
+  const isInitiative = formData.deliveryTrack === 'Internal Initiative';
+
   // Sync implementation startDate with project startDate
   useEffect(() => {
     if (formData.startDate) {
@@ -119,10 +123,6 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
   }, [availableAncillaryServices, implServiceId]);
 
   const theme = getThemeClasses(themeColor);
-
-  const isStandard = formData.deliveryTrack === 'Standard';
-  const isCustomization = formData.deliveryTrack === 'Customization';
-  const isInitiative = formData.deliveryTrack === 'Internal Initiative';
 
   const profilePMs = users.filter(u => u.role === 'PM' && u.status === 'Active');
   const allPMInfo = [
