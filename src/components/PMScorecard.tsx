@@ -1,4 +1,6 @@
 import React, { useState, useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { api } from '../lib/api';
 import { Project, AppConfig, Role, User } from '../types';
 import { calculateSPI, getActiveDaysCount, cn, resolveServiceIds, getEffectiveServiceIds, calculatePhaseScores, getLatestInteractionDate } from '../lib/utils';
 import { ChevronDown, ChevronRight, AlertTriangle, TrendingDown, Clock, Search, Filter, Layers, Flame } from 'lucide-react';
@@ -19,6 +21,12 @@ interface PMScorecardProps {
 export const PMScorecard: React.FC<PMScorecardProps> = ({ projects, users = [], config, userRole, themeColor = 'teal', onSelectProject }) => {
   const theme = getThemeClasses(themeColor);
   
+  const { data: extensions = [] } = useQuery({
+    queryKey: ['serviceExtensions'],
+    queryFn: () => api.serviceExtensions.getAll(),
+    staleTime: 30000,
+  });
+
   const pmResourceStats = useResourceStats(
     projects,
     users,
@@ -122,7 +130,13 @@ export const PMScorecard: React.FC<PMScorecardProps> = ({ projects, users = [], 
         !['Closed', 'Billed', 'Signed Off', 'Suspended'].includes(p.state) &&
         differenceInDays(new Date(), getLatestInteractionDate(p)) >= config.staleThresholdDays
       ).length;
-      
+      // Execution Mapping Ratio
+      const execProjects = pList.filter(p => p.phases?.find(ph => ph.id === 'Execution')?.status === 'In Progress');
+      const mappedExecProjects = execProjects.filter(p =>
+        extensions.some(e => e.linkedProjectId === p.id && e.mappingStatus === 'Approved')
+      );
+      const mappingRatio = execProjects.length > 0 ? (mappedExecProjects.length / execProjects.length) * 100 : null;
+
       // Avg days to close
       let daysSum = 0;
       closed.forEach(p => {
@@ -140,6 +154,7 @@ export const PMScorecard: React.FC<PMScorecardProps> = ({ projects, users = [], 
          rebaselineRate,
          staleCount,
          avgDaysToClose,
+         mappingRatio,
          baseScore: 0,
          weightedScore: 0
       };
@@ -168,9 +183,10 @@ export const PMScorecard: React.FC<PMScorecardProps> = ({ projects, users = [], 
     else if (sortBy === 'Delivery Rate') pmList.sort((a, b) => (b.deliveryRate || 0) - (a.deliveryRate || 0));
     else if (sortBy === 'Avg SPI') pmList.sort((a, b) => (b.avgSpi || 0) - (a.avgSpi || 0));
     else if (sortBy === 'Project Count') pmList.sort((a, b) => b.projects - a.projects);
+    else if (sortBy === 'Map Rate') pmList.sort((a, b) => (b.mappingRatio ?? -1) - (a.mappingRatio ?? -1));
 
     return pmList;
-  }, [filteredProjects, sortBy, config]);
+  }, [filteredProjects, sortBy, config, extensions]);
 
   // Summaries
   const topPM = [...pmStats].sort((a,b) => b.weightedScore - a.weightedScore)[0];
@@ -253,6 +269,7 @@ export const PMScorecard: React.FC<PMScorecardProps> = ({ projects, users = [], 
           <select value={sortBy} onChange={e => setSortBy(e.target.value)} className="bg-slate-50 text-sm font-semibold border border-slate-200 rounded-lg px-3 py-2 outline-none">
             <option>Weighted Score</option>
             <option>Delivery Rate</option>
+            <option>Map Rate</option>
             <option>Avg SPI</option>
             <option>Project Count</option>
           </select>
@@ -328,6 +345,7 @@ export const PMScorecard: React.FC<PMScorecardProps> = ({ projects, users = [], 
                 <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-widest">Project Manager</th>
                 <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-widest text-center">Projects</th>
                 <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-widest text-center">Delivery Rate</th>
+                <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-widest text-center">Map Rate</th>
                 <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-widest text-center">Avg SPI</th>
                 <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-widest text-center">Rebaselines</th>
                 <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-widest text-center">Stale</th>
@@ -337,7 +355,7 @@ export const PMScorecard: React.FC<PMScorecardProps> = ({ projects, users = [], 
             </thead>
             <tbody className="divide-y divide-slate-100">
               {pmStats.length === 0 ? (
-                <tr><td colSpan={8} className="p-8 text-center text-slate-400">No performance data found for active filters.</td></tr>
+                <tr><td colSpan={9} className="p-8 text-center text-slate-400">No performance data found for active filters.</td></tr>
               ) : pmStats.map((stat, i) => (
                 <React.Fragment key={i}>
                   <tr 
@@ -364,6 +382,19 @@ export const PMScorecard: React.FC<PMScorecardProps> = ({ projects, users = [], 
                         <span className="text-sm font-bold text-slate-700">{(stat.deliveryRate * 100).toFixed(0)}%</span>
                       ) : (
                         <span className="text-[10px] text-slate-400 font-medium italic">No closed projects</span>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 text-center">
+                      {stat.mappingRatio !== null ? (
+                        <span className={cn(
+                          "px-2.5 py-1 text-xs font-black rounded-lg",
+                          stat.mappingRatio >= 80 ? "bg-emerald-50 text-emerald-600 border border-emerald-100" :
+                          stat.mappingRatio >= 55 ? "bg-amber-50 text-amber-600 border border-amber-100" : "bg-rose-50 text-rose-600 border border-rose-100"
+                        )}>
+                          {stat.mappingRatio.toFixed(0)}%
+                        </span>
+                      ) : (
+                        <span className="text-[10px] text-slate-400 font-medium italic">—</span>
                       )}
                     </td>
                     <td className="px-6 py-4 text-center">
@@ -411,7 +442,7 @@ export const PMScorecard: React.FC<PMScorecardProps> = ({ projects, users = [], 
                   {/* Expandable Content inside Table Row */}
                   {expandedPMs.includes(stat.name) && (
                     <tr className="bg-slate-50/50 outline-none">
-                      <td colSpan={8} className="px-6 py-6 border-b border-slate-100 p-0">
+                      <td colSpan={9} className="px-6 py-6 border-b border-slate-100 p-0">
                         <div className="ml-8 space-y-3">
                           <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-2 mb-2">Underlying Projects</p>
                           {stat.pList.length === 0 ? (
