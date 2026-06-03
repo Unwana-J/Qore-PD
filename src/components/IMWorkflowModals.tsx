@@ -16,7 +16,7 @@ export const ReassignModal: React.FC<ReassignModalProps> = ({
   isOpen, onClose, onConfirm, extension, users, loading
 }) => {
   const [selectedIM, setSelectedIM] = useState(extension.implementationManager);
-  const ims = users.filter(u => u.role === 'IM' || u.role === 'IM Lead');
+  const ims = users.filter(u => u.role === 'IM' || u.role === 'IM Lead' || u.role === 'Superadmin');
 
   if (!isOpen) return null;
 

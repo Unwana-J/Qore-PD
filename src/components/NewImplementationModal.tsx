@@ -34,7 +34,7 @@ export const NewImplementationModal: React.FC<NewImplementationModalProps> = ({
   const isLead = userRole === 'IM Lead' || userRole === 'Superadmin' || userRole === 'Manager';
   const availableIMs = React.useMemo(() => {
     return Array.from(new Set([
-      ...users.filter(u => u.role === 'IM' || u.role === 'IM Lead').map(u => u.name),
+      ...users.filter(u => u.role === 'IM' || u.role === 'IM Lead' || u.role === 'Superadmin').map(u => u.name),
       userName
     ])).sort();
   }, [users, userName]);

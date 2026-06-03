@@ -99,7 +99,7 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
 
   // Active list of selectable IMs for auto-creation
   const availableIMs = React.useMemo(() => {
-    const list = users.filter(u => u.role === 'IM' || u.role === 'IM Lead').map(u => u.name);
+    const list = users.filter(u => u.role === 'IM' || u.role === 'IM Lead' || u.role === 'Superadmin').map(u => u.name);
     if (formData.assignedPM) list.push(formData.assignedPM);
     if (currentUserName) list.push(currentUserName);
     return Array.from(new Set(list.filter(Boolean))).sort();

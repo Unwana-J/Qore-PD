@@ -1389,7 +1389,7 @@ export const ManageImplementationModal: React.FC<ManageImplementationModalProps>
                               onChange={e => setNewIM(e.target.value)}
                               className="px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-bold outline-none focus:ring-2 focus:ring-teal-500/20"
                             >
-                              {users.filter(u => u.role === 'IM' || u.role === 'IM Lead').map(u => (
+                              {users.filter(u => u.role === 'IM' || u.role === 'IM Lead' || u.role === 'Superadmin').map(u => (
                                 <option key={u.id} value={u.name}>{u.name}</option>
                               ))}
                             </select>
