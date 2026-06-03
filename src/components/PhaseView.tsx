@@ -1066,7 +1066,7 @@ export const PhaseView: React.FC<PhaseViewProps> = ({
                 <div className="flex items-center justify-between mb-5">
                   <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
                     <Wrench className="w-5 h-5 text-teal-600" />
-                    Additional Scope
+                    Ancillary Implementations
                     {additionalScopeExtensions.filter(e => e.mappingStatus === 'Pending').length > 0 && (
                       <span className="ml-1 px-2 py-0.5 bg-amber-100 text-amber-700 text-[10px] font-black rounded-full">
                         {additionalScopeExtensions.filter(e => e.mappingStatus === 'Pending').length} Pending
@@ -1086,7 +1086,7 @@ export const PhaseView: React.FC<PhaseViewProps> = ({
                     className="flex items-center gap-1 px-2.5 py-1.5 bg-teal-50 hover:bg-teal-100 text-teal-700 text-[10px] font-black uppercase tracking-wider rounded-lg transition-all"
                   >
                     <Plus className="w-3.5 h-3.5 stroke-[3]" />
-                    Auto-create
+                    Create Implementation
                   </button>
                 </div>
                 {!extensionsLoaded ? (
@@ -1094,9 +1094,9 @@ export const PhaseView: React.FC<PhaseViewProps> = ({
                 ) : additionalScopeExtensions.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-8 px-4 border-2 border-dashed border-slate-200 rounded-2xl text-center">
                     <Wrench className="w-8 h-8 text-slate-400 mb-2 stroke-[1.5]" />
-                    <p className="text-sm font-black text-slate-700">No Additional Scope</p>
+                    <p className="text-sm font-black text-slate-700">No Linked Implementations</p>
                     <p className="text-xs text-slate-400 mt-1 max-w-[260px]">
-                      No additional scope extensions are linked. Create one automatically below.
+                      No ancillary implementations are linked to this project. Create one directly below.
                     </p>
                     <button
                       type="button"
@@ -1110,7 +1110,7 @@ export const PhaseView: React.FC<PhaseViewProps> = ({
                       }}
                       className="mt-4 px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold rounded-xl shadow-sm transition-all"
                     >
-                      + Auto-create Implementation
+                      + Create Implementation / Execution
                     </button>
                   </div>
                 ) : (
@@ -2155,7 +2155,7 @@ export const PhaseView: React.FC<PhaseViewProps> = ({
                 <div>
                   <h3 className="text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
                     <Wrench className="w-6 h-6 text-teal-600" />
-                    Auto-Create Implementation
+                    Create Implementation / Execution
                   </h3>
                   <p className="text-xs font-bold text-slate-400 mt-1 uppercase tracking-wide">
                     Linked to project: <span className="text-teal-600">{project.clientName}</span>
