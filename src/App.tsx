@@ -165,11 +165,15 @@ function AppContent() {
   };
 
 
-  const addProject = async (p: Partial<Project>, force?: boolean) => {
+  const addProject = async (p: any, force?: boolean) => {
     try {
       const result: any = await originalAddProject(p, force);
       if (!result?.warning) {
-        success('Project created successfully!');
+        if (result?.implError) {
+          notifyError(`Project created, but failed to auto-create implementation: ${result.implError}`);
+        } else {
+          success('Project created successfully!');
+        }
       }
       return result;
     } catch (err: any) {

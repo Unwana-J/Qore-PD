@@ -64,7 +64,38 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
   const [isCompletedAlready, setIsCompletedAlready] = useState(false);
   const [actualCompletionDate, setActualCompletionDate] = useState('');
   const [selectedServices, setSelectedServices] = useState<string[]>([]);
-  
+
+  // Auto-create Implementation states
+  const [autoCreateImpl, setAutoCreateImpl] = useState(false);
+  const [implServiceId, setImplServiceId] = useState('');
+  const [implSubServiceId, setImplSubServiceId] = useState('');
+  const [implStartDate, setImplStartDate] = useState('');
+  const [implManager, setImplManager] = useState('');
+
+  // Sync implementation startDate with project startDate
+  useEffect(() => {
+    if (formData.startDate) {
+      setImplStartDate(formData.startDate);
+    }
+  }, [formData.startDate]);
+
+  // Default / Sync implementation manager with project's assigned PM
+  useEffect(() => {
+    if (formData.assignedPM) {
+      setImplManager(formData.assignedPM);
+    } else {
+      setImplManager(currentUserName);
+    }
+  }, [formData.assignedPM, currentUserName]);
+
+  // Active list of selectable IMs for auto-creation
+  const availableIMs = React.useMemo(() => {
+    const list = users.filter(u => u.role === 'IM' || u.role === 'IM Lead').map(u => u.name);
+    if (formData.assignedPM) list.push(formData.assignedPM);
+    if (currentUserName) list.push(currentUserName);
+    return Array.from(new Set(list.filter(Boolean))).sort();
+  }, [users, formData.assignedPM, currentUserName]);
+
   const theme = getThemeClasses(themeColor);
 
   const isStandard = formData.deliveryTrack === 'Standard';
@@ -213,6 +244,28 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
       }
     }
 
+    // Validate auto-created implementation if toggled
+    if (autoCreateImpl && !isInitiative) {
+      if (!implServiceId) {
+        setError('Please select an ancillary service for the implementation.');
+        return;
+      }
+      const service = serviceBaselines.find(sb => sb.id === implServiceId);
+      const hasSub = (service?.subServices?.length ?? 0) > 0;
+      if (hasSub && !implSubServiceId) {
+        setError('Please select a sub-service / gateway for the implementation.');
+        return;
+      }
+      if (!implStartDate) {
+        setError('Please select a start date for the implementation.');
+        return;
+      }
+      if (!implManager) {
+        setError('Please select an Implementation Manager.');
+        return;
+      }
+    }
+
     try {
       const isOld = formData.intakeType === 'Old';
       let expectedCompletionDate: string;
@@ -277,8 +330,14 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
         risks: [],
         tags: formData.tags,
         actualCompletionDate: isCompletedAlready ? actualCompletionDate : undefined,
-        phaseWeights: { initiation: 10, planning: 10, execution: 60, closure: 20 }
-      }, force);
+        phaseWeights: { initiation: 10, planning: 10, execution: 60, closure: 20 },
+        // Extra fields for auto-create implementation
+        autoCreateImplementation: autoCreateImpl,
+        implServiceId: autoCreateImpl ? implServiceId : undefined,
+        implSubServiceId: (autoCreateImpl && implSubServiceId) ? implSubServiceId : null,
+        implStartDate: autoCreateImpl ? implStartDate : undefined,
+        implManager: autoCreateImpl ? implManager : undefined
+      } as any, force);
 
       if (result?.warning) {
         setWarning(result.warning);
@@ -775,6 +834,137 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
                     </div>
                   ))}
                 </div>
+              </div>
+            )}
+
+            {/* ======= AUTO-CREATE ANCILLARY IMPLEMENTATION (Optional, only for Standard/Customization) ======= */}
+            {!isInitiative && (
+              <div className="pt-6 border-t border-slate-100 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="text-sm font-bold text-slate-900">Ancillary Implementation</h4>
+                    <p className="text-[10px] text-slate-500 font-medium mt-0.5">
+                      Auto-create an associated ancillary implementation for this project
+                    </p>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      className="sr-only peer"
+                      checked={autoCreateImpl}
+                      onChange={e => setAutoCreateImpl(e.target.checked)}
+                    />
+                    <div className={cn(
+                      "w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-teal-600"
+                    )}></div>
+                  </label>
+                </div>
+
+                <AnimatePresence>
+                  {autoCreateImpl && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      exit={{ opacity: 0, height: 0 }}
+                      className="overflow-hidden space-y-4 p-4 bg-slate-50 rounded-2xl border border-slate-100 shadow-inner"
+                    >
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {/* Service Type */}
+                        <div className="space-y-1.5">
+                          <label className="text-xs font-bold text-slate-500 uppercase">Ancillary Service</label>
+                          <select
+                            required={autoCreateImpl}
+                            className={cn("w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold focus:ring-2 outline-none transition-all", theme.ring, theme.focusBorder)}
+                            value={implServiceId}
+                            onChange={e => {
+                              setImplServiceId(e.target.value);
+                              setImplSubServiceId('');
+                            }}
+                          >
+                            <option value="">Select Service...</option>
+                            {serviceBaselines.map(sb => (
+                              <option key={sb.id} value={sb.id}>{sb.name}</option>
+                            ))}
+                          </select>
+                        </div>
+
+                        {/* Sub-Service (Optional, conditionally required if has sub-services) */}
+                        {(() => {
+                          const service = serviceBaselines.find(sb => sb.id === implServiceId);
+                          const hasSub = (service?.subServices?.length ?? 0) > 0;
+                          if (!hasSub) return null;
+                          return (
+                            <div className="space-y-1.5 animate-in fade-in duration-200">
+                              <label className="text-xs font-bold text-slate-500 uppercase">Sub-Service / Gateway</label>
+                              <select
+                                required={autoCreateImpl && hasSub}
+                                className={cn("w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold focus:ring-2 outline-none transition-all", theme.ring, theme.focusBorder)}
+                                value={implSubServiceId}
+                                onChange={e => setImplSubServiceId(e.target.value)}
+                              >
+                                <option value="">Select Sub-Service...</option>
+                                {service?.subServices?.map(ss => (
+                                  <option key={ss.id} value={ss.id}>{ss.name}</option>
+                                ))}
+                              </select>
+                            </div>
+                          );
+                        })()}
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {/* Start Date */}
+                        <div className="space-y-1.5">
+                          <label className="text-xs font-bold text-slate-500 uppercase">Start Date</label>
+                          <input
+                            required={autoCreateImpl}
+                            type="date"
+                            className={cn("w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold focus:ring-2 outline-none transition-all font-mono", theme.ring, theme.focusBorder)}
+                            value={implStartDate}
+                            onChange={e => setImplStartDate(e.target.value)}
+                          />
+                        </div>
+
+                        {/* Implementation Manager */}
+                        <div className="space-y-1.5">
+                          <label className="text-xs font-bold text-slate-500 uppercase">Implementation Manager</label>
+                          <select
+                            required={autoCreateImpl}
+                            className={cn("w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold focus:ring-2 outline-none transition-all", theme.ring, theme.focusBorder)}
+                            value={implManager}
+                            onChange={e => setImplManager(e.target.value)}
+                          >
+                            <option value="">Select Manager...</option>
+                            {availableIMs.map(name => (
+                              <option key={name} value={name}>{name}</option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+
+                      {/* Timeline Preview */}
+                      {(() => {
+                        const service = serviceBaselines.find(sb => sb.id === implServiceId);
+                        const subService = service?.subServices?.find(ss => ss.id === implSubServiceId);
+                        const baseline = subService?.baselineDays ?? service?.baselineDays ?? 0;
+                        if (!service || !implStartDate) return null;
+                        const closureDate = calculateWorkingDays(implStartDate, baseline);
+                        return (
+                          <div className="p-3 bg-white rounded-xl border border-slate-100 flex justify-between items-center text-[10px] font-bold text-slate-500 shadow-sm animate-in slide-in-from-top-1">
+                            <div>
+                              <span>Baseline: </span>
+                              <span className="text-slate-800 font-mono">{baseline} Working Days</span>
+                            </div>
+                            <div>
+                              <span>Est. Closure: </span>
+                              <span className="text-slate-800 font-mono">{closureDate}</span>
+                            </div>
+                          </div>
+                        );
+                      })()}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
             )}
 

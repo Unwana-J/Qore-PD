@@ -679,7 +679,16 @@ export function useProjects(userRole: Role, config: AppConfig, userName: string 
     return projects;
   }, [projects, userRole, userName]);
 
-  const addProject = async (newProjectData: Partial<Project>, force: boolean = false) => {
+  const addProject = async (
+    newProjectData: Partial<Project> & {
+      autoCreateImplementation?: boolean;
+      implServiceId?: string;
+      implSubServiceId?: string | null;
+      implStartDate?: string;
+      implManager?: string;
+    },
+    force: boolean = false
+  ) => {
     const priority = newProjectData.priority || 'P2';
     // If a PM is creating, they must be the assigned PM
     const pmName = userRole === 'PM' ? userName : (newProjectData.assignedPM || '');
@@ -752,8 +761,72 @@ export function useProjects(userRole: Role, config: AppConfig, userName: string 
         risks: [],
         activities: []
       });
+
+      let implError = null;
+      if (newProjectData.autoCreateImplementation && newProjectData.implServiceId) {
+        try {
+          const service = config.serviceBaselines.find(sb => sb.id === newProjectData.implServiceId);
+          const subService = service?.subServices?.find(ss => ss.id === newProjectData.implSubServiceId);
+          
+          if (service) {
+            const effectiveBaseline = subService?.baselineDays ?? service.baselineDays ?? 0;
+            const effectiveMilestones = (subService?.milestones?.length ? subService.milestones : service.milestones) ?? [];
+            const effectiveDeliverables = subService?.deliverables ?? service.deliverables ?? [];
+            const targetClosureDate = calculateWorkingDays(newProjectData.implStartDate || newProject.startDate, effectiveBaseline);
+
+            const milestones = effectiveMilestones.map(m => ({
+              name: m,
+              completed: false,
+              completedAt: null,
+              completedBy: null,
+            }));
+            const deliverables = effectiveDeliverables.map(d => ({
+              name: d,
+              completed: false,
+              completedAt: null,
+              completedBy: null,
+            }));
+
+            await api.serviceExtensions.create({
+              clientName: newProject.clientName,
+              serviceId: service.id,
+              serviceName: service.name,
+              serviceVariant: subService?.name ?? 'Standard',
+              subServiceId: subService?.id ?? null,
+              baselineDays: effectiveBaseline,
+              implementationManager: newProjectData.implManager || newProject.assignedPM || userName,
+              startDate: newProjectData.implStartDate || newProject.startDate,
+              targetClosureDate: targetClosureDate,
+              status: 'Not Started',
+              milestones,
+              deliverables,
+              linkedProjectId: newProject.id,
+              mappingStatus: 'Approved',
+              mappingRequestedAt: new Date().toISOString(),
+              mappingApprovedAt: new Date().toISOString(),
+              mappingRejectionComment: null,
+              mappingNotes: 'Auto-created during project setup',
+              unmapComment: null,
+              extensionRequest: null,
+              extensionHistory: [],
+              assignmentHistory: [],
+              suspensionRequest: null,
+              reactivationRequest: null,
+              cancellation: null,
+              comments: [],
+              issues: [],
+            });
+
+            queryClient.invalidateQueries({ queryKey: ['serviceExtensions'] });
+          }
+        } catch (e: any) {
+          console.error("Failed to auto-create implementation:", e);
+          implError = e.message || 'Unknown error';
+        }
+      }
+
       queryClient.setQueryData<Project[]>(['projects'], (old = []) => [newProject, ...old]);
-      return newProject;
+      return { ...newProject, implError };
     } catch (error) {
       console.error('Failed to add project', error);
       throw error;
