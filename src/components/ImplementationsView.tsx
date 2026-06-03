@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Plus, Layers, Clock, Search, Users, Filter, X, CheckCircle2, AlertTriangle, TrendingUp, MapPin, Upload, Package, Trash2, RefreshCw, Check } from 'lucide-react';
+import { Plus, Layers, Clock, Search, Users, Filter, X, CheckCircle2, AlertTriangle, TrendingUp, MapPin, Upload, Package, Trash2, RefreshCw, Check, Briefcase, MessageSquare } from 'lucide-react';
 import { cn, isRole } from '../lib/utils';
 import { ServiceExtension, Role, AppConfig } from '../types';
 import { api } from '../lib/api';
@@ -336,6 +336,11 @@ export const ImplementationsView: React.FC<ImplementationsViewProps> = ({
   const [isNewModalOpen, setIsNewModalOpen] = useState(false);
   const [managingExtension, setManagingExtension] = useState<ServiceExtension | null>(null);
   const [extensionToDelete, setExtensionToDelete] = useState<ServiceExtension | null>(null);
+  const [isUnmappedModalOpen, setIsUnmappedModalOpen] = useState(false);
+  const [engagingProject, setEngagingProject] = useState<Project | null>(null);
+  const [selectedImId, setSelectedImId] = useState('');
+  const [engagementMessage, setEngagementMessage] = useState('');
+  const [isSendingEngagement, setIsSendingEngagement] = useState(false);
 
   const isLead = isRole(userRole, 'IM Lead') || isRole(userRole, 'Superadmin');
 
@@ -542,28 +547,116 @@ export const ImplementationsView: React.FC<ImplementationsViewProps> = ({
   );
 
   const renderPMMiniDashboard = () => {
-    const mappedExts = extensions.filter(e => e.mappingStatus === 'Approved');
-    const completed = mappedExts.filter(e => e.status === 'Completed').length;
-    const suspended = mappedExts.filter(e => e.status === 'Suspended' || e.status === 'Frozen').length;
-    const inProgress = mappedExts.filter(e => e.status === 'In Progress').length;
+    const myProjects = projects.filter(p => p.assignedPM === userName);
+    const myMappedExts = extensions.filter(e => {
+      if (e.mappingStatus !== 'Approved') return false;
+      const proj = projects.find(p => p.id === e.linkedProjectId);
+      return proj?.assignedPM === userName;
+    });
+
+    const uniqueMappedProjectIds = new Set(myMappedExts.map(e => e.linkedProjectId).filter(Boolean));
+    const uniqueMappedProjectsCount = uniqueMappedProjectIds.size;
+
+    const unmappedExecProjects = myProjects.filter(p => {
+      const executionPhase = p.phases?.find(ph => ph.id === 'Execution');
+      const inExecution = executionPhase?.status === 'In Progress';
+      const hasApprovedMapping = extensions.some(e => e.linkedProjectId === p.id && e.mappingStatus === 'Approved');
+      return inExecution && !hasApprovedMapping;
+    });
+
+    const completed = myMappedExts.filter(e => e.status === 'Completed').length;
+    const suspended = myMappedExts.filter(e => e.status === 'Suspended' || e.status === 'Frozen').length;
+    const inProgress = myMappedExts.filter(e => e.status === 'In Progress').length;
+
+    const hasUnmapped = unmappedExecProjects.length > 0;
 
     return (
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-        <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
-          <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-1">Total Mapped</p>
-          <p className="text-3xl font-black text-slate-900">{mappedExts.length}</p>
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
+        <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm flex flex-col justify-between">
+          <div>
+            <div className="flex justify-between items-start mb-2">
+              <p className="text-xs font-black text-slate-400 uppercase tracking-widest">Mapped Portfolio</p>
+              <div className="p-1.5 bg-slate-50 text-slate-500 rounded-lg">
+                <Briefcase className="w-4 h-4" />
+              </div>
+            </div>
+            <p className="text-2xl font-black text-slate-900 leading-tight">
+              {uniqueMappedProjectsCount} {uniqueMappedProjectsCount === 1 ? 'Project' : 'Projects'}
+            </p>
+          </div>
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-2">
+            {myMappedExts.length} mapped {myMappedExts.length === 1 ? 'implementation' : 'implementations'}
+          </p>
         </div>
-        <div className="bg-white rounded-2xl border border-emerald-100 p-5 shadow-sm">
-          <p className="text-xs font-black text-emerald-500 uppercase tracking-widest mb-1">Completed</p>
-          <p className="text-3xl font-black text-emerald-700">{completed}</p>
+
+        <div 
+          onClick={() => hasUnmapped && setIsUnmappedModalOpen(true)}
+          className={cn(
+            "rounded-2xl border p-5 shadow-sm flex flex-col justify-between transition-all duration-200 group",
+            hasUnmapped 
+              ? "bg-amber-50/50 border-amber-200 hover:bg-amber-100/50 hover:border-amber-300 cursor-pointer active:scale-[0.98]" 
+              : "bg-white border-slate-200"
+          )}
+        >
+          <div>
+            <div className="flex justify-between items-start mb-2">
+              <p className="text-xs font-black text-slate-400 uppercase tracking-widest group-hover:text-amber-600 transition-colors">Unmapped Execution</p>
+              <div className={cn("p-1.5 rounded-lg transition-colors", hasUnmapped ? "bg-amber-100 text-amber-600 group-hover:bg-amber-200" : "bg-slate-50 text-slate-400")}>
+                <AlertTriangle className="w-4 h-4" />
+              </div>
+            </div>
+            <p className={cn("text-2xl font-black leading-tight", hasUnmapped ? "text-amber-800" : "text-slate-950")}>
+              {unmappedExecProjects.length} {unmappedExecProjects.length === 1 ? 'Project' : 'Projects'}
+            </p>
+          </div>
+          <p className={cn("text-[10px] font-bold uppercase tracking-widest mt-2 flex items-center gap-1", hasUnmapped ? "text-amber-600" : "text-slate-400")}>
+            {hasUnmapped ? (
+              <>
+                Awaiting mapping · <span className="underline font-black">View & Engage</span>
+              </>
+            ) : (
+              'All projects mapped'
+            )}
+          </p>
         </div>
-        <div className="bg-white rounded-2xl border border-blue-100 p-5 shadow-sm">
-          <p className="text-xs font-black text-blue-500 uppercase tracking-widest mb-1">In Progress</p>
-          <p className="text-3xl font-black text-blue-700">{inProgress}</p>
+
+        <div className="bg-white rounded-2xl border border-emerald-100 p-5 shadow-sm flex flex-col justify-between">
+          <div>
+            <div className="flex justify-between items-start mb-2">
+              <p className="text-xs font-black text-emerald-500 uppercase tracking-widest">Completed</p>
+              <div className="p-1.5 bg-emerald-50 text-emerald-600 rounded-lg">
+                <CheckCircle2 className="w-4 h-4" />
+              </div>
+            </div>
+            <p className="text-2xl font-black text-emerald-700 leading-tight">{completed}</p>
+          </div>
+          <p className="text-[10px] font-bold text-emerald-500 uppercase tracking-widest mt-2">Fully delivered</p>
         </div>
-        <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
-          <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-1">Suspended</p>
-          <p className="text-3xl font-black text-slate-700">{suspended}</p>
+
+        <div className="bg-white rounded-2xl border border-blue-100 p-5 shadow-sm flex flex-col justify-between">
+          <div>
+            <div className="flex justify-between items-start mb-2">
+              <p className="text-xs font-black text-blue-500 uppercase tracking-widest">In Progress</p>
+              <div className="p-1.5 bg-blue-50 text-blue-600 rounded-lg">
+                <Activity className="w-4 h-4" />
+              </div>
+            </div>
+            <p className="text-2xl font-black text-blue-700 leading-tight">{inProgress}</p>
+          </div>
+          <p className="text-[10px] font-bold text-blue-500 uppercase tracking-widest mt-2">Actively executing</p>
+        </div>
+
+        <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm flex flex-col justify-between">
+          <div>
+            <div className="flex justify-between items-start mb-2">
+              <p className="text-xs font-black text-slate-400 uppercase tracking-widest">Suspended</p>
+              <div className="p-1.5 bg-slate-50 text-slate-500 rounded-lg">
+                <Clock className="w-4 h-4" />
+              </div>
+            </div>
+            <p className="text-2xl font-black text-slate-700 leading-tight">{suspended}</p>
+          </div>
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-2">On hold / frozen</p>
         </div>
       </div>
     );
@@ -1062,7 +1155,7 @@ export const ImplementationsView: React.FC<ImplementationsViewProps> = ({
             renderMappingQueue()
           ) : activeTab === 'pm-dashboard' ? (
             <>
-              {!loading && extensions.length > 0 && renderPMMiniDashboard()}
+              {!loading && renderPMMiniDashboard()}
               <div className="mt-8">
                 <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-3">Mapped Implementations</h3>
                 {renderTable()}
@@ -1135,6 +1228,202 @@ export const ImplementationsView: React.FC<ImplementationsViewProps> = ({
           confirmLabel="Delete"
           variant="danger"
         />
+      )}
+
+      {/* Unmapped Execution Projects Modal */}
+      {isUnmappedModalOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div 
+            className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300" 
+            onClick={() => {
+              if (!isSendingEngagement) {
+                setIsUnmappedModalOpen(false);
+                setEngagingProject(null);
+              }
+            }} 
+          />
+          
+          <div className="relative bg-white w-full max-w-2xl rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col max-h-[85vh]">
+            {/* Modal Header */}
+            <div className="p-6 border-b border-slate-100 flex items-center justify-between shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-amber-50 rounded-xl">
+                  <AlertTriangle className="w-5 h-5 text-amber-500 animate-pulse" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-black text-slate-900 tracking-tight">Unmapped Projects in Execution</h3>
+                  <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">
+                    Execution phase is active but no implementation is mapped
+                  </p>
+                </div>
+              </div>
+              <button 
+                onClick={() => {
+                  setIsUnmappedModalOpen(false);
+                  setEngagingProject(null);
+                }} 
+                className="p-2 hover:bg-slate-100 rounded-xl transition-colors"
+                disabled={isSendingEngagement}
+              >
+                <X className="w-5 h-5 text-slate-400" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6 overflow-y-auto flex-1 space-y-4 custom-scrollbar">
+              {engagingProject ? (
+                /* Engage IM Form */
+                <div className="space-y-4 animate-in fade-in slide-in-from-bottom-3 duration-200">
+                  <div className="p-4 bg-slate-50 border border-slate-150 rounded-2xl">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Project</p>
+                    <p className="text-sm font-black text-slate-900">{engagingProject.clientName}</p>
+                    <p className="text-xs font-bold text-slate-500 uppercase mt-0.5">{engagingProject.packageName}</p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">
+                      Select Implementation Manager (IM)
+                    </label>
+                    <select
+                      value={selectedImId}
+                      onChange={e => {
+                        setSelectedImId(e.target.value);
+                        const im = users.find(u => u.id === e.target.value);
+                        if (im) {
+                          setEngagementMessage(`Hi ${im.name}, the project for ${engagingProject.clientName} (${engagingProject.packageName}) is currently in the Execution phase but has no mapped implementations. Please set up the necessary ancillary implementation mappings.`);
+                        }
+                      }}
+                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold text-slate-700 outline-none focus:ring-4 focus:ring-teal-500/10 focus:border-teal-500 transition-all"
+                      disabled={isSendingEngagement}
+                    >
+                      <option value="">-- Choose an IM --</option>
+                      {users
+                        .filter(u => u.role === 'IM' || u.role === 'IM Lead' || u.role === 'Superadmin')
+                        .map(u => (
+                          <option key={u.id} value={u.id}>
+                            {u.name} ({u.role})
+                          </option>
+                        ))}
+                    </select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">
+                      Message Context
+                    </label>
+                    <textarea
+                      value={engagementMessage}
+                      onChange={e => setEngagementMessage(e.target.value)}
+                      placeholder="Add specific request details or questions here..."
+                      className="w-full min-h-[120px] p-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold text-slate-700 outline-none focus:ring-4 focus:ring-teal-500/10 focus:border-teal-500 transition-all resize-none placeholder:text-slate-400"
+                      disabled={isSendingEngagement || !selectedImId}
+                      maxLength={500}
+                    />
+                  </div>
+                </div>
+              ) : (
+                /* Unmapped Projects List */
+                <div className="space-y-3">
+                  {projects.filter(p => {
+                    const isMyProject = p.assignedPM === userName;
+                    const executionPhase = p.phases?.find(ph => ph.id === 'Execution');
+                    const inExecution = executionPhase?.status === 'In Progress';
+                    const hasApprovedMapping = extensions.some(e => e.linkedProjectId === p.id && e.mappingStatus === 'Approved');
+                    return isMyProject && inExecution && !hasApprovedMapping;
+                  }).map(p => (
+                    <div key={p.id} className="flex items-center justify-between p-4 bg-slate-50 border border-slate-100 rounded-2xl gap-4 hover:bg-slate-100/50 transition-colors">
+                      <div className="space-y-0.5 flex-1 min-w-0">
+                        <p className="text-sm font-black text-slate-900 truncate">{p.clientName}</p>
+                        <p className="text-xs font-bold text-slate-400 uppercase tracking-wider truncate">{p.packageName}</p>
+                        <p className="text-[10px] text-slate-500 font-medium">
+                          Execution Started: {p.startDate ? new Date(p.startDate).toLocaleDateString() : 'N/A'} · Target: {p.currentCompletionDate ? new Date(p.currentCompletionDate).toLocaleDateString() : 'N/A'}
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => {
+                          setEngagingProject(p);
+                          setSelectedImId('');
+                          setEngagementMessage('');
+                        }}
+                        className="flex items-center gap-1 text-[10px] font-black uppercase text-teal-600 hover:text-teal-700 hover:bg-teal-50 px-3.5 py-2 rounded-xl border border-teal-100 bg-white transition-all shadow-sm active:scale-95 whitespace-nowrap shrink-0"
+                      >
+                        <MessageSquare className="w-3.5 h-3.5" />
+                        Engage IM
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-6 bg-slate-50 border-t border-slate-100 flex gap-3 shrink-0">
+              {engagingProject ? (
+                <>
+                  <button
+                    onClick={async () => {
+                      if (!selectedImId || !engagementMessage.trim() || !engagingProject) return;
+                      setIsSendingEngagement(true);
+                      try {
+                        const selectedIm = users.find(u => u.id === selectedImId);
+                        if (!selectedIm) return;
+
+                        const newComment = {
+                          id: Math.random().toString(36).substring(2, 11),
+                          author: userName,
+                          text: `[Engaged IM: ${selectedIm.name}] ${engagementMessage.trim()}`,
+                          timestamp: new Date().toISOString()
+                        };
+
+                        const updatedProject = {
+                          ...engagingProject,
+                          comments: [...(engagingProject.comments || []), newComment]
+                        };
+
+                        await api.projects.update(updatedProject);
+
+                        await api.notifications.create(
+                          selectedImId,
+                          `PM ${userName} engaged you on project ${engagingProject.clientName}: ${engagementMessage.trim()}`,
+                          'Mapping',
+                          engagingProject.id
+                        );
+
+                        onShowToast('IM successfully engaged and notified.', 'success');
+                        
+                        setEngagingProject(null);
+                        setIsUnmappedModalOpen(false);
+                      } catch (err: any) {
+                        console.error('Failed to engage IM:', err);
+                        onShowToast(err.message || 'Failed to complete IM engagement process.', 'error');
+                      } finally {
+                        setIsSendingEngagement(false);
+                      }
+                    }}
+                    disabled={isSendingEngagement || !selectedImId || !engagementMessage.trim()}
+                    className="flex-1 py-3.5 bg-teal-600 hover:bg-teal-700 disabled:bg-slate-300 text-white font-black rounded-2xl shadow-lg shadow-teal-600/20 transition-all active:scale-95 flex items-center justify-center gap-2"
+                  >
+                    {isSendingEngagement ? 'Sending...' : 'Send Engagement Alert'}
+                  </button>
+                  <button
+                    onClick={() => setEngagingProject(null)}
+                    disabled={isSendingEngagement}
+                    className="px-6 py-3.5 bg-white border border-slate-200 text-slate-600 font-bold rounded-2xl hover:bg-slate-100 transition-all"
+                  >
+                    Back to List
+                  </button>
+                </>
+              ) : (
+                <button
+                  onClick={() => setIsUnmappedModalOpen(false)}
+                  className="w-full py-3.5 bg-white border border-slate-200 text-slate-600 font-bold rounded-2xl hover:bg-slate-100 transition-all"
+                >
+                  Close
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
