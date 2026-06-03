@@ -492,6 +492,7 @@ const UserManagement = ({ users, setUsers, invites, setInvites, projects, onUpda
               <option value="IM">Implementation Manager</option>
               <option value="IM Lead">Implementation Manager Lead</option>
               <option value="Manager">Manager</option>
+              <option value="Team Lead">Team Lead</option>
               {isRole(currentUserRole, 'Superadmin') && <option value="Superadmin">Superadmin</option>}
               <option value="Finance">Finance</option>
               <option value="Executive">Executive</option>
