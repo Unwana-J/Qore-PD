@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Plus, Layers, Clock, Search, Users, Filter, X, CheckCircle2, AlertTriangle, TrendingUp, MapPin, Upload, Package, Trash2, RefreshCw, Check, Briefcase, MessageSquare, Activity } from 'lucide-react';
+import { cn, isRole } from '../lib/utils';
 import { ServiceExtension, Role, AppConfig, RoleUIPermissions } from '../types';
 import { api } from '../lib/api';
 import { NewImplementationModal } from './NewImplementationModal';
@@ -355,6 +356,21 @@ export const ImplementationsView: React.FC<ImplementationsViewProps> = ({
     return saved !== undefined ? saved : hardcodedDefault;
   };
 
+  const requestsCount = useMemo(() => {
+    return extensions.filter(e => e.suspensionRequest?.status === 'Pending' || e.reactivationRequest?.status === 'Pending').length;
+  }, [extensions]);
+
+  const mappingCountLead = useMemo(() => {
+    return extensions.filter(e => e.mappingStatus === 'Pending').length;
+  }, [extensions]);
+
+  const mappingCountPM = useMemo(() => {
+    return extensions.filter(e => e.mappingStatus === 'Pending' && projects.find(p => p.id === e.linkedProjectId)?.assignedPM === userName).length;
+  }, [extensions, projects, userName]);
+
+  const initialTab = defaultTab as any || (isLead ? 'insights' : 'mine');
+  const [activeTab, setActiveTab] = useState<'mine' | 'all' | 'insights' | 'requests-queue' | 'mapping-queue' | 'issues' | 'pm-dashboard'>(initialTab);
+
   useEffect(() => {
     if (userRole === 'Superadmin') return;
 
@@ -384,21 +400,6 @@ export const ImplementationsView: React.FC<ImplementationsViewProps> = ({
       setActiveTab('issues');
     }
   }, [activeTab, userRole, config.roleConfig]);
-
-  const requestsCount = useMemo(() => {
-    return extensions.filter(e => e.suspensionRequest?.status === 'Pending' || e.reactivationRequest?.status === 'Pending').length;
-  }, [extensions]);
-
-  const mappingCountLead = useMemo(() => {
-    return extensions.filter(e => e.mappingStatus === 'Pending').length;
-  }, [extensions]);
-
-  const mappingCountPM = useMemo(() => {
-    return extensions.filter(e => e.mappingStatus === 'Pending' && projects.find(p => p.id === e.linkedProjectId)?.assignedPM === userName).length;
-  }, [extensions, projects, userName]);
-
-  const initialTab = defaultTab as any || (isLead ? 'insights' : 'mine');
-  const [activeTab, setActiveTab] = useState<'mine' | 'all' | 'insights' | 'requests-queue' | 'mapping-queue' | 'issues' | 'pm-dashboard'>(initialTab);
 
   // Filter state
   const [searchTerm, setSearchTerm] = useState('');
