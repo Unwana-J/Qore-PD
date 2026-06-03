@@ -67,30 +67,35 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
 
   // Auto-create Implementation states
   const [autoCreateImpl, setAutoCreateImpl] = useState(false);
-  const [implServiceId, setImplServiceId] = useState('');
-  const [implSubServiceId, setImplSubServiceId] = useState('');
-  const [implStartDate, setImplStartDate] = useState('');
-  const [implManager, setImplManager] = useState('');
+  const [autoCreateItems, setAutoCreateItems] = useState<Array<{
+    id: string;
+    serviceId: string;
+    subServiceId: string | null;
+    startDate: string;
+    manager: string;
+  }>>([]);
 
   const isStandard = formData.deliveryTrack === 'Standard';
   const isCustomization = formData.deliveryTrack === 'Customization';
   const isInitiative = formData.deliveryTrack === 'Internal Initiative';
 
-  // Sync implementation startDate with project startDate
+  // Sync implementation startDates with project startDate
   useEffect(() => {
     if (formData.startDate) {
-      setImplStartDate(formData.startDate);
+      setAutoCreateItems(prev =>
+        prev.map(item => ({ ...item, startDate: formData.startDate }))
+      );
     }
   }, [formData.startDate]);
 
-  // Default / Sync implementation manager with project's assigned PM
+  // Sync implementation managers with project's assigned PM
   useEffect(() => {
     if (formData.assignedPM) {
-      setImplManager(formData.assignedPM);
-    } else {
-      setImplManager(currentUserName);
+      setAutoCreateItems(prev =>
+        prev.map(item => ({ ...item, manager: formData.assignedPM }))
+      );
     }
-  }, [formData.assignedPM, currentUserName]);
+  }, [formData.assignedPM]);
 
   // Active list of selectable IMs for auto-creation
   const availableIMs = React.useMemo(() => {
@@ -116,11 +121,15 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
 
   // Reset selected service/sub-service if it's no longer available
   useEffect(() => {
-    if (implServiceId && !availableAncillaryServices.some(sb => sb.id === implServiceId)) {
-      setImplServiceId('');
-      setImplSubServiceId('');
-    }
-  }, [availableAncillaryServices, implServiceId]);
+    setAutoCreateItems(prev =>
+      prev.map(item => {
+        if (item.serviceId && !availableAncillaryServices.some(sb => sb.id === item.serviceId)) {
+          return { ...item, serviceId: '', subServiceId: null };
+        }
+        return item;
+      })
+    );
+  }, [availableAncillaryServices]);
 
   const theme = getThemeClasses(themeColor);
 
@@ -266,25 +275,32 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
       }
     }
 
-    // Validate auto-created implementation if toggled
+    // Validate auto-created implementations if toggled
     if (autoCreateImpl && !isInitiative) {
-      if (!implServiceId) {
-        setError('Please select an ancillary service for the implementation.');
+      if (autoCreateItems.length === 0) {
+        setError('Please add at least one ancillary service implementation.');
         return;
       }
-      const service = serviceBaselines.find(sb => sb.id === implServiceId);
-      const hasSub = (service?.subServices?.length ?? 0) > 0;
-      if (hasSub && !implSubServiceId) {
-        setError('Please select a sub-service / gateway for the implementation.');
-        return;
-      }
-      if (!implStartDate) {
-        setError('Please select a start date for the implementation.');
-        return;
-      }
-      if (!implManager) {
-        setError('Please select an Implementation Manager.');
-        return;
+      for (let i = 0; i < autoCreateItems.length; i++) {
+        const item = autoCreateItems[i];
+        if (!item.serviceId) {
+          setError(`Please select an ancillary service for Implementation #${i + 1}.`);
+          return;
+        }
+        const service = availableAncillaryServices.find(sb => sb.id === item.serviceId);
+        const hasSub = (service?.subServices?.length ?? 0) > 0;
+        if (hasSub && !item.subServiceId) {
+          setError(`Please select a sub-service / gateway for Implementation #${i + 1}.`);
+          return;
+        }
+        if (!item.startDate) {
+          setError(`Please select a start date for Implementation #${i + 1}.`);
+          return;
+        }
+        if (!item.manager) {
+          setError(`Please select an Implementation Manager for Implementation #${i + 1}.`);
+          return;
+        }
       }
     }
 
@@ -355,10 +371,7 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
         phaseWeights: { initiation: 10, planning: 10, execution: 60, closure: 20 },
         // Extra fields for auto-create implementation
         autoCreateImplementation: autoCreateImpl,
-        implServiceId: autoCreateImpl ? implServiceId : undefined,
-        implSubServiceId: (autoCreateImpl && implSubServiceId) ? implSubServiceId : null,
-        implStartDate: autoCreateImpl ? implStartDate : undefined,
-        implManager: autoCreateImpl ? implManager : undefined
+        autoCreateItems: autoCreateImpl ? autoCreateItems : []
       } as any, force);
 
       if (result?.warning) {
@@ -866,7 +879,7 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
                   <div>
                     <h4 className="text-sm font-bold text-slate-900">Ancillary Implementation</h4>
                     <p className="text-[10px] text-slate-500 font-medium mt-0.5">
-                      Auto-create an associated ancillary implementation for this project
+                      Auto-create associated ancillary implementations for this project
                     </p>
                   </div>
                   <label className="relative inline-flex items-center cursor-pointer select-none">
@@ -874,7 +887,19 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
                       type="checkbox"
                       className="sr-only peer"
                       checked={autoCreateImpl}
-                      onChange={e => setAutoCreateImpl(e.target.checked)}
+                      onChange={e => {
+                        const checked = e.target.checked;
+                        setAutoCreateImpl(checked);
+                        if (checked && autoCreateItems.length === 0) {
+                          setAutoCreateItems([{
+                            id: Math.random().toString(36).substr(2, 9),
+                            serviceId: '',
+                            subServiceId: null,
+                            startDate: formData.startDate || new Date().toISOString().split('T')[0],
+                            manager: formData.assignedPM || currentUserName
+                          }]);
+                        }
+                      }}
                     />
                     <div className={cn(
                       "w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-teal-600"
@@ -888,102 +913,163 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
                       initial={{ opacity: 0, height: 0 }}
                       animate={{ opacity: 1, height: 'auto' }}
                       exit={{ opacity: 0, height: 0 }}
-                      className="overflow-hidden space-y-4 p-4 bg-slate-50 rounded-2xl border border-slate-100 shadow-inner"
+                      className="overflow-hidden space-y-4"
                     >
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {/* Service Type */}
-                        <div className="space-y-1.5">
-                          <label className="text-xs font-bold text-slate-500 uppercase">Ancillary Service</label>
-                          <select
-                            required={autoCreateImpl}
-                            className={cn("w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold focus:ring-2 outline-none transition-all", theme.ring, theme.focusBorder)}
-                            value={implServiceId}
-                            onChange={e => {
-                              setImplServiceId(e.target.value);
-                              setImplSubServiceId('');
-                            }}
-                          >
-                            <option value="">Select Service...</option>
-                            {availableAncillaryServices.map(sb => (
-                              <option key={sb.id} value={sb.id}>{sb.name}</option>
-                            ))}
-                          </select>
-                        </div>
-
-                        {/* Sub-Service (Optional, conditionally required if has sub-services) */}
-                        {(() => {
-                          const service = availableAncillaryServices.find(sb => sb.id === implServiceId);
-                          const hasSub = (service?.subServices?.length ?? 0) > 0;
-                          if (!hasSub) return null;
-                          return (
-                            <div className="space-y-1.5 animate-in fade-in duration-200">
-                              <label className="text-xs font-bold text-slate-500 uppercase">Sub-Service / Gateway</label>
-                              <select
-                                required={autoCreateImpl && hasSub}
-                                className={cn("w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold focus:ring-2 outline-none transition-all", theme.ring, theme.focusBorder)}
-                                value={implSubServiceId}
-                                onChange={e => setImplSubServiceId(e.target.value)}
-                              >
-                                <option value="">Select Sub-Service...</option>
-                                {service?.subServices?.map(ss => (
-                                  <option key={ss.id} value={ss.id}>{ss.name}</option>
-                                ))}
-                              </select>
-                            </div>
-                          );
-                        })()}
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {/* Start Date */}
-                        <div className="space-y-1.5">
-                          <label className="text-xs font-bold text-slate-500 uppercase">Start Date</label>
-                          <input
-                            required={autoCreateImpl}
-                            type="date"
-                            className={cn("w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold focus:ring-2 outline-none transition-all font-mono", theme.ring, theme.focusBorder)}
-                            value={implStartDate}
-                            onChange={e => setImplStartDate(e.target.value)}
-                          />
-                        </div>
-
-                        {/* Implementation Manager */}
-                        <div className="space-y-1.5">
-                          <label className="text-xs font-bold text-slate-500 uppercase">Implementation Manager</label>
-                          <select
-                            required={autoCreateImpl}
-                            className={cn("w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold focus:ring-2 outline-none transition-all", theme.ring, theme.focusBorder)}
-                            value={implManager}
-                            onChange={e => setImplManager(e.target.value)}
-                          >
-                            <option value="">Select Manager...</option>
-                            {availableIMs.map(name => (
-                              <option key={name} value={name}>{name}</option>
-                            ))}
-                          </select>
-                        </div>
-                      </div>
-
-                      {/* Timeline Preview */}
-                      {(() => {
-                        const service = serviceBaselines.find(sb => sb.id === implServiceId);
-                        const subService = service?.subServices?.find(ss => ss.id === implSubServiceId);
+                      {autoCreateItems.map((item, idx) => {
+                        const service = availableAncillaryServices.find(sb => sb.id === item.serviceId);
+                        const hasSub = (service?.subServices?.length ?? 0) > 0;
+                        const subService = service?.subServices?.find(ss => ss.id === item.subServiceId);
                         const baseline = subService?.baselineDays ?? service?.baselineDays ?? 0;
-                        if (!service || !implStartDate) return null;
-                        const closureDate = calculateWorkingDays(implStartDate, baseline);
+                        const closureDate = (service && item.startDate) ? calculateWorkingDays(item.startDate, baseline) : null;
+
                         return (
-                          <div className="p-3 bg-white rounded-xl border border-slate-100 flex justify-between items-center text-[10px] font-bold text-slate-500 shadow-sm animate-in slide-in-from-top-1">
-                            <div>
-                              <span>Baseline: </span>
-                              <span className="text-slate-800 font-mono">{baseline} Working Days</span>
+                          <div
+                            key={item.id}
+                            className="relative space-y-4 p-5 bg-slate-50 rounded-2xl border border-slate-100 shadow-inner group transition-all"
+                          >
+                            {/* Card Header with count and Delete action */}
+                            <div className="flex justify-between items-center border-b border-slate-200/50 pb-2 mb-2">
+                              <span className="text-xs font-black text-slate-400 uppercase tracking-widest">
+                                Implementation #{idx + 1}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setAutoCreateItems(prev => {
+                                    const filtered = prev.filter(x => x.id !== item.id);
+                                    if (filtered.length === 0) setAutoCreateImpl(false);
+                                    return filtered;
+                                  });
+                                }}
+                                className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
+                                title="Remove this implementation"
+                              >
+                                <X className="w-4 h-4" />
+                              </button>
                             </div>
-                            <div>
-                              <span>Est. Closure: </span>
-                              <span className="text-slate-800 font-mono">{closureDate}</span>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              {/* Service Type */}
+                              <div className="space-y-1.5">
+                                <label className="text-xs font-bold text-slate-500 uppercase">Ancillary Service</label>
+                                <select
+                                  required={autoCreateImpl}
+                                  className={cn("w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold focus:ring-2 outline-none transition-all", theme.ring, theme.focusBorder)}
+                                  value={item.serviceId}
+                                  onChange={e => {
+                                    const newServiceId = e.target.value;
+                                    setAutoCreateItems(prev =>
+                                      prev.map(x => x.id === item.id ? { ...x, serviceId: newServiceId, subServiceId: null } : x)
+                                    );
+                                  }}
+                                >
+                                  <option value="">Select Service...</option>
+                                  {availableAncillaryServices.map(sb => (
+                                    <option key={sb.id} value={sb.id}>{sb.name}</option>
+                                  ))}
+                                </select>
+                              </div>
+
+                              {/* Sub-Service (Optional, conditionally required if has sub-services) */}
+                              {hasSub && (
+                                <div className="space-y-1.5 animate-in fade-in duration-200">
+                                  <label className="text-xs font-bold text-slate-500 uppercase">Sub-Service / Gateway</label>
+                                  <select
+                                    required={autoCreateImpl && hasSub}
+                                    className={cn("w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold focus:ring-2 outline-none transition-all", theme.ring, theme.focusBorder)}
+                                    value={item.subServiceId || ''}
+                                    onChange={e => {
+                                      const newSubServiceId = e.target.value;
+                                      setAutoCreateItems(prev =>
+                                        prev.map(x => x.id === item.id ? { ...x, subServiceId: newSubServiceId || null } : x)
+                                      );
+                                    }}
+                                  >
+                                    <option value="">Select Sub-Service...</option>
+                                    {service?.subServices?.map(ss => (
+                                      <option key={ss.id} value={ss.id}>{ss.name}</option>
+                                    ))}
+                                  </select>
+                                </div>
+                              )}
                             </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              {/* Start Date */}
+                              <div className="space-y-1.5">
+                                <label className="text-xs font-bold text-slate-500 uppercase">Start Date</label>
+                                <input
+                                  required={autoCreateImpl}
+                                  type="date"
+                                  className={cn("w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold focus:ring-2 outline-none transition-all font-mono", theme.ring, theme.focusBorder)}
+                                  value={item.startDate}
+                                  onChange={e => {
+                                    const newDate = e.target.value;
+                                    setAutoCreateItems(prev =>
+                                      prev.map(x => x.id === item.id ? { ...x, startDate: newDate } : x)
+                                    );
+                                  }}
+                                />
+                              </div>
+
+                              {/* Implementation Manager */}
+                              <div className="space-y-1.5">
+                                <label className="text-xs font-bold text-slate-500 uppercase">Implementation Manager</label>
+                                <select
+                                  required={autoCreateImpl}
+                                  className={cn("w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold focus:ring-2 outline-none transition-all", theme.ring, theme.focusBorder)}
+                                  value={item.manager}
+                                  onChange={e => {
+                                    const newManager = e.target.value;
+                                    setAutoCreateItems(prev =>
+                                      prev.map(x => x.id === item.id ? { ...x, manager: newManager } : x)
+                                    );
+                                  }}
+                                >
+                                  <option value="">Select Manager...</option>
+                                  {availableIMs.map(name => (
+                                    <option key={name} value={name}>{name}</option>
+                                  ))}
+                                </select>
+                              </div>
+                            </div>
+
+                            {/* Timeline Preview */}
+                            {closureDate && (
+                              <div className="p-3 bg-white rounded-xl border border-slate-100 flex justify-between items-center text-[10px] font-bold text-slate-500 shadow-sm animate-in slide-in-from-top-1">
+                                <div>
+                                  <span>Baseline: </span>
+                                  <span className="text-slate-800 font-mono">{baseline} Working Days</span>
+                                </div>
+                                <div>
+                                  <span>Est. Closure: </span>
+                                  <span className="text-slate-800 font-mono">{closureDate}</span>
+                                </div>
+                              </div>
+                            )}
                           </div>
                         );
-                      })()}
+                      })}
+
+                      {/* Add another implementation button */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setAutoCreateItems(prev => [
+                            ...prev,
+                            {
+                              id: Math.random().toString(36).substr(2, 9),
+                              serviceId: '',
+                              subServiceId: null,
+                              startDate: formData.startDate || new Date().toISOString().split('T')[0],
+                              manager: formData.assignedPM || currentUserName
+                            }
+                          ]);
+                        }}
+                        className="flex items-center justify-center gap-1.5 px-4 py-3 border-2 border-dashed border-slate-200 text-slate-500 rounded-2xl hover:border-teal-500 hover:text-teal-600 font-bold transition-all text-xs w-full mt-2 hover:bg-teal-50/20 active:scale-[0.98]"
+                      >
+                        + Add Implementation
+                      </button>
                     </motion.div>
                   )}
                 </AnimatePresence>
