@@ -501,18 +501,23 @@ const weightMap = useMemo(() => {
               </div>
             </>
           )}
-          
-          <div className="h-10 w-px bg-slate-100 mx-2" />
-          
-          <button 
-            onClick={() => setIsCustom(!isCustom)}
-            className={cn(
-              "px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all",
-              isCustom ? "bg-teal-600 text-white shadow-lg" : "bg-slate-100 text-slate-500 hover:bg-slate-200"
-            )}
-          >
-            {isCustom ? 'Standard Period' : 'Custom Period'}
-          </button>
+          <div className="flex flex-col gap-1">
+            <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1 invisible select-none">sep</span>
+            <div className="h-9 w-px bg-slate-100 self-center" />
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1 invisible select-none">mode</span>
+            <button
+              onClick={() => setIsCustom(!isCustom)}
+              className={cn(
+                "px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all h-9",
+                isCustom ? "bg-teal-600 text-white shadow-lg" : "bg-slate-100 text-slate-500 hover:bg-slate-200"
+              )}
+            >
+              {isCustom ? 'Standard Period' : 'Custom Period'}
+            </button>
+          </div>
         </div>
       </div>
 
