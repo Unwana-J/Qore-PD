@@ -28,7 +28,18 @@ import {
   Plus,
   ShieldAlert,
   Key,
-  Mail
+  Mail,
+  SlidersHorizontal,
+  Lock,
+  LayoutDashboard,
+  FolderKanban,
+  Layers,
+  BarChart3,
+  AlertOctagon,
+  TimerReset,
+  Eye,
+  Zap,
+  RotateCcw
 } from 'lucide-react';
 import { MilestoneEditorModal } from './MilestoneEditorModal';
 import { 
@@ -40,7 +51,9 @@ import {
   PackageConfig,
   Project,
   ProjectPriority,
-  SettingsTab
+  SettingsTab,
+  RoleUIPermissions,
+  RoleConfig
 } from '../types';
 import { PROJECT_STATES } from '../constants';
 import { cn, isRole, hasRole } from '../lib/utils';
@@ -146,8 +159,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     if (tab === 'revenue' && hasRole(userRole, ['Finance', 'Superadmin'])) return true;
     if (tab === 'users' && isRole(userRole, 'Manager')) return true;
     if (tab === 'taxonomies' && isRole(userRole, 'Superadmin')) return true;
-
     if (tab === 'priority' && hasRole(userRole, ['Manager', 'Team Lead'])) return true;
+    if (tab === 'app-config' && hasRole(userRole, ['Superadmin', 'Manager'])) return true;
 
     return false;
   };
@@ -211,6 +224,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           <SidebarItem id="taxonomies" icon={Tags} label="Taxonomies & Labels" />
           <SidebarItem id="integrations" icon={LinkIcon} label="Integrations" />
           <SidebarItem id="audit" icon={History} label="System Audit Log" />
+          <div className="h-px bg-slate-100 mx-2 my-1" />
+          <SidebarItem id="app-config" icon={SlidersHorizontal} label="App Configuration" />
         </div>
 
         {userRole === 'Superadmin' && (
@@ -251,6 +266,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           {activeTab === 'integrations' && <IntegrationsSettings config={draftConfig} setConfig={setDraftConfig} theme={theme} />}
           {activeTab === 'account' && <AccountSettings user={user} profile={profile} refreshProfile={refreshProfile} theme={theme} showToast={showToast} />}
           {activeTab === 'audit' && <AuditView logs={auditLogs} />}
+          {activeTab === 'app-config' && <AppConfigSettings config={draftConfig} setConfig={setDraftConfig} userRole={userRole} theme={theme} />}
         </div>
 
         {/* Floating Save Bar */}
@@ -2246,4 +2262,306 @@ const TaxonomiesSettings = ({ config, setConfig, theme, showToast }: any) => {
     </div>
   );
 };
+
+const AppConfigSettings = ({ config, setConfig, userRole, theme }: any) => {
+  const [selectedRole, setSelectedRole] = useState<Role>('Manager');
+
+  const CONFIGURABLE_ROLES: Role[] = ['Manager', 'Team Lead', 'PM', 'Finance', 'Executive', 'IM', 'IM Lead'];
+
+  const defaultNavForRole = (role: Role) => {
+    const isIm = role === 'IM';
+    const isImLead = role === 'IM Lead';
+    const isPm = role === 'PM';
+    const isSuperadmin = role === 'Superadmin';
+    const isManager = role === 'Manager';
+    const isTeamLead = role === 'Team Lead';
+    const isExecutive = role === 'Executive';
+    const isFinance = role === 'Finance';
+
+    return {
+      dashboard: true,
+      projects: true,
+      implementations: isIm || isImLead || isPm || isSuperadmin || isManager,
+      resources: isSuperadmin || isManager,
+      risks: !isExecutive && !isFinance && !isIm && !isImLead,
+      rebaselineQueue: isSuperadmin || isManager || isTeamLead,
+      settings: !isExecutive && !isFinance && !isIm && !isImLead,
+    };
+  };
+
+  const defaultTabsForRole = (role: Role) => {
+    const isImLead = role === 'IM Lead' || role === 'Superadmin';
+    const isIm = role === 'IM';
+    const isPm = role === 'PM';
+
+    return {
+      insights: isImLead,
+      teamDashboard: isImLead,
+      requestsQueue: isImLead,
+      mappingQueue: isImLead || isPm,
+      myImplementations: isIm || isImLead,
+      myPortfolio: isPm,
+      issueLog: true,
+    };
+  };
+
+  const defaultFeaturesForRole = (role: Role) => {
+    const isImLead = role === 'IM Lead' || role === 'Superadmin';
+    const isPm = role === 'PM';
+
+    return {
+      createNew: !isPm,
+      bulkImport: isImLead,
+      cancelImplementation: isImLead,
+      reassignIM: isImLead,
+      deleteImplementation: isImLead,
+    };
+  };
+
+  const buildDefaultPermissions = (role: Role): RoleUIPermissions => ({
+    nav: defaultNavForRole(role),
+    implementationsTabs: defaultTabsForRole(role),
+    implementationsFeatures: defaultFeaturesForRole(role),
+  });
+
+  // Read current permissions for this role
+  const permissions = useMemo(() => {
+    return config.roleConfig?.[selectedRole] ?? buildDefaultPermissions(selectedRole);
+  }, [config.roleConfig, selectedRole]);
+
+  const handleToggle = (group: 'nav' | 'implementationsTabs' | 'implementationsFeatures', key: string, val: boolean) => {
+    if (group === 'nav') {
+      if (selectedRole === 'Manager' && (key === 'settings' || key === 'dashboard')) return;
+      if (selectedRole === 'Team Lead' && key === 'dashboard') return;
+    }
+
+    const updatedPermissions = {
+      ...permissions,
+      [group]: {
+        ...permissions[group],
+        [key]: val
+      }
+    };
+
+    setConfig({
+      ...config,
+      roleConfig: {
+        ...(config.roleConfig || {}),
+        [selectedRole]: updatedPermissions
+      }
+    });
+  };
+
+  const handleReset = () => {
+    const nextRoleConfig = { ...(config.roleConfig || {}) };
+    delete nextRoleConfig[selectedRole];
+
+    setConfig({
+      ...config,
+      roleConfig: nextRoleConfig
+    });
+  };
+
+  const isNavLocked = (role: Role, key: string) => {
+    if (role === 'Manager' && (key === 'settings' || key === 'dashboard')) return true;
+    if (role === 'Team Lead' && key === 'dashboard') return true;
+    return false;
+  };
+
+  return (
+    <div className="p-8 space-y-8 animate-in fade-in duration-300">
+      <div className="flex justify-between items-start">
+        <div>
+          <h3 className="text-xl font-black text-slate-900 tracking-tight uppercase">App Configuration</h3>
+          <p className="text-sm font-bold text-slate-400">Configure role-based navigation menu, tabs, and feature access permissions.</p>
+        </div>
+        <button
+          onClick={handleReset}
+          className="flex items-center gap-2 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-all active:scale-95"
+          title="Reset to role default permissions"
+        >
+          <RotateCcw className="w-3.5 h-3.5" />
+          Reset Role
+        </button>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+        {/* Left Side: Role Selector */}
+        <div className="lg:col-span-1 space-y-2">
+          <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest px-2 mb-2">User Roles</p>
+          <div className="flex flex-row lg:flex-col overflow-x-auto lg:overflow-x-visible gap-1.5 pb-2 lg:pb-0 scrollbar-none">
+            {CONFIGURABLE_ROLES.map(role => {
+              const isActive = selectedRole === role;
+              const hasCustom = !!config.roleConfig?.[role];
+              return (
+                <button
+                  key={role}
+                  onClick={() => setSelectedRole(role)}
+                  className={cn(
+                    "flex items-center justify-between px-4 py-3 rounded-2xl text-left text-xs font-bold transition-all whitespace-nowrap lg:whitespace-normal flex-shrink-0 lg:flex-shrink",
+                    isActive 
+                      ? `${theme.lightBg} ${theme.text} border-2 ${theme.border}` 
+                      : "bg-white border-2 border-slate-100 text-slate-600 hover:bg-slate-50"
+                  )}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <span className={cn("w-2 h-2 rounded-full", isActive ? theme.bg : "bg-slate-300")} />
+                    <span>{role}</span>
+                  </div>
+                  {hasCustom && (
+                    <span className="ml-2 px-1.5 py-0.5 bg-amber-100 text-amber-800 text-[8px] font-black uppercase tracking-wider rounded">Custom</span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Right Side: Toggle Groups */}
+        <div className="lg:col-span-3 space-y-6">
+          {/* Navigation Menu Access */}
+          <div className="bg-slate-50 border border-slate-100 rounded-3xl p-6 space-y-4">
+            <div className="flex items-center gap-2 border-b border-slate-200 pb-3">
+              <LayoutDashboard className="w-4 h-4 text-slate-500" />
+              <h4 className="text-sm font-black text-slate-900 uppercase tracking-tight">🧭 Navigation Menu</h4>
+            </div>
+            <div className="divide-y divide-slate-200">
+              {[
+                { key: 'dashboard', label: 'Dashboard', desc: 'Main performance metrics, analytics, and service rates graphs.' },
+                { key: 'projects', label: 'Projects', desc: 'Listing and management of delivery projects.' },
+                { key: 'implementations', label: 'Ancillary Implementations', desc: 'Workflows, queues, and tools for ancillary services.' },
+                { key: 'resources', label: 'Resource Tracking', desc: 'Detailed view of workload, utilization, and capacity charts.' },
+                { key: 'risks', label: 'Risks & Issues', desc: 'Central log of blockers, risks, and mitigations.' },
+                { key: 'rebaselineQueue', label: 'Rebaseline Queue', desc: 'Approvals queue for project extension requests.' },
+                { key: 'settings', label: 'Settings', desc: 'Global configurations, white labelling, and user management.' },
+              ].map(item => {
+                const value = (permissions.nav as any)[item.key];
+                const locked = isNavLocked(selectedRole, item.key);
+                return (
+                  <div key={item.key} className="flex items-center justify-between py-3">
+                    <div className="pr-4">
+                      <div className="flex items-center gap-2">
+                        <p className="text-xs font-black text-slate-800">{item.label}</p>
+                        {locked && (
+                          <div className="flex items-center gap-1 text-[9px] font-black text-slate-400 uppercase tracking-widest" title="Enforced floor for this role">
+                            <Lock className="w-2.5 h-2.5" /> Enforced
+                          </div>
+                        )}
+                      </div>
+                      <p className="text-[10px] font-bold text-slate-400 mt-0.5">{item.desc}</p>
+                    </div>
+                    <button
+                      type="button"
+                      disabled={locked}
+                      onClick={() => handleToggle('nav', item.key, !value)}
+                      className={cn(
+                        "relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none",
+                        value ? theme.bg : "bg-slate-200",
+                        locked && "opacity-50 cursor-not-allowed"
+                      )}
+                    >
+                      <span
+                        className={cn(
+                          "pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out",
+                          value ? "translate-x-5" : "translate-x-0"
+                        )}
+                      />
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Implementations Tabs Access */}
+          <div className="bg-slate-50 border border-slate-100 rounded-3xl p-6 space-y-4">
+            <div className="flex items-center gap-2 border-b border-slate-200 pb-3">
+              <Layers className="w-4 h-4 text-slate-500" />
+              <h4 className="text-sm font-black text-slate-900 uppercase tracking-tight">📋 Implementations Tabs</h4>
+            </div>
+            <div className="divide-y divide-slate-200">
+              {[
+                { key: 'insights', label: 'Team Insights', desc: 'Aggregated managers performance charts, closed extensions counters, and metrics.' },
+                { key: 'teamDashboard', label: 'Team Dashboard', desc: 'High-level dashboard listing all team implementation records.' },
+                { key: 'requestsQueue', label: 'Requests Queue', desc: 'Queue of pending suspension/reactivation requests.' },
+                { key: 'mappingQueue', label: 'Mapping Queue', desc: 'Tooling to link incoming extensions to system projects.' },
+                { key: 'myImplementations', label: 'My Implementations', desc: 'Direct view of implementations owned by the user.' },
+                { key: 'myPortfolio', label: 'My Portfolio', desc: 'Portfolio view specific to Project Managers.' },
+                { key: 'issueLog', label: 'Issue Log', desc: 'Blocked items details and logs.' },
+              ].map(item => {
+                const value = (permissions.implementationsTabs as any)[item.key];
+                return (
+                  <div key={item.key} className="flex items-center justify-between py-3">
+                    <div className="pr-4">
+                      <p className="text-xs font-black text-slate-800">{item.label}</p>
+                      <p className="text-[10px] font-bold text-slate-400 mt-0.5">{item.desc}</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleToggle('implementationsTabs', item.key, !value)}
+                      className={cn(
+                        "relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none",
+                        value ? theme.bg : "bg-slate-200"
+                      )}
+                    >
+                      <span
+                        className={cn(
+                          "pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out",
+                          value ? "translate-x-5" : "translate-x-0"
+                        )}
+                      />
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Feature Access */}
+          <div className="bg-slate-50 border border-slate-100 rounded-3xl p-6 space-y-4">
+            <div className="flex items-center gap-2 border-b border-slate-200 pb-3">
+              <Zap className="w-4 h-4 text-slate-500" />
+              <h4 className="text-sm font-black text-slate-900 uppercase tracking-tight">⚡ Feature Access</h4>
+            </div>
+            <div className="divide-y divide-slate-200">
+              {[
+                { key: 'createNew', label: 'New Implementation', desc: 'Ability to manually initialize and register a new implementation.' },
+                { key: 'bulkImport', label: 'Bulk Import', desc: 'CSV bulk extensions import button.' },
+                { key: 'cancelImplementation', label: 'Cancel Action', desc: 'Cancel status transitions inside management modal.' },
+                { key: 'reassignIM', label: 'Reassign IM', desc: 'Update or swap assigned implementation manager on active runs.' },
+                { key: 'deleteImplementation', label: 'Delete Action', desc: 'Permanently remove implementation record from system.' },
+              ].map(item => {
+                const value = (permissions.implementationsFeatures as any)[item.key];
+                return (
+                  <div key={item.key} className="flex items-center justify-between py-3">
+                    <div className="pr-4">
+                      <p className="text-xs font-black text-slate-800">{item.label}</p>
+                      <p className="text-[10px] font-bold text-slate-400 mt-0.5">{item.desc}</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleToggle('implementationsFeatures', item.key, !value)}
+                      className={cn(
+                        "relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none",
+                        value ? theme.bg : "bg-slate-200"
+                      )}
+                    >
+                      <span
+                        className={cn(
+                          "pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out",
+                          value ? "translate-x-5" : "translate-x-0"
+                        )}
+                      />
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 

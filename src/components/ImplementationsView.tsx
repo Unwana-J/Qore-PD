@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Plus, Layers, Clock, Search, Users, Filter, X, CheckCircle2, AlertTriangle, TrendingUp, MapPin, Upload, Package, Trash2, RefreshCw, Check, Briefcase, MessageSquare, Activity } from 'lucide-react';
-import { cn, isRole } from '../lib/utils';
-import { ServiceExtension, Role, AppConfig } from '../types';
+import { ServiceExtension, Role, AppConfig, RoleUIPermissions } from '../types';
 import { api } from '../lib/api';
 import { NewImplementationModal } from './NewImplementationModal';
 import { ManageImplementationModal } from './ManageImplementationModal';
@@ -343,6 +342,48 @@ export const ImplementationsView: React.FC<ImplementationsViewProps> = ({
   const [isSendingEngagement, setIsSendingEngagement] = useState(false);
 
   const isLead = isRole(userRole, 'IM Lead') || isRole(userRole, 'Superadmin');
+
+  const featureAllowed = (key: keyof RoleUIPermissions['implementationsFeatures'], hardcodedDefault: boolean): boolean => {
+    if (userRole === 'Superadmin') return true;
+    const saved = config.roleConfig?.[userRole]?.implementationsFeatures[key];
+    return saved !== undefined ? saved : hardcodedDefault;
+  };
+
+  const tabAllowed = (key: keyof RoleUIPermissions['implementationsTabs'], hardcodedDefault: boolean): boolean => {
+    if (userRole === 'Superadmin') return true;
+    const saved = config.roleConfig?.[userRole]?.implementationsTabs[key];
+    return saved !== undefined ? saved : hardcodedDefault;
+  };
+
+  useEffect(() => {
+    if (userRole === 'Superadmin') return;
+
+    const tabMap: Record<string, { key: keyof RoleUIPermissions['implementationsTabs']; def: boolean }> = {
+      'insights': { key: 'insights', def: isLead },
+      'all': { key: 'teamDashboard', def: isLead },
+      'requests-queue': { key: 'requestsQueue', def: isLead },
+      'mapping-queue': { key: 'mappingQueue', def: isLead || isRole(userRole, 'PM') },
+      'mine': { key: 'myImplementations', def: isRole(userRole, 'IM') || isLead },
+      'pm-dashboard': { key: 'myPortfolio', def: isRole(userRole, 'PM') },
+      'issues': { key: 'issueLog', def: true },
+    };
+
+    const currentMapping = tabMap[activeTab];
+    if (currentMapping && !tabAllowed(currentMapping.key, currentMapping.def)) {
+      const order = isLead 
+        ? ['insights', 'all', 'requests-queue', 'mapping-queue', 'mine', 'issues']
+        : ['mine', 'pm-dashboard', 'mapping-queue', 'issues'];
+
+      for (const tabId of order) {
+        const mapping = tabMap[tabId];
+        if (mapping && tabAllowed(mapping.key, mapping.def)) {
+          setActiveTab(tabId as any);
+          return;
+        }
+      }
+      setActiveTab('issues');
+    }
+  }, [activeTab, userRole, config.roleConfig]);
 
   const requestsCount = useMemo(() => {
     return extensions.filter(e => e.suspensionRequest?.status === 'Pending' || e.reactivationRequest?.status === 'Pending').length;
@@ -938,7 +979,7 @@ export const ImplementationsView: React.FC<ImplementationsViewProps> = ({
                               >
                                 Manage
                               </button>
-                              {isLead && (
+                              {featureAllowed('deleteImplementation', isLead) && (
                                 <button
                                   onClick={() => setExtensionToDelete(ext)}
                                   className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all active:scale-95"
@@ -1016,7 +1057,7 @@ export const ImplementationsView: React.FC<ImplementationsViewProps> = ({
           </p>
         </div>
         <div className="flex items-center gap-3">
-          {isLead && onImportExtensions && (
+          {featureAllowed('bulkImport', isLead) && onImportExtensions && (
             <button
               onClick={onImportExtensions}
               className="flex items-center gap-2 px-4 py-2 bg-slate-100 text-slate-700 hover:bg-slate-200 font-bold rounded-xl transition-all"
@@ -1025,7 +1066,7 @@ export const ImplementationsView: React.FC<ImplementationsViewProps> = ({
               Import Bulk
             </button>
           )}
-          {!isRole(userRole, 'PM') && (
+          {featureAllowed('createNew', !isRole(userRole, 'PM')) && (
             <button
               onClick={() => setIsNewModalOpen(true)}
               className="px-6 py-2.5 bg-teal-600 text-white font-bold rounded-xl shadow-lg shadow-teal-600/20 hover:bg-teal-700 hover:shadow-teal-700/30 transition-all flex items-center gap-2"
@@ -1051,26 +1092,44 @@ export const ImplementationsView: React.FC<ImplementationsViewProps> = ({
           {mode !== 'dashboard' && (
             <div className="flex gap-2 p-1 bg-slate-100 rounded-xl w-fit">
               <button onClick={loadExtensions} className="p-2 text-slate-400 hover:text-teal-600 transition-colors" title="Refresh Feed"><RefreshCw className={cn("w-4 h-4", loading && "animate-spin")} /></button>
-              <button onClick={() => setActiveTab('insights')} className={cn("px-4 py-2 text-sm font-bold rounded-lg transition-all", activeTab === 'insights' ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700")}>Team Insights</button>
-              <button onClick={() => setActiveTab('all')} className={cn("px-4 py-2 text-sm font-bold rounded-lg transition-all", activeTab === 'all' ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700")}>Team Dashboard</button>
-              <button onClick={() => setActiveTab('requests-queue')} className={cn("px-4 py-2 text-sm font-bold rounded-lg transition-all flex items-center gap-2", activeTab === 'requests-queue' ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700")}>
-                Requests Queue
-                {requestsCount > 0 && (
-                  <span className="inline-flex items-center justify-center px-2 py-0.5 text-xs font-black rounded-full bg-orange-100 text-orange-800 leading-none animate-in fade-in zoom-in duration-200">
-                    {requestsCount}
-                  </span>
-                )}
-              </button>
-              <button onClick={() => setActiveTab('mapping-queue')} className={cn("px-4 py-2 text-sm font-bold rounded-lg transition-all flex items-center gap-2", activeTab === 'mapping-queue' ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700")}>
-                Mapping Queue
-                {mappingCountLead > 0 && (
-                  <span className="inline-flex items-center justify-center px-2 py-0.5 text-xs font-black rounded-full bg-amber-100 text-amber-800 leading-none animate-in fade-in zoom-in duration-200">
-                    {mappingCountLead}
-                  </span>
-                )}
-              </button>
-              <button onClick={() => setActiveTab('mine')} className={cn("px-4 py-2 text-sm font-bold rounded-lg transition-all", activeTab === 'mine' ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700")}>My Implementations</button>
-              <button onClick={() => setActiveTab('issues')} className={cn("px-4 py-2 text-sm font-bold rounded-lg transition-all", activeTab === 'issues' ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700")}>Issue Log</button>
+              
+              {tabAllowed('insights', isLead) && (
+                <button onClick={() => setActiveTab('insights')} className={cn("px-4 py-2 text-sm font-bold rounded-lg transition-all", activeTab === 'insights' ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700")}>Team Insights</button>
+              )}
+              
+              {tabAllowed('teamDashboard', isLead) && (
+                <button onClick={() => setActiveTab('all')} className={cn("px-4 py-2 text-sm font-bold rounded-lg transition-all", activeTab === 'all' ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700")}>Team Dashboard</button>
+              )}
+              
+              {tabAllowed('requestsQueue', isLead) && (
+                <button onClick={() => setActiveTab('requests-queue')} className={cn("px-4 py-2 text-sm font-bold rounded-lg transition-all flex items-center gap-2", activeTab === 'requests-queue' ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700")}>
+                  Requests Queue
+                  {requestsCount > 0 && (
+                    <span className="inline-flex items-center justify-center px-2 py-0.5 text-xs font-black rounded-full bg-orange-100 text-orange-800 leading-none animate-in fade-in zoom-in duration-200">
+                      {requestsCount}
+                    </span>
+                  )}
+                </button>
+              )}
+              
+              {tabAllowed('mappingQueue', isLead) && (
+                <button onClick={() => setActiveTab('mapping-queue')} className={cn("px-4 py-2 text-sm font-bold rounded-lg transition-all flex items-center gap-2", activeTab === 'mapping-queue' ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700")}>
+                  Mapping Queue
+                  {mappingCountLead > 0 && (
+                    <span className="inline-flex items-center justify-center px-2 py-0.5 text-xs font-black rounded-full bg-amber-100 text-amber-800 leading-none animate-in fade-in zoom-in duration-200">
+                      {mappingCountLead}
+                    </span>
+                  )}
+                </button>
+              )}
+              
+              {tabAllowed('myImplementations', isLead) && (
+                <button onClick={() => setActiveTab('mine')} className={cn("px-4 py-2 text-sm font-bold rounded-lg transition-all", activeTab === 'mine' ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700")}>My Implementations</button>
+              )}
+              
+              {tabAllowed('issueLog', true) && (
+                <button onClick={() => setActiveTab('issues')} className={cn("px-4 py-2 text-sm font-bold rounded-lg transition-all", activeTab === 'issues' ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700")}>Issue Log</button>
+              )}
             </div>
           )}
 
@@ -1156,21 +1215,29 @@ export const ImplementationsView: React.FC<ImplementationsViewProps> = ({
           {mode !== 'dashboard' && (
             <div className="flex gap-2 p-1 bg-slate-100 rounded-xl w-fit mb-6">
               <button onClick={loadExtensions} className="p-2 text-slate-400 hover:text-teal-600 transition-colors" title="Refresh Feed"><RefreshCw className={cn("w-4 h-4", loading && "animate-spin")} /></button>
-              {isRole(userRole, 'IM') && <button onClick={() => setActiveTab('mine')} className={cn("px-4 py-2 text-sm font-bold rounded-lg transition-all", activeTab === 'mine' ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700")}>My Implementations</button>}
-              {isRole(userRole, 'PM') && (
-                <>
-                  <button onClick={() => setActiveTab('pm-dashboard')} className={cn("px-4 py-2 text-sm font-bold rounded-lg transition-all", activeTab === 'pm-dashboard' ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700")}>My Portfolio</button>
-                  <button onClick={() => setActiveTab('mapping-queue')} className={cn("px-4 py-2 text-sm font-bold rounded-lg transition-all flex items-center gap-2", activeTab === 'mapping-queue' ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700")}>
-                    Mapping Queue
-                    {mappingCountPM > 0 && (
-                      <span className="inline-flex items-center justify-center px-2 py-0.5 text-xs font-black rounded-full bg-amber-100 text-amber-800 leading-none animate-in fade-in zoom-in duration-200">
-                        {mappingCountPM}
-                      </span>
-                    )}
-                  </button>
-                </>
+              
+              {tabAllowed('myImplementations', isRole(userRole, 'IM')) && (
+                <button onClick={() => setActiveTab('mine')} className={cn("px-4 py-2 text-sm font-bold rounded-lg transition-all", activeTab === 'mine' ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700")}>My Implementations</button>
               )}
-              <button onClick={() => setActiveTab('issues')} className={cn("px-4 py-2 text-sm font-bold rounded-lg transition-all", activeTab === 'issues' ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700")}>Issue Log</button>
+              
+              {tabAllowed('myPortfolio', isRole(userRole, 'PM')) && (
+                <button onClick={() => setActiveTab('pm-dashboard')} className={cn("px-4 py-2 text-sm font-bold rounded-lg transition-all", activeTab === 'pm-dashboard' ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700")}>My Portfolio</button>
+              )}
+              
+              {tabAllowed('mappingQueue', isRole(userRole, 'PM')) && (
+                <button onClick={() => setActiveTab('mapping-queue')} className={cn("px-4 py-2 text-sm font-bold rounded-lg transition-all flex items-center gap-2", activeTab === 'mapping-queue' ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700")}>
+                  Mapping Queue
+                  {mappingCountPM > 0 && (
+                    <span className="inline-flex items-center justify-center px-2 py-0.5 text-xs font-black rounded-full bg-amber-100 text-amber-800 leading-none animate-in fade-in zoom-in duration-200">
+                      {mappingCountPM}
+                    </span>
+                  )}
+                </button>
+              )}
+              
+              {tabAllowed('issueLog', true) && (
+                <button onClick={() => setActiveTab('issues')} className={cn("px-4 py-2 text-sm font-bold rounded-lg transition-all", activeTab === 'issues' ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700")}>Issue Log</button>
+              )}
             </div>
           )}
 

@@ -439,10 +439,53 @@ export interface BrandConfig {
   companyName: string;
 }
 
-export type SettingsTab = 'performance' | 'users' | 'project' | 'priority' | 'revenue' | 'audit' | 'account' | 'brand' | 'currencies' | 'packages' | 'integrations' | 'taxonomies';
+export type SettingsTab = 'performance' | 'users' | 'project' | 'priority' | 'revenue' | 'audit' | 'account' | 'brand' | 'currencies' | 'packages' | 'integrations' | 'taxonomies' | 'app-config';
+
+// ── Role-Based UI Configuration ───────────────────────────────────────────────
+
+/**
+ * Defines which UI surfaces a role can access.
+ * Each field defaults to the hardcoded behaviour when absent.
+ */
+export interface RoleUIPermissions {
+  /** Sidebar navigation visibility */
+  nav: {
+    dashboard: boolean;
+    projects: boolean;
+    implementations: boolean;
+    resources: boolean;
+    risks: boolean;
+    rebaselineQueue: boolean;
+    settings: boolean;
+  };
+  /** Tabs inside the Ancillary Implementations view */
+  implementationsTabs: {
+    insights: boolean;            // Team Insights (IM Lead context)
+    teamDashboard: boolean;       // Team Dashboard / full-list view
+    requestsQueue: boolean;       // Suspension & Reactivation requests
+    mappingQueue: boolean;        // Mapping Queue
+    myImplementations: boolean;   // My Implementations (IM)
+    myPortfolio: boolean;         // My Portfolio (PM)
+    issueLog: boolean;            // Issue Log
+  };
+  /** Feature-level access inside the Implementations view */
+  implementationsFeatures: {
+    createNew: boolean;              // + New Implementation button
+    bulkImport: boolean;             // Import Bulk action
+    cancelImplementation: boolean;   // Cancel action in manage modal
+    reassignIM: boolean;             // Reassign to another IM
+    deleteImplementation: boolean;   // Delete row action
+  };
+}
+
+/**
+ * Stored per role. Superadmin is always unrestricted and never stored here.
+ */
+export type RoleConfig = Partial<Record<Role, RoleUIPermissions>>;
 
 export interface AppConfig {
   spiThresholds: { onTrack: number; atRisk: number };
+
   atRiskThresholdDays: number;
   staleThresholdDays: number;
   currencies: Currency[];
@@ -474,6 +517,8 @@ export interface AppConfig {
   riskCategories?: string[];
   issueCategories?: string[];
   monthlyTrendAnnotations?: Record<string, string>;
+  /** Per-role UI configuration (menu items, tabs, features). Superadmin is always unrestricted. */
+  roleConfig?: RoleConfig;
 }
 
 export interface WeightHistory {

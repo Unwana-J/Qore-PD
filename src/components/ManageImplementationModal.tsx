@@ -6,7 +6,7 @@ import {
   RefreshCw, Briefcase, Check, Shield, AlertTriangle, Plus,
   Pencil, Trash2, Edit2
 } from 'lucide-react';
-import { ServiceExtension, IMilestone, AppConfig, User, ImplementationIssue, ServiceBaseline, ServiceSubService, Project, ExtensionDeliverable } from '../types';
+import { ServiceExtension, IMilestone, AppConfig, User, ImplementationIssue, ServiceBaseline, ServiceSubService, Project, ExtensionDeliverable, Role, RoleUIPermissions } from '../types';
 import { api } from '../lib/api';
 import { cn, isRole, calculateWorkingDays } from '../lib/utils';
 import { MapToProjectModal } from './MapToProjectModal';
@@ -51,6 +51,12 @@ export const ManageImplementationModal: React.FC<ManageImplementationModalProps>
   const [processingCancel, setProcessingCancel] = useState(false);
 
   const isLead = isRole(userRole, 'IM Lead') || isRole(userRole, 'Superadmin');
+
+  const featureAllowed = (key: keyof RoleUIPermissions['implementationsFeatures'], hardcodedDefault: boolean): boolean => {
+    if (userRole === 'Superadmin') return true;
+    const saved = config.roleConfig?.[userRole as Role]?.implementationsFeatures[key];
+    return saved !== undefined ? saved : hardcodedDefault;
+  };
   const isSuspended = extension.status === 'Suspended';
   const isCancelled = extension.status === 'Cancelled';
 
@@ -1017,7 +1023,7 @@ export const ManageImplementationModal: React.FC<ManageImplementationModalProps>
                   )}
 
                   {/* Cancel Implementation — Lead/Superadmin only */}
-                  {isLead && !isCancelled && !extension.cancellation && (
+                  {featureAllowed('cancelImplementation', isLead) && !isCancelled && !extension.cancellation && (
                     !showCancelModal ? (
                       <button
                         onClick={() => setShowCancelModal(true)}
@@ -1367,7 +1373,7 @@ export const ManageImplementationModal: React.FC<ManageImplementationModalProps>
 
               </div>
 
-              {isLead && (
+              {featureAllowed('reassignIM', isLead) && (
                 <div className="mx-8 mb-8 p-6 bg-indigo-50 border border-indigo-100 rounded-2xl space-y-4">
                   <div className="flex items-center gap-4">
                     <div className="flex items-center gap-3">
@@ -1397,7 +1403,7 @@ export const ManageImplementationModal: React.FC<ManageImplementationModalProps>
                         ) : (
                           <div className="flex items-center gap-2">
                             <p className="text-sm font-black text-slate-900">{extension.implementationManager}</p>
-                            {isLead && (
+                            {featureAllowed('reassignIM', isLead) && (
                               <button onClick={() => setIsReassigning(true)} className="p-1 text-slate-400 hover:text-teal-600 transition-colors">
                                 <RefreshCw className="w-3 h-3" />
                               </button>

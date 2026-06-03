@@ -10,7 +10,7 @@ import {
   Layers,
   BarChart3
 } from 'lucide-react';
-import { Role, AppConfig } from '../../types';
+import { Role, AppConfig, RoleUIPermissions } from '../../types';
 import { cn, isRole, hasRole } from '../../lib/utils';
 import { getThemeClasses } from '../../lib/theme';
 
@@ -57,6 +57,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const theme = getThemeClasses(config.brand.themeColor);
   
   const allRoles: Role[] = ['PM', 'Team Lead', 'Manager', 'Executive', 'Finance', 'IM', 'IM Lead', 'Superadmin'];
+
+  const navAllowed = (key: keyof RoleUIPermissions['nav'], hardcodedDefault: boolean): boolean => {
+    if (userRole === 'Superadmin') return true;
+    const saved = config.roleConfig?.[userRole]?.nav[key];
+    return saved !== undefined ? saved : hardcodedDefault;
+  };
 
   const NavItem = ({ icon: Icon, label, view }: { icon: any, label: string, view: View }) => (
     <button 
@@ -128,45 +134,55 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </div>
 
           <nav className="flex-1 space-y-1.5 px-1">
-          <div className="relative">
-            <NavItem icon={LayoutDashboard} label="Dashboard" view="dashboard" />
-            {isRole(userRole, 'Finance') && pendingBillingCount > 0 && (
-              <>
-                {!isSidebarCollapsed ? (
-                  <span className="absolute right-8 top-1/2 -translate-y-1/2 bg-emerald-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full shadow-sm animate-pulse">
-                    {pendingBillingCount}
-                  </span>
-                ) : (
-                  <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-emerald-500 border-2 border-white rounded-full" />
+            {navAllowed('dashboard', true) && (
+              <div className="relative">
+                <NavItem icon={LayoutDashboard} label="Dashboard" view="dashboard" />
+                {isRole(userRole, 'Finance') && pendingBillingCount > 0 && (
+                  <>
+                    {!isSidebarCollapsed ? (
+                      <span className="absolute right-8 top-1/2 -translate-y-1/2 bg-emerald-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full shadow-sm animate-pulse">
+                        {pendingBillingCount}
+                      </span>
+                    ) : (
+                      <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-emerald-500 border-2 border-white rounded-full" />
+                    )}
+                  </>
                 )}
-              </>
+              </div>
             )}
-          </div>
-            <NavItem icon={Briefcase} label="Projects" view="projects" />
-            {(isRole(userRole, 'IM') || isRole(userRole, 'IM Lead') || isRole(userRole, 'PM') || hasRole(userRole, ['Superadmin', 'Manager'])) && (
+            
+            {navAllowed('projects', true) && (
+              <NavItem icon={Briefcase} label="Projects" view="projects" />
+            )}
+
+            {navAllowed('implementations', isRole(userRole, 'IM') || isRole(userRole, 'IM Lead') || isRole(userRole, 'PM') || hasRole(userRole, ['Superadmin', 'Manager'])) && (
               <NavItem icon={Layers} label="Ancillary Implementations" view="implementations" />
             )}
-            {hasRole(userRole, ['Superadmin', 'Manager']) && (
+
+            {navAllowed('resources', hasRole(userRole, ['Superadmin', 'Manager'])) && (
               <NavItem icon={BarChart3} label="Resource Tracking" view="resources" />
             )}
-            {!isRole(userRole, 'Executive') && !isRole(userRole, 'Finance') && !isRole(userRole, 'IM') && !isRole(userRole, 'IM Lead') && (
-              <>
-                <NavItem icon={AlertTriangle} label="Risks & Issues" view="risks" />
-                {hasRole(userRole, ['Superadmin', 'Manager', 'Team Lead']) && (
-                  <div className="relative">
-                    <NavItem icon={Clock} label="Rebaseline Queue" view="rebaseline-requests" />
-                    {pendingRebaselineCount > 0 && !isSidebarCollapsed && (
-                      <span className="absolute right-8 top-1/2 -translate-y-1/2 bg-amber-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full shadow-sm animate-pulse">
-                        {pendingRebaselineCount}
-                      </span>
-                    )}
-                    {pendingRebaselineCount > 0 && isSidebarCollapsed && (
-                      <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-amber-500 border-2 border-white rounded-full" />
-                    )}
-                  </div>
+
+            {navAllowed('risks', !isRole(userRole, 'Executive') && !isRole(userRole, 'Finance') && !isRole(userRole, 'IM') && !isRole(userRole, 'IM Lead')) && (
+              <NavItem icon={AlertTriangle} label="Risks & Issues" view="risks" />
+            )}
+
+            {navAllowed('rebaselineQueue', hasRole(userRole, ['Superadmin', 'Manager', 'Team Lead'])) && (
+              <div className="relative">
+                <NavItem icon={Clock} label="Rebaseline Queue" view="rebaseline-requests" />
+                {pendingRebaselineCount > 0 && !isSidebarCollapsed && (
+                  <span className="absolute right-8 top-1/2 -translate-y-1/2 bg-amber-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full shadow-sm animate-pulse">
+                    {pendingRebaselineCount}
+                  </span>
                 )}
-                <NavItem icon={Settings} label="Settings" view="settings" />
-              </>
+                {pendingRebaselineCount > 0 && isSidebarCollapsed && (
+                  <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-amber-500 border-2 border-white rounded-full" />
+                )}
+              </div>
+            )}
+
+            {navAllowed('settings', !isRole(userRole, 'Executive') && !isRole(userRole, 'Finance') && !isRole(userRole, 'IM') && !isRole(userRole, 'IM Lead')) && (
+              <NavItem icon={Settings} label="Settings" view="settings" />
             )}
           </nav>
 
