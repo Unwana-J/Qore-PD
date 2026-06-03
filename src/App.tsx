@@ -464,6 +464,13 @@ function AppContent() {
                     userName={profile?.name}
                     riskCategories={config.riskCategories}
                     onDeleteProject={deleteProject}
+                    users={users}
+                    onViewImplementation={(ext) => {
+                      setImplementationsFilter('All');
+                      setImplementationsIMFilter('All');
+                      setCurrentView('implementations');
+                      setSelectedProject(null);
+                    }}
                   />
                 ) : (
                   <>

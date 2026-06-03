@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Project, Phase, Comment, Risk, Role, RebaselineRequest, ServiceState, PackageConfig, ServiceBaseline, ServiceExtension } from '../types';
+import { Project, Phase, Comment, Risk, Role, RebaselineRequest, ServiceState, PackageConfig, ServiceBaseline, ServiceExtension, User as AppUser } from '../types';
 import { StateBadge } from './ProjectList';
 import { formatCurrency, formatCompactCurrency, cn, calculatePhaseScores, getActiveDaysCount, getValidTransitions, isRole, hasRole, getAutoProjectState, getPhaseListFromState, calculateSPI, calculateWorkingDays, resolveServiceIds, getServiceNames, getEffectiveServiceIds } from '../lib/utils';
 import { api } from '../lib/api';
@@ -38,6 +38,8 @@ import {
 import { PROJECT_STATES } from '../constants';
 import { getThemeClasses } from '../lib/theme';
 import { subDays, format } from 'date-fns';
+import { useQueryClient } from '@tanstack/react-query';
+import { motion, AnimatePresence } from 'motion/react';
 
 interface PhaseViewProps {
   project: Project;
@@ -59,6 +61,7 @@ interface PhaseViewProps {
   riskCategories?: string[];
   onViewImplementation?: (ext: ServiceExtension) => void;
   onDeleteProject?: (projectId: string) => Promise<void>;
+  users?: AppUser[];
 }
 
 export const PhaseView: React.FC<PhaseViewProps> = ({ 
@@ -66,9 +69,44 @@ export const PhaseView: React.FC<PhaseViewProps> = ({
   onApproveRebaseline, onDeclineRebaseline, 
   userRole, currencies = [], serviceBaselines = [], packages = [], themeColor = 'teal', onReassign, defaultPhases = [],
   spiThresholds, validateStateTransition, onShowToast, userName, riskCategories = [], onViewImplementation,
-  onDeleteProject
+  onDeleteProject,
+  users = []
 }) => {
   const effectiveIds = getEffectiveServiceIds(rawProject, packages, serviceBaselines);
+
+  const queryClient = useQueryClient();
+
+  // State variables for auto-create implementation modal
+  const [showAddImplModal, setShowAddImplModal] = useState(false);
+  const [newImplServiceId, setNewImplServiceId] = useState('');
+  const [newImplSubServiceId, setNewImplSubServiceId] = useState<string | null>(null);
+  const [newImplStartDate, setNewImplStartDate] = useState('');
+  const [newImplManager, setNewImplManager] = useState('');
+  const [newImplLoading, setNewImplLoading] = useState(false);
+  const [newImplError, setNewImplError] = useState<string | null>(null);
+
+  // Selectors for auto-create implementation
+  const availableIMs = useMemo(() => {
+    if (!users) return [];
+    const list = users.filter(u => u.role === 'IM' || u.role === 'IM Lead' || u.role === 'Superadmin').map(u => u.name);
+    if (rawProject.assignedPM) list.push(rawProject.assignedPM);
+    if (userName) list.push(userName);
+    return Array.from(new Set(list.filter(Boolean))).sort();
+  }, [users, rawProject.assignedPM, userName]);
+
+  const availableAncillaryServices = useMemo(() => {
+    const isStandard = rawProject.deliveryTrack === 'Standard' || !rawProject.deliveryTrack;
+    if (isStandard && rawProject.packageName) {
+      const pkg = packages.find(p => p.name === rawProject.packageName);
+      if (pkg) {
+        return serviceBaselines.filter(sb =>
+          (pkg.services || []).includes(sb.id) || (pkg.services || []).includes(sb.name)
+        );
+      }
+      return [];
+    }
+    return serviceBaselines;
+  }, [rawProject.deliveryTrack, rawProject.packageName, packages, serviceBaselines]);
 
   // Dynamic Scope Sync: Filter out services that are neither in the package nor in milestones
   // This cleans up ghost tags like "Bankone" from legacy imports.
@@ -241,6 +279,99 @@ export const PhaseView: React.FC<PhaseViewProps> = ({
       setExtensionsLoaded(true);
     }).catch(() => setExtensionsLoaded(true));
   }, [rawProject?.id]);
+
+  const handleAutoCreateImplementation = async () => {
+    if (!newImplServiceId) {
+      setNewImplError('Please select an ancillary service.');
+      return;
+    }
+    const service = serviceBaselines.find(sb => sb.id === newImplServiceId);
+    if (!service) {
+      setNewImplError('Selected service not found.');
+      return;
+    }
+    const hasSub = service.subServices && service.subServices.length > 0;
+    if (hasSub && !newImplSubServiceId) {
+      setNewImplError('Please select a sub-service / gateway.');
+      return;
+    }
+    if (!newImplStartDate) {
+      setNewImplError('Please select a start date.');
+      return;
+    }
+    if (!newImplManager) {
+      setNewImplError('Please select an implementation manager.');
+      return;
+    }
+
+    setNewImplLoading(true);
+    setNewImplError(null);
+
+    try {
+      const subService = service.subServices?.find(ss => ss.id === newImplSubServiceId);
+      const effectiveBaseline = subService?.baselineDays ?? service.baselineDays ?? 0;
+      const effectiveMilestones = (subService?.milestones?.length ? subService.milestones : service.milestones) ?? [];
+      const effectiveDeliverables = subService?.deliverables ?? service.deliverables ?? [];
+      const targetClosureDate = calculateWorkingDays(newImplStartDate, effectiveBaseline);
+
+      const milestones = effectiveMilestones.map(m => ({
+        name: m,
+        completed: false,
+        completedAt: null,
+        completedBy: null,
+      }));
+      const deliverables = effectiveDeliverables.map(d => ({
+        name: d,
+        completed: false,
+        completedAt: null,
+        completedBy: null,
+      }));
+
+      const created = await api.serviceExtensions.create({
+        clientName: rawProject.clientName,
+        serviceId: service.id,
+        serviceName: service.name,
+        serviceVariant: subService?.name ?? 'Standard',
+        subServiceId: subService?.id ?? null,
+        baselineDays: effectiveBaseline,
+        implementationManager: newImplManager,
+        startDate: newImplStartDate,
+        targetClosureDate: targetClosureDate,
+        status: 'Not Started',
+        milestones,
+        deliverables,
+        linkedProjectId: rawProject.id,
+        mappingStatus: 'Approved',
+        mappingRequestedAt: new Date().toISOString(),
+        mappingApprovedAt: new Date().toISOString(),
+        mappingRejectionComment: null,
+        mappingNotes: 'Auto-created directly from project details page',
+        unmapComment: null,
+        extensionRequest: null,
+        extensionHistory: [],
+        assignmentHistory: [],
+        suspensionRequest: null,
+        reactivationRequest: null,
+        cancellation: null,
+        comments: [],
+        issues: [],
+      });
+
+      // Update local state immediately
+      setLinkedExtensions(prev => [...prev, created]);
+      // Invalidate react-query cache to refresh dashboards/queues
+      queryClient.invalidateQueries({ queryKey: ['serviceExtensions'] });
+
+      // Close modal and notify
+      setShowAddImplModal(false);
+      onShowToast?.('Implementation auto-created and linked successfully!', 'success');
+    } catch (err: any) {
+      console.error('Failed to auto-create implementation:', err);
+      setNewImplError(err.message || 'Failed to auto-create implementation. Please try again.');
+    } finally {
+      setNewImplLoading(false);
+    }
+  };
 
   // Determine the "primary" extension per parent service — the first approved mapping
   // per serviceId on this project. Primary ones reflect on the execution milestone and
@@ -930,7 +1061,7 @@ export const PhaseView: React.FC<PhaseViewProps> = ({
                 })()}
               </div>
             {/* ── Additional Scope (Service Extensions) ───────────────────────── */}
-            {(isRole(userRole, 'PM') || hasRole(userRole, ['Superadmin', 'Manager', 'Team Lead'])) && additionalScopeExtensions.length > 0 && (
+            {(isRole(userRole, 'PM') || hasRole(userRole, ['Superadmin', 'Manager', 'Team Lead'])) && !project.isInternalInitiative && (
               <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
                 <div className="flex items-center justify-between mb-5">
                   <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
@@ -942,9 +1073,46 @@ export const PhaseView: React.FC<PhaseViewProps> = ({
                       </span>
                     )}
                   </h3>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setNewImplServiceId('');
+                      setNewImplSubServiceId(null);
+                      setNewImplStartDate(project.startDate || new Date().toISOString().split('T')[0]);
+                      setNewImplManager(project.assignedPM || userName || '');
+                      setNewImplError(null);
+                      setShowAddImplModal(true);
+                    }}
+                    className="flex items-center gap-1 px-2.5 py-1.5 bg-teal-50 hover:bg-teal-100 text-teal-700 text-[10px] font-black uppercase tracking-wider rounded-lg transition-all"
+                  >
+                    <Plus className="w-3.5 h-3.5 stroke-[3]" />
+                    Auto-create
+                  </button>
                 </div>
                 {!extensionsLoaded ? (
                   <div className="text-center py-4 text-slate-400 text-sm">Loading...</div>
+                ) : additionalScopeExtensions.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-8 px-4 border-2 border-dashed border-slate-200 rounded-2xl text-center">
+                    <Wrench className="w-8 h-8 text-slate-400 mb-2 stroke-[1.5]" />
+                    <p className="text-sm font-black text-slate-700">No Additional Scope</p>
+                    <p className="text-xs text-slate-400 mt-1 max-w-[260px]">
+                      No additional scope extensions are linked. Create one automatically below.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setNewImplServiceId('');
+                        setNewImplSubServiceId(null);
+                        setNewImplStartDate(project.startDate || new Date().toISOString().split('T')[0]);
+                        setNewImplManager(project.assignedPM || userName || '');
+                        setNewImplError(null);
+                        setShowAddImplModal(true);
+                      }}
+                      className="mt-4 px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold rounded-xl shadow-sm transition-all"
+                    >
+                      + Auto-create Implementation
+                    </button>
+                  </div>
                 ) : (
                   <div className="space-y-3">
                     {additionalScopeExtensions.map(ext => {
@@ -1971,6 +2139,165 @@ export const PhaseView: React.FC<PhaseViewProps> = ({
           </div>
         </div>
       )}
+      {/* Auto-create Ancillary Implementation Modal */}
+      <AnimatePresence>
+        {showAddImplModal && (
+          <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              transition={{ duration: 0.2, ease: 'easeOut' }}
+              className="bg-white w-full max-w-lg rounded-[2.5rem] shadow-2xl overflow-hidden p-8 flex flex-col max-h-[90vh]"
+            >
+              {/* Modal Header */}
+              <div className="flex justify-between items-start mb-6">
+                <div>
+                  <h3 className="text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+                    <Wrench className="w-6 h-6 text-teal-600" />
+                    Auto-Create Implementation
+                  </h3>
+                  <p className="text-xs font-bold text-slate-400 mt-1 uppercase tracking-wide">
+                    Linked to project: <span className="text-teal-600">{project.clientName}</span>
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowAddImplModal(false)}
+                  className="p-2 hover:bg-slate-50 text-slate-400 hover:text-slate-600 rounded-2xl transition-all"
+                >
+                  <X className="w-5 h-5 stroke-[2.5]" />
+                </button>
+              </div>
+
+              {/* Modal Content / Form */}
+              <div className="flex-1 overflow-y-auto pr-1 space-y-5 -mr-1">
+                {newImplError && (
+                  <div className="p-4 bg-red-50 text-red-700 text-xs font-bold rounded-2xl border border-red-100 flex items-start gap-2.5">
+                    <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                    <span>{newImplError}</span>
+                  </div>
+                )}
+
+                {/* Service Type Select */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">Ancillary Service</label>
+                  <select
+                    className="w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition-all"
+                    value={newImplServiceId}
+                    onChange={e => {
+                      setNewImplServiceId(e.target.value);
+                      setNewImplSubServiceId(null);
+                    }}
+                  >
+                    <option value="">Select Service...</option>
+                    {availableAncillaryServices.map(sb => (
+                      <option key={sb.id} value={sb.id}>{sb.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Conditional Sub-Service Select */}
+                {(() => {
+                  const serviceObj = serviceBaselines.find(sb => sb.id === newImplServiceId);
+                  const hasSub = serviceObj?.subServices && serviceObj.subServices.length > 0;
+                  if (!hasSub) return null;
+                  return (
+                    <div className="space-y-1.5 animate-in fade-in duration-200">
+                      <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">Sub-Service / Gateway</label>
+                      <select
+                        className="w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition-all"
+                        value={newImplSubServiceId || ''}
+                        onChange={e => setNewImplSubServiceId(e.target.value || null)}
+                      >
+                        <option value="">Select Sub-Service...</option>
+                        {serviceObj.subServices?.map(ss => (
+                          <option key={ss.id} value={ss.id}>{ss.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  );
+                })()}
+
+                {/* Start Date & Implementation Manager grid */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">Start Date</label>
+                    <input
+                      type="date"
+                      className="w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition-all font-mono"
+                      value={newImplStartDate}
+                      onChange={e => setNewImplStartDate(e.target.value)}
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">Implementation Manager</label>
+                    <select
+                      className="w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition-all"
+                      value={newImplManager}
+                      onChange={e => setNewImplManager(e.target.value)}
+                    >
+                      <option value="">Select Manager...</option>
+                      {availableIMs.map(name => (
+                        <option key={name} value={name}>{name}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {/* Timeline Target Closure Preview */}
+                {(() => {
+                  if (!newImplServiceId || !newImplStartDate) return null;
+                  const serviceObj = serviceBaselines.find(sb => sb.id === newImplServiceId);
+                  const subServiceObj = serviceObj?.subServices?.find(ss => ss.id === newImplSubServiceId);
+                  const baselineDays = subServiceObj?.baselineDays ?? serviceObj?.baselineDays ?? 0;
+                  const targetDate = calculateWorkingDays(newImplStartDate, baselineDays);
+                  return (
+                    <div className="p-4 bg-teal-50/50 rounded-2xl border border-teal-100 flex justify-between items-center text-xs font-bold text-teal-800 shadow-sm animate-in slide-in-from-top-1">
+                      <div>
+                        <span>Baseline: </span>
+                        <span className="text-slate-800 font-mono">{baselineDays} Working Days</span>
+                      </div>
+                      <div>
+                        <span>Est. Closure: </span>
+                        <span className="text-slate-800 font-mono">{targetDate}</span>
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+
+              {/* Modal Footer / Submit Actions */}
+              <div className="flex gap-4 pt-6 mt-6 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setShowAddImplModal(false)}
+                  disabled={newImplLoading}
+                  className="flex-1 py-3 bg-slate-100 text-slate-600 rounded-2xl font-bold hover:bg-slate-200 transition-all text-sm"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleAutoCreateImplementation}
+                  disabled={newImplLoading}
+                  className="flex-1 py-3 bg-teal-600 text-white rounded-2xl font-bold hover:bg-teal-700 transition-all text-sm shadow-lg shadow-teal-100 flex items-center justify-center gap-2"
+                >
+                  {newImplLoading ? (
+                    <>
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                      Creating...
+                    </>
+                  ) : (
+                    'Create Implementation'
+                  )}
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
