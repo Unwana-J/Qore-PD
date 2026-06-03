@@ -447,14 +447,15 @@ export const ImplementationsView: React.FC<ImplementationsViewProps> = ({
         data = await api.serviceExtensions.getByIM(userName);
       }
 
-      // PM Visibility Restriction: Only see implementations for projects assigned to them
+      // PM Visibility Restriction: Only see implementations for projects assigned to them or where they are the assigned IM
       if (isRole(userRole, 'PM') && !isLead) {
         const myProjectIds = projects
           .filter(p => p.assignedPM?.trim().toLowerCase() === userName?.trim().toLowerCase())
           .map(p => p.id);
         
         data = data.filter(ext => 
-          ext.linkedProjectId && myProjectIds.includes(ext.linkedProjectId)
+          (ext.linkedProjectId && myProjectIds.includes(ext.linkedProjectId)) ||
+          (ext.implementationManager?.trim().toLowerCase() === userName?.trim().toLowerCase())
         );
       }
 
