@@ -96,6 +96,28 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
     return Array.from(new Set(list.filter(Boolean))).sort();
   }, [users, formData.assignedPM, currentUserName]);
 
+  // Compute allowed services based on selected package (Standard track only)
+  const availableAncillaryServices = React.useMemo(() => {
+    if (isStandard && formData.packageName) {
+      const pkg = packages.find(p => p.name === formData.packageName);
+      if (pkg) {
+        return serviceBaselines.filter(sb =>
+          pkg.services.includes(sb.id) || pkg.services.includes(sb.name)
+        );
+      }
+      return [];
+    }
+    return serviceBaselines;
+  }, [isStandard, formData.packageName, packages, serviceBaselines]);
+
+  // Reset selected service/sub-service if it's no longer available
+  useEffect(() => {
+    if (implServiceId && !availableAncillaryServices.some(sb => sb.id === implServiceId)) {
+      setImplServiceId('');
+      setImplSubServiceId('');
+    }
+  }, [availableAncillaryServices, implServiceId]);
+
   const theme = getThemeClasses(themeColor);
 
   const isStandard = formData.deliveryTrack === 'Standard';
@@ -882,7 +904,7 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
                             }}
                           >
                             <option value="">Select Service...</option>
-                            {serviceBaselines.map(sb => (
+                            {availableAncillaryServices.map(sb => (
                               <option key={sb.id} value={sb.id}>{sb.name}</option>
                             ))}
                           </select>
@@ -890,7 +912,7 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
 
                         {/* Sub-Service (Optional, conditionally required if has sub-services) */}
                         {(() => {
-                          const service = serviceBaselines.find(sb => sb.id === implServiceId);
+                          const service = availableAncillaryServices.find(sb => sb.id === implServiceId);
                           const hasSub = (service?.subServices?.length ?? 0) > 0;
                           if (!hasSub) return null;
                           return (
