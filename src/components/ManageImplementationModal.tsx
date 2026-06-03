@@ -50,7 +50,7 @@ export const ManageImplementationModal: React.FC<ManageImplementationModalProps>
   const [cancelReason, setCancelReason] = useState('');
   const [processingCancel, setProcessingCancel] = useState(false);
 
-  const isLead = isRole(userRole, 'IM Lead') || isRole(userRole, 'Superadmin');
+  const isLead = isRole(userRole, 'IM Lead') || isRole(userRole, 'Superadmin') || isRole(userRole, 'Manager');
 
   const featureAllowed = (key: keyof RoleUIPermissions['implementationsFeatures'], hardcodedDefault: boolean): boolean => {
     if (userRole === 'Superadmin') return true;

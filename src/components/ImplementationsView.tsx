@@ -342,7 +342,7 @@ export const ImplementationsView: React.FC<ImplementationsViewProps> = ({
   const [engagementMessage, setEngagementMessage] = useState('');
   const [isSendingEngagement, setIsSendingEngagement] = useState(false);
 
-  const isLead = isRole(userRole, 'IM Lead') || isRole(userRole, 'Superadmin');
+  const isLead = isRole(userRole, 'IM Lead') || isRole(userRole, 'Superadmin') || isRole(userRole, 'Manager');
 
   const featureAllowed = (key: keyof RoleUIPermissions['implementationsFeatures'], hardcodedDefault: boolean): boolean => {
     if (userRole === 'Superadmin') return true;

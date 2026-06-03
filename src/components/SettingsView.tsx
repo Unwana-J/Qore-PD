@@ -2290,7 +2290,7 @@ const AppConfigSettings = ({ config, setConfig, userRole, theme }: any) => {
   };
 
   const defaultTabsForRole = (role: Role) => {
-    const isImLead = role === 'IM Lead' || role === 'Superadmin';
+    const isImLead = role === 'IM Lead' || role === 'Superadmin' || role === 'Manager';
     const isIm = role === 'IM';
     const isPm = role === 'PM';
 
@@ -2299,14 +2299,14 @@ const AppConfigSettings = ({ config, setConfig, userRole, theme }: any) => {
       teamDashboard: isImLead,
       requestsQueue: isImLead,
       mappingQueue: isImLead || isPm,
-      myImplementations: isIm || isImLead,
+      myImplementations: isIm || role === 'IM Lead' || role === 'Superadmin',
       myPortfolio: isPm,
       issueLog: true,
     };
   };
 
   const defaultFeaturesForRole = (role: Role) => {
-    const isImLead = role === 'IM Lead' || role === 'Superadmin';
+    const isImLead = role === 'IM Lead' || role === 'Superadmin' || role === 'Manager';
     const isPm = role === 'PM';
 
     return {
