@@ -254,7 +254,16 @@ export const PMScorecard: React.FC<PMScorecardProps> = ({ projects, users = [], 
       });
 
       const closedServiceProjects = projectsWithService.filter(p => {
-        // Resolve status using ID key primary, fallback to Name key for older data
+        // 1. If parent project is closed/billed/signed off, all its services are completed
+        if (p.state === 'Closed' || p.state === 'Billed' || p.state === 'Signed Off') {
+          return true;
+        }
+        // 2. Check interactive milestones first
+        const milestone = p.milestones?.find(m => m.id === srvId || m.name === srvName);
+        if (milestone) {
+          return milestone.status === 'Closed';
+        }
+        // 3. Fallback to legacy serviceStates
         const status = p.serviceStates?.[srvId] || p.serviceStates?.[srvName];
         return status === 'Closed';
       });
