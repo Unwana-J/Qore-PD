@@ -521,6 +521,7 @@ function AppContent() {
                         users={users}
                         defaultTab={isRole(userRole, 'PM') ? "pm-dashboard" : "insights"}
                         mode="dashboard"
+                        onShowToast={(msg, type) => type === 'error' ? notifyError(msg) : success(msg)}
                         onUpdateConfig={handleUpdateConfig}
                         onViewProject={(pid) => {
                           const proj = projects.find(p => p.id === pid);
