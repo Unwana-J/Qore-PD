@@ -25,6 +25,8 @@ interface ImplementationsViewProps {
   onNavigate?: (view: string, filter?: string, tab?: string) => void;
   onTabChange?: (tab: any) => void;
   onUpdateConfig?: (updates: Partial<AppConfig>) => Promise<void>;
+  initialExtensionId?: string;
+  onClearInitialExtension?: () => void;
 }
 
 // ── IM Personal Dashboard Analytics ──────────────────────────────────────────
@@ -329,7 +331,8 @@ const IMPersonalDashboard: React.FC<{ extensions: ServiceExtension[]; userName: 
 
 // ── Main View ─────────────────────────────────────────────────────────────────
 export const ImplementationsView: React.FC<ImplementationsViewProps> = ({
-  userRole, userName, config, projects, users, onShowToast, initialFilter, initialIM, defaultTab, mode, onImportExtensions, onNavigate, onTabChange, onUpdateConfig
+  userRole, userName, config, projects, users, onShowToast, initialFilter, initialIM, defaultTab, mode, onImportExtensions, onNavigate, onTabChange, onUpdateConfig,
+  initialExtensionId, onClearInitialExtension
 }) => {
   const [extensions, setExtensions] = useState<ServiceExtension[]>([]);
   const [loading, setLoading] = useState(true);
@@ -341,6 +344,32 @@ export const ImplementationsView: React.FC<ImplementationsViewProps> = ({
   const [selectedImId, setSelectedImId] = useState('');
   const [engagementMessage, setEngagementMessage] = useState('');
   const [isSendingEngagement, setIsSendingEngagement] = useState(false);
+
+  const [initialOpened, setInitialOpened] = useState(false);
+
+  useEffect(() => {
+    if (initialExtensionId && extensions.length > 0 && !initialOpened) {
+      const found = extensions.find(e => e.id === initialExtensionId);
+      if (found) {
+        setManagingExtension(found);
+        setInitialOpened(true);
+      } else {
+        api.serviceExtensions.getAll().then(all => {
+          const matched = all.find(e => e.id === initialExtensionId);
+          if (matched) {
+            setManagingExtension(matched);
+            setInitialOpened(true);
+          }
+        }).catch(err => console.error("Failed to fetch initial extension:", err));
+      }
+    }
+  }, [initialExtensionId, extensions, initialOpened]);
+
+  useEffect(() => {
+    if (!initialExtensionId) {
+      setInitialOpened(false);
+    }
+  }, [initialExtensionId]);
 
   const isLead = isRole(userRole, 'IM Lead') || isRole(userRole, 'Superadmin') || isRole(userRole, 'Manager');
 
@@ -1306,7 +1335,10 @@ export const ImplementationsView: React.FC<ImplementationsViewProps> = ({
         <ManageImplementationModal
           extension={managingExtension}
           isOpen={!!managingExtension}
-          onClose={() => setManagingExtension(null)}
+          onClose={() => {
+            setManagingExtension(null);
+            onClearInitialExtension?.();
+          }}
           onUpdated={(updated) => {
             setExtensions(prev => prev.map(e => e.id === updated.id ? updated : e));
             setManagingExtension(updated);

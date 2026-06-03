@@ -51,6 +51,7 @@ function AppContent() {
   const [isDigestOpen, setIsDigestOpen] = useState(false);
   const [isImplementationDigestOpen, setIsImplementationDigestOpen] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [initialExtensionId, setInitialExtensionId] = useState<string | undefined>(undefined);
   const [config, setConfig] = useState<AppConfig>(INITIAL_CONFIG);
   const [users, setUsers] = useState<any[]>([]);
   const [invites, setInvites] = useState<any[]>([]);
@@ -468,6 +469,7 @@ function AppContent() {
                     onViewImplementation={(ext) => {
                       setImplementationsFilter('All');
                       setImplementationsIMFilter('All');
+                      setInitialExtensionId(ext.id);
                       setCurrentView('implementations');
                       setSelectedProject(null);
                     }}
@@ -548,6 +550,8 @@ function AppContent() {
                             else setImplementationsTab(undefined);
                           }
                         }}
+                        initialExtensionId={initialExtensionId}
+                        onClearInitialExtension={() => setInitialExtensionId(undefined)}
                       />
                     )}
                     {currentView === 'resources' && hasRole(userRole, ['Superadmin', 'Manager']) && (
@@ -662,6 +666,8 @@ function AppContent() {
                             else setImplementationsTab(undefined);
                           }
                         }}
+                        initialExtensionId={initialExtensionId}
+                        onClearInitialExtension={() => setInitialExtensionId(undefined)}
                       />
                     )}
                   </>
