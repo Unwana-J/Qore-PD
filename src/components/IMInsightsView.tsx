@@ -318,14 +318,27 @@ const weightMap = useMemo(() => {
       const wipLimit = im.wipLimit || 30;
       const utilizationPct = (totalUtilizedPoints / wipLimit) * 100;
 
+      // On-Time Delivery calculation for this IM
+      const completedExts = exts.filter(e => e.status === 'Completed');
+      const onTimeCount = completedExts.filter(e => {
+        if (!e.targetClosureDate) return true;
+        const compDate = new Date(e.updatedAt);
+        const targetDate = new Date(e.targetClosureDate);
+        const compDateOnly = new Date(compDate.getFullYear(), compDate.getMonth(), compDate.getDate());
+        const targetDateOnly = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate());
+        return compDateOnly <= targetDateOnly;
+      }).length;
+      const otdRate = completedExts.length > 0 ? Math.round((onTimeCount / completedExts.length) * 100) : null;
+
       return {
         name: im.name, 
         score, 
         total: exts.length,
         active: exts.filter(e => e.status !== 'Completed' && e.status !== 'Suspended').length,
         suspended: exts.filter(e => e.status === 'Suspended').length,
-        completed: exts.filter(e => e.status === 'Completed').length,
+        completed: completedExts.length,
         overdue: exts.filter(e => e.status !== 'Completed' && e.status !== 'Suspended' && !e.serviceName.toLowerCase().includes('api') && new Date(e.targetClosureDate) < today).length,
+        otdRate,
         bd,
         totalUtilizedPoints,
         wipLimit,
@@ -373,6 +386,20 @@ const weightMap = useMemo(() => {
     });
     return globalTw > 0 ? Math.max(0, (globalWs / globalTw)) * 100 : 0;
   }, [fd, config.packages, weightMap]);
+
+  const globalOtdRate = useMemo(() => {
+    const completedExts = fd.filter(e => e.status === 'Completed');
+    if (completedExts.length === 0) return null;
+    const onTimeCount = completedExts.filter(e => {
+      if (!e.targetClosureDate) return true;
+      const compDate = new Date(e.updatedAt);
+      const targetDate = new Date(e.targetClosureDate);
+      const compDateOnly = new Date(compDate.getFullYear(), compDate.getMonth(), compDate.getDate());
+      const targetDateOnly = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate());
+      return compDateOnly <= targetDateOnly;
+    }).length;
+    return (onTimeCount / completedExts.length) * 100;
+  }, [fd]);
 
   const overdue = useMemo(() =>
     fd.filter(e=>e.status!=='Completed' && e.status!=='Suspended' && !e.serviceName.toLowerCase().includes('api') && new Date(e.targetClosureDate)<today)
@@ -506,9 +533,10 @@ const weightMap = useMemo(() => {
       </div>
 
       {/* KPI Row 2 */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
         <KPI label="Started (Period)" value={fd.length} sub="Total in window" icon={<TrendingUp/>} color="teal" onClick={() => onFilter?.('All')}/>
         <KPI label="Completed (Period)" value={kpis.completed} sub={`of ${fd.length} total`} rate={globalPerformance} icon={<CheckCircle2/>} color="emerald" onClick={() => onFilter?.('Completed')}/>
+        <KPI label="On-Time Delivery" value={globalOtdRate != null ? `${globalOtdRate.toFixed(1)}%` : 'N/A'} sub={`of ${kpis.completed} completions`} rate={globalOtdRate ?? undefined} icon={<Award/>} color="teal"/>
         <KPI label="Overdue / At-Risk" value={kpis.overdue} sub="Past target date" icon={<Clock/>} color="red" onClick={() => onFilter?.('Delayed')}/>
         <KPI label="Mapping Ratio" value={`${kpis.mappingRatio.toFixed(0)}%`} sub={`${kpis.mapped} linked to projects`} icon={<Link/>} color="teal"/>
       </div>
@@ -538,7 +566,7 @@ const weightMap = useMemo(() => {
           </table>
         </div>
 
-        <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
+        <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm overflow-x-auto">
           <div className="flex items-center justify-between mb-5">
             <div className="flex items-center gap-2">
               <Users className="w-4 h-4 text-teal-600"/>
@@ -551,77 +579,163 @@ const weightMap = useMemo(() => {
                 <HelpCircle className="w-3.5 h-3.5" />
               </button>
             </div>
+            {globalOtdRate != null && (
+              <div className="flex items-center gap-1.5 px-3 py-1.5 bg-teal-50 border border-teal-100 rounded-xl">
+                <Award className="w-3.5 h-3.5 text-teal-600" />
+                <span className="text-[10px] font-black text-teal-700 uppercase tracking-widest">Portfolio OTD</span>
+                <span className="text-sm font-black text-teal-800">{globalOtdRate.toFixed(1)}%</span>
+              </div>
+            )}
           </div>
 
-          {/* API and Performance Scoring Guide Popover */}
+          {/* Scoring Guide Popover */}
           {showApiInfo && (
             <div className="mb-5 p-4 bg-slate-50 border border-slate-200 rounded-2xl text-xs space-y-3 animate-in fade-in slide-in-from-top-2 duration-200">
               <div className="flex items-center justify-between border-b border-slate-200 pb-2">
-                <p className="font-black text-slate-800 uppercase tracking-wider">Performance & API Scoring Guide</p>
+                <p className="font-black text-slate-800 uppercase tracking-wider">Performance & Scoring Guide</p>
                 <button onClick={(e) => { e.stopPropagation(); setShowApiInfo(false); }} className="text-slate-400 hover:text-slate-600 font-bold">×</button>
               </div>
               <div className="space-y-2 leading-relaxed text-slate-600">
-                <p>
-                  <strong>📊 Standard Services:</strong> Rated on completed milestones. Active projects count proportionally (e.g. 50% milestones = 50% weight). Past-due dates incur a small score penalty.
-                </p>
-                <p>
-                  <strong>🔌 API Integrations:</strong> Because APIs have open-ended timelines, they <em>never</em> drag down your index! Active APIs contribute at a perfect 1.0 ratio for whatever progress is completed. Effort is fully rewarded without penalizing the manager for the project remaining open.
-                </p>
+                <p><strong>📊 Standard Services:</strong> Rated on completed milestones. Active projects count proportionally (e.g. 50% milestones = 50% weight). Past-due dates incur a small score penalty.</p>
+                <p><strong>🔌 API Integrations:</strong> Because APIs have open-ended timelines, they <em>never</em> drag down your index! Effort is fully rewarded without penalizing the manager for the project remaining open.</p>
+                <p><strong>⏱️ On-Time Delivery (OTD):</strong> % of completed implementations that were finished on or before their target closure date. Only counts Completed status, excludes Cancelled/Suspended.</p>
               </div>
             </div>
           )}
-          <table className="w-full text-left">
-            <thead><tr className="border-b border-slate-100">{['Manager','Active WIP','Susp.','Comp.','Overdue','Bandwidth Utilization','Performance'].map(h=><th key={h} className="pb-2 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center first:text-left last:text-right">{h}</th>)}</tr></thead>
-            <tbody className="divide-y divide-slate-50">
-              {(wp.rows || []).map((m)=>(
-                <tr 
-                  key={m.name} 
-                  className="group hover:bg-slate-50 transition-colors cursor-pointer"
-                  onClick={() => onFilter?.('All', m.name)}
-                >
-                  <td className="py-2.5 text-sm font-bold text-slate-700 group-hover:text-teal-600 transition-colors flex items-center gap-2">
-                    {m.name}
-                    {m.activeApiPoints > 0 && (
-                      <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-blue-50 border border-blue-100 text-blue-600 text-[9px] font-black rounded-md" title={`API Effort Earned: ${m.activeApiPoints.toFixed(1)} PTS`}>
-                        <Link className="w-2.5 h-2.5" />
-                        +{m.activeApiPoints.toFixed(1)} API
-                      </span>
+
+          <table className="w-full text-left min-w-[700px]">
+            <thead>
+              <tr className="border-b-2 border-slate-100">
+                {([
+                  { label: 'Manager', tooltip: 'Click any row to filter the list by this manager', align: 'left' },
+                  { label: 'Active WIP', tooltip: 'Active implementations currently in progress out of total assigned', align: 'center' },
+                  { label: 'Susp.', tooltip: 'Suspended implementations — activity on hold pending review', align: 'center' },
+                  { label: 'Comp.', tooltip: 'Total completed implementations in this period', align: 'center' },
+                  { label: 'OTD %', tooltip: 'On-Time Delivery — % of completions finished on or before their target date. N/A if no completions.', align: 'center' },
+                  { label: 'Overdue', tooltip: 'Active implementations past their target closure date (non-API only)', align: 'center' },
+                  { label: 'Bandwidth', tooltip: 'Remaining effort points vs. WIP limit. Red = over capacity.', align: 'center' },
+                  { label: 'Performance', tooltip: 'Weighted completion index accounting for milestone progress, overdue penalties, and suspension rate', align: 'right' },
+                ] as { label: string; tooltip: string; align: 'left' | 'center' | 'right' }[]).map(h => (
+                  <th
+                    key={h.label}
+                    title={h.tooltip}
+                    className={cn(
+                      'pb-3 text-[10px] font-black text-slate-400 uppercase tracking-widest cursor-help select-none',
+                      h.align === 'left' ? 'text-left' : h.align === 'right' ? 'text-right' : 'text-center'
                     )}
-                  </td>
-                  <td className="py-2.5 text-sm font-bold text-blue-600 text-center">{m.active} <span className="text-[10px] text-slate-400">of {m.total}</span></td>
-                  <td className="py-2.5 text-sm font-bold text-amber-600 text-center">{m.suspended}</td>
-                  <td className="py-2.5 text-sm font-bold text-emerald-600 text-center">{m.completed}</td>
-                  <td className="py-2.5 text-center"><span className={cn("px-1.5 py-0.5 text-[10px] font-black rounded",m.overdue>0?"bg-red-100 text-red-700":"bg-slate-100 text-slate-500")}>{m.overdue}</span></td>
-                  <td className="py-2.5">
-                    <div className="flex flex-col items-center justify-center w-28 mx-auto">
-                      <div className="flex justify-between w-full text-[9px] font-black tracking-widest mb-1">
-                        <span className={m.utilizationPct > 100 ? "text-red-500" : "text-slate-400"}>{m.totalUtilizedPoints.toFixed(1)}</span>
-                        <span className="text-slate-300">/ {m.wipLimit}</span>
-                      </div>
-                      <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
-                        <div 
-                          className={cn("h-full rounded-full transition-all", m.utilizationPct > 100 ? "bg-red-500" : m.utilizationPct > 85 ? "bg-amber-500" : "bg-teal-500")}
-                          style={{ width: `${Math.min(m.utilizationPct, 100)}%` }}
-                        />
-                      </div>
-                    </div>
-                  </td>
-                  <td className="py-2.5 text-right">
-                    {(() => {
-                      const scorePct = m.score * 100;
-                      const r = rating(scorePct);
-                      return (
-                        <div className="flex flex-col items-end">
-                          <span className={cn("px-2 py-0.5 text-[10px] font-black rounded-md border uppercase tracking-wider", r.c)}>
-                            {r.l}
+                  >
+                    <span className="border-b border-dashed border-slate-300 pb-px">{h.label}</span>
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-50">
+              {(wp.rows || []).map((m) => {
+                const otdColor = m.otdRate == null
+                  ? 'bg-slate-100 text-slate-400'
+                  : m.otdRate >= 85 ? 'bg-emerald-100 text-emerald-700'
+                  : m.otdRate >= 70 ? 'bg-blue-100 text-blue-700'
+                  : m.otdRate >= 50 ? 'bg-amber-100 text-amber-700'
+                  : 'bg-red-100 text-red-700';
+                return (
+                  <tr
+                    key={m.name}
+                    className="group hover:bg-slate-50/80 transition-colors cursor-pointer"
+                    onClick={() => onFilter?.('All', m.name)}
+                  >
+                    {/* Manager */}
+                    <td className="py-3.5 pr-3">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-bold text-slate-700 group-hover:text-teal-600 transition-colors">{m.name}</span>
+                        {m.activeApiPoints > 0 && (
+                          <span
+                            className="inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-blue-50 border border-blue-100 text-blue-600 text-[9px] font-black rounded-md"
+                            title={`API effort credited: ${m.activeApiPoints.toFixed(1)} pts — APIs don't dilute your index`}
+                          >
+                            <Link className="w-2.5 h-2.5" />
+                            +{m.activeApiPoints.toFixed(1)} API
                           </span>
-                          <span className="text-[9px] font-bold text-slate-400 mt-0.5">{Math.round(scorePct)}% Index</span>
+                        )}
+                      </div>
+                    </td>
+
+                    {/* Active WIP */}
+                    <td className="py-3.5 text-center">
+                      <span className="text-sm font-bold text-blue-600">{m.active}</span>
+                      <span className="text-[10px] text-slate-400 ml-1">/ {m.total}</span>
+                    </td>
+
+                    {/* Suspended */}
+                    <td className="py-3.5 text-center">
+                      {m.suspended > 0
+                        ? <span className="px-1.5 py-0.5 text-[10px] font-black rounded bg-amber-100 text-amber-700">{m.suspended}</span>
+                        : <span className="text-slate-300 text-sm">—</span>}
+                    </td>
+
+                    {/* Completed */}
+                    <td className="py-3.5 text-sm font-bold text-emerald-600 text-center">
+                      {m.completed > 0 ? m.completed : <span className="text-slate-300">—</span>}
+                    </td>
+
+                    {/* OTD % */}
+                    <td className="py-3.5 text-center">
+                      {m.otdRate != null
+                        ? (
+                          <span
+                            className={cn('px-2 py-0.5 text-[10px] font-black rounded-full', otdColor)}
+                            title={`${m.otdRate}% of ${m.name}'s completions were delivered on or before their target date`}
+                          >
+                            {m.otdRate}%
+                          </span>
+                        )
+                        : <span className="text-slate-300 text-sm" title="No completed implementations yet">—</span>
+                      }
+                    </td>
+
+                    {/* Overdue */}
+                    <td className="py-3.5 text-center">
+                      {m.overdue > 0
+                        ? <span className="px-1.5 py-0.5 text-[10px] font-black rounded bg-red-100 text-red-700">{m.overdue}</span>
+                        : <span className="text-slate-300 text-sm">—</span>}
+                    </td>
+
+                    {/* Bandwidth */}
+                    <td className="py-3.5">
+                      <div
+                        className="flex flex-col items-center justify-center w-28 mx-auto"
+                        title={`${m.totalUtilizedPoints.toFixed(1)} pts remaining effort vs. ${m.wipLimit} pt WIP limit (${Math.round(m.utilizationPct)}% utilised)`}
+                      >
+                        <div className="flex justify-between w-full text-[9px] font-black tracking-widest mb-1">
+                          <span className={m.utilizationPct > 100 ? 'text-red-500' : 'text-slate-400'}>{m.totalUtilizedPoints.toFixed(1)}</span>
+                          <span className="text-slate-300">/ {m.wipLimit}</span>
                         </div>
-                      );
-                    })()}
-                  </td>
-                </tr>
-              ))}
+                        <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
+                          <div
+                            className={cn('h-full rounded-full transition-all duration-500', m.utilizationPct > 100 ? 'bg-red-500' : m.utilizationPct > 85 ? 'bg-amber-400' : 'bg-teal-500')}
+                            style={{ width: `${Math.min(m.utilizationPct, 100)}%` }}
+                          />
+                        </div>
+                      </div>
+                    </td>
+
+                    {/* Performance */}
+                    <td className="py-3.5 text-right">
+                      {(() => {
+                        const scorePct = m.score * 100;
+                        const r = rating(scorePct);
+                        return (
+                          <div className="flex flex-col items-end gap-0.5">
+                            <span className={cn('px-2 py-0.5 text-[10px] font-black rounded-md border uppercase tracking-wider', r.c)}>
+                              {r.l}
+                            </span>
+                            <span className="text-[9px] font-bold text-slate-400">{Math.round(scorePct)}% Index</span>
+                          </div>
+                        );
+                      })()}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>

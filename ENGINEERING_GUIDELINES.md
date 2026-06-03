@@ -1,0 +1,42 @@
+# Qore — Engineering Guidelines
+
+> These rules apply to all work on the Qore codebase. The app is live; every change carries production risk.
+
+---
+
+## Code Quality
+
+- TypeScript strict mode is enforced. No `any` without an explicit comment explaining why.
+- All async functions must handle errors explicitly — no silent `catch(() => {})`.
+- Every UI state must cover loading, error, and empty — not just the happy path.
+- No commented-out code in PRs. Delete it or open a ticket.
+
+---
+
+## Testing
+
+- Write unit tests before a feature is considered done, not after.
+- Tests must cover the unhappy path, not just the expected flow.
+- Never mock what you can test directly.
+- A PR that touches business logic without tests will not be merged.
+
+---
+
+## Production Safety
+
+- All high-risk changes (permissions, financial logic, data migrations) go behind a feature flag first.
+- Database migrations must be reversible — always write a `down` migration.
+- Every deploy must have a documented rollback path.
+- No secrets or API keys in source code. Secrets live in environment variables only.
+
+---
+
+## Observability
+
+- Every server action logs: who did it, what it was, and when.
+- Errors are logged with enough context to reproduce — not just a status code.
+- If a feature can fail silently, it needs an alert.
+
+---
+
+*Owner: Engineering Lead — changes require PR review and sign-off.*
