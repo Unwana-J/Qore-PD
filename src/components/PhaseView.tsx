@@ -393,15 +393,8 @@ export const PhaseView: React.FC<PhaseViewProps> = ({
     return new Set(Object.values(primaryMap).map(e => e.id));
   }, [linkedExtensions]);
 
-  // Extensions to show in Additional Scope:
-  // - Always include Pending (PM needs to act)
-  // - Include Approved only if NOT the primary for their service
-  // - Include Rejected / Unmapped for audit trail
-  const additionalScopeExtensions = useMemo(() =>
-    linkedExtensions.filter(ext =>
-      ext.mappingStatus !== 'Approved' || !primaryExtensionIds.has(ext.id)
-    ),
-  [linkedExtensions, primaryExtensionIds]);
+  // Render all linked implementations under the Ancillary Implementations section
+  const additionalScopeExtensions = useMemo(() => linkedExtensions, [linkedExtensions]);
 
   const [phaseCommentInputs, setPhaseCommentInputs] = useState<Record<string, string>>({});
   const [showAddMilestone, setShowAddMilestone] = useState(false);
@@ -1086,17 +1079,19 @@ export const PhaseView: React.FC<PhaseViewProps> = ({
                     className="flex items-center gap-1 px-2.5 py-1.5 bg-teal-50 hover:bg-teal-100 text-teal-700 text-[10px] font-black uppercase tracking-wider rounded-lg transition-all"
                   >
                     <Plus className="w-3.5 h-3.5 stroke-[3]" />
-                    Create Implementation
+                    Create Service Implementation
                   </button>
                 </div>
                 {!extensionsLoaded ? (
                   <div className="text-center py-4 text-slate-400 text-sm">Loading...</div>
                 ) : additionalScopeExtensions.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-8 px-4 border-2 border-dashed border-slate-200 rounded-2xl text-center">
-                    <Wrench className="w-8 h-8 text-slate-400 mb-2 stroke-[1.5]" />
-                    <p className="text-sm font-black text-slate-700">No Linked Implementations</p>
-                    <p className="text-xs text-slate-400 mt-1 max-w-[260px]">
-                      No ancillary implementations are linked to this project. Create one directly below.
+                  <div className="flex flex-col items-center justify-center py-10 px-6 border-2 border-dashed border-slate-200 rounded-[2rem] text-center bg-slate-50/30">
+                    <div className="w-12 h-12 rounded-2xl bg-teal-50 border border-teal-100 flex items-center justify-center mb-3">
+                      <Wrench className="w-6 h-6 text-teal-600 stroke-[1.5]" />
+                    </div>
+                    <p className="text-base font-bold text-slate-900">No Linked Service Implementations</p>
+                    <p className="text-xs text-slate-500 mt-2 max-w-[340px] leading-relaxed">
+                      Setup and monitor execution tasks by creating the service implementation for this project.
                     </p>
                     <button
                       type="button"
@@ -1108,9 +1103,9 @@ export const PhaseView: React.FC<PhaseViewProps> = ({
                         setNewImplError(null);
                         setShowAddImplModal(true);
                       }}
-                      className="mt-4 px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold rounded-xl shadow-sm transition-all"
+                      className="mt-5 px-5 py-2.5 bg-teal-600 hover:bg-teal-700 text-white text-xs font-black uppercase tracking-wider rounded-xl shadow-md shadow-teal-100 hover:shadow-lg transition-all active:scale-[0.98]"
                     >
-                      + Create Implementation / Execution
+                      + Create Service Implementation
                     </button>
                   </div>
                 ) : (
