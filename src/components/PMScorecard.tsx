@@ -38,8 +38,9 @@ export const PMScorecard: React.FC<PMScorecardProps> = ({ projects, users = [], 
     return pmResourceStats.filter(stat => stat.isBurnedOut);
   }, [pmResourceStats]);
 
-  const [dateFilter, setDateFilter] = useState('All time');
-  const [statusFilter, setStatusFilter] = useState('All');
+  const [selectedYear, setSelectedYear] = useState<string>('All Years');
+  const [selectedQuarter, setSelectedQuarter] = useState<string>('All Quarters');
+  const [selectedMonth, setSelectedMonth] = useState<string>('All Months');
   const [sortBy, setSortBy] = useState('Weighted Score');
   const [expandedPMs, setExpandedPMs] = useState<string[]>([]);
   const [isServicePerformanceExpanded, setIsServicePerformanceExpanded] = useState(false);
@@ -48,26 +49,70 @@ export const PMScorecard: React.FC<PMScorecardProps> = ({ projects, users = [], 
     setExpandedPMs(prev => prev.includes(pm) ? prev.filter(p => p !== pm) : [...prev, pm]);
   };
 
-  const filteredProjects = useMemo(() => {
-    const now = new Date();
-    let filtered = projects;
+  const availableYears = useMemo(() => {
+    const years = new Set<string>();
+    projects.forEach(p => {
+      if (p.startDate) {
+        const year = p.startDate.split('-')[0];
+        if (year && year.length === 4) years.add(year);
+      }
+      if (p.createdAt) {
+        const year = p.createdAt.split('-')[0];
+        if (year && year.length === 4) years.add(year);
+      }
+    });
+    if (years.size === 0) {
+      years.add(new Date().getFullYear().toString());
+    }
+    return Array.from(years).sort((a, b) => b.localeCompare(a));
+  }, [projects]);
+
+  const periodRange = useMemo(() => {
+    if (selectedYear === 'All Years') return null;
     
-    // Status Filter
-    if (statusFilter !== 'All') {
-      filtered = filtered.filter(p => p.state === statusFilter);
+    let startMonth = 0;
+    let endMonth = 11;
+    
+    if (selectedMonth !== 'All Months') {
+      const monthNames = [
+        'January', 'February', 'March', 'April', 'May', 'June',
+        'July', 'August', 'September', 'October', 'November', 'December'
+      ];
+      const mIdx = monthNames.indexOf(selectedMonth);
+      if (mIdx !== -1) {
+        startMonth = mIdx;
+        endMonth = mIdx;
+      }
+    } else if (selectedQuarter !== 'All Quarters') {
+      const qNum = parseInt(selectedQuarter.replace('Q', ''));
+      startMonth = (qNum - 1) * 3;
+      endMonth = startMonth + 2;
     }
     
-    // Date Range Filter
-    if (dateFilter !== 'All time') {
-      let limitDate;
-      if (dateFilter === 'Last 30 Days') limitDate = subDays(now, 30);
-      else if (dateFilter === 'This Month') limitDate = startOfMonth(now);
-      else if (dateFilter === 'This Quarter') limitDate = startOfQuarter(now);
-      else if (dateFilter === 'This Year') limitDate = startOfYear(now);
+    const periodStart = new Date(Date.UTC(parseInt(selectedYear), startMonth, 1));
+    const periodEnd = new Date(Date.UTC(parseInt(selectedYear), endMonth + 1, 0, 23, 59, 59, 999));
+    
+    return { start: periodStart, end: periodEnd };
+  }, [selectedYear, selectedQuarter, selectedMonth]);
+
+  const filteredProjects = useMemo(() => {
+    let filtered = projects;
+    
+    if (periodRange) {
+      const startStr = periodRange.start.toISOString().split('T')[0];
+      const endStr = periodRange.end.toISOString().split('T')[0];
       
-      if (limitDate) {
-        filtered = filtered.filter(p => parseISO(p.createdAt) >= limitDate!);
-      }
+      filtered = filtered.filter(p => {
+        if (p.startDate && p.startDate > endStr) return false;
+        
+        const isCompleted = ['Closed', 'Billed'].includes(p.state);
+        if (isCompleted) {
+          const compDate = p.actualCompletionDate || p.signedOffAt || p.billedAt || p.currentCompletionDate;
+          if (compDate && compDate < startStr) return false;
+        }
+        
+        return true;
+      });
     }
     
     // Role level filtering
@@ -78,7 +123,7 @@ export const PMScorecard: React.FC<PMScorecardProps> = ({ projects, users = [], 
     }
     
     return filtered;
-  }, [projects, dateFilter, statusFilter, userRole]);
+  }, [projects, periodRange, userRole]);
 
   // Aggregate PM Performance
   const pmStats = useMemo(() => {
@@ -251,28 +296,94 @@ export const PMScorecard: React.FC<PMScorecardProps> = ({ projects, users = [], 
           <Clock className={cn("w-5 h-5", theme.text)} />
           PM Performance Scorecard
         </h2>
-        <div className="flex flex-wrap items-center gap-3">
-          <select value={dateFilter} onChange={e => setDateFilter(e.target.value)} className="bg-slate-50 text-sm font-semibold border border-slate-200 rounded-lg px-3 py-2 outline-none">
-            <option>All time</option>
-            <option>Last 30 Days</option>
-            <option>This Month</option>
-            <option>This Quarter</option>
-            <option>This Year</option>
-          </select>
-          <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="bg-slate-50 text-sm font-semibold border border-slate-200 rounded-lg px-3 py-2 outline-none">
-            <option>All</option>
-            <option value="On-Track">On-Track</option>
-            <option>Closed</option>
-            <option>Delayed</option>
-            <option>Suspended</option>
-          </select>
-          <select value={sortBy} onChange={e => setSortBy(e.target.value)} className="bg-slate-50 text-sm font-semibold border border-slate-200 rounded-lg px-3 py-2 outline-none">
-            <option>Weighted Score</option>
-            <option>Delivery Rate</option>
-            <option>Map Rate</option>
-            <option>Avg SPI</option>
-            <option>Project Count</option>
-          </select>
+        <div className="flex flex-wrap items-center gap-4 text-xs">
+          <div className="flex items-center gap-1.5">
+            <span className="font-bold text-slate-400 uppercase tracking-wider">Year</span>
+            <select 
+              value={selectedYear} 
+              onChange={e => {
+                setSelectedYear(e.target.value);
+                if (e.target.value === 'All Years') {
+                  setSelectedQuarter('All Quarters');
+                  setSelectedMonth('All Months');
+                }
+              }} 
+              className="bg-slate-50 text-sm font-bold text-slate-700 border border-slate-200 rounded-xl px-3 py-2 outline-none cursor-pointer hover:bg-slate-100/50 transition-colors"
+            >
+              <option>All Years</option>
+              {availableYears.map(y => <option key={y} value={y}>{y}</option>)}
+            </select>
+          </div>
+
+          <div className="flex items-center gap-1.5">
+            <span className="font-bold text-slate-400 uppercase tracking-wider">Quarter</span>
+            <select 
+              value={selectedQuarter} 
+              disabled={selectedYear === 'All Years'}
+              onChange={e => {
+                setSelectedQuarter(e.target.value);
+                setSelectedMonth('All Months');
+              }} 
+              className="bg-slate-50 text-sm font-bold text-slate-700 border border-slate-200 rounded-xl px-3 py-2 outline-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed hover:enabled:bg-slate-100/50 transition-colors"
+            >
+              <option>All Quarters</option>
+              <option>Q1</option>
+              <option>Q2</option>
+              <option>Q3</option>
+              <option>Q4</option>
+            </select>
+          </div>
+
+          <div className="flex items-center gap-1.5">
+            <span className="font-bold text-slate-400 uppercase tracking-wider">Month</span>
+            <select 
+              value={selectedMonth} 
+              disabled={selectedYear === 'All Years'}
+              onChange={e => {
+                setSelectedMonth(e.target.value);
+                if (e.target.value !== 'All Months') {
+                  const mIdx = [
+                    'January', 'February', 'March', 'April', 'May', 'June',
+                    'July', 'August', 'September', 'October', 'November', 'December'
+                  ].indexOf(e.target.value);
+                  if (mIdx !== -1) {
+                    const qNum = Math.floor(mIdx / 3) + 1;
+                    setSelectedQuarter(`Q${qNum}`);
+                  }
+                }
+              }} 
+              className="bg-slate-50 text-sm font-bold text-slate-700 border border-slate-200 rounded-xl px-3 py-2 outline-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed hover:enabled:bg-slate-100/50 transition-colors"
+            >
+              <option>All Months</option>
+              <option>January</option>
+              <option>February</option>
+              <option>March</option>
+              <option>April</option>
+              <option>May</option>
+              <option>June</option>
+              <option>July</option>
+              <option>August</option>
+              <option>September</option>
+              <option>October</option>
+              <option>November</option>
+              <option>December</option>
+            </select>
+          </div>
+
+          <div className="flex items-center gap-1.5 border-l border-slate-200 pl-4 ml-1">
+            <span className="font-bold text-slate-400 uppercase tracking-wider">Sort By</span>
+            <select 
+              value={sortBy} 
+              onChange={e => setSortBy(e.target.value)} 
+              className="bg-slate-50 text-sm font-bold text-slate-700 border border-slate-200 rounded-xl px-3 py-2 outline-none cursor-pointer hover:bg-slate-100/50 transition-colors"
+            >
+              <option>Weighted Score</option>
+              <option>Delivery Rate</option>
+              <option>Map Rate</option>
+              <option>Avg SPI</option>
+              <option>Project Count</option>
+            </select>
+          </div>
         </div>
       </div>
 
