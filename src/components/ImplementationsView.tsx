@@ -564,6 +564,17 @@ export const ImplementationsView: React.FC<ImplementationsViewProps> = ({
       return inExecution && !hasApprovedMapping;
     });
 
+    // Calculate execution stage mapping ratio
+    const myProjectsInExecution = myProjects.filter(p => {
+      const executionPhase = p.phases?.find(ph => ph.id === 'Execution');
+      return executionPhase?.status === 'In Progress';
+    });
+    const totalExecCount = myProjectsInExecution.length;
+    const mappedExecCount = myProjectsInExecution.filter(p => {
+      return extensions.some(e => e.linkedProjectId === p.id && e.mappingStatus === 'Approved');
+    }).length;
+    const mappingRatio = totalExecCount > 0 ? Math.round((mappedExecCount / totalExecCount) * 100) : 100;
+
     const completed = myMappedExts.filter(e => e.status === 'Completed').length;
     const suspended = myMappedExts.filter(e => e.status === 'Suspended' || e.status === 'Frozen').length;
     const inProgress = myMappedExts.filter(e => e.status === 'In Progress').length;
@@ -584,6 +595,27 @@ export const ImplementationsView: React.FC<ImplementationsViewProps> = ({
               {uniqueMappedProjectsCount} {uniqueMappedProjectsCount === 1 ? 'Project' : 'Projects'}
             </p>
           </div>
+
+          <div className="mt-3 space-y-1">
+            <div className="flex justify-between text-[9px] font-black text-slate-400 uppercase tracking-widest">
+              <span>Execution Mapping</span>
+              <span className={cn(
+                mappingRatio >= 80 ? "text-emerald-600" : mappingRatio >= 55 ? "text-amber-600" : "text-rose-600"
+              )}>
+                {mappingRatio}% Ratio
+              </span>
+            </div>
+            <div className="h-1 w-full bg-slate-100 rounded-full overflow-hidden">
+              <div 
+                className={cn(
+                  "h-full rounded-full transition-all duration-500", 
+                  mappingRatio >= 80 ? "bg-emerald-500" : mappingRatio >= 55 ? "bg-amber-500" : "bg-rose-500"
+                )}
+                style={{ width: `${mappingRatio}%` }}
+              />
+            </div>
+          </div>
+
           <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-2">
             {myMappedExts.length} mapped {myMappedExts.length === 1 ? 'implementation' : 'implementations'}
           </p>
