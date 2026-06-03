@@ -224,7 +224,7 @@ function AppContent() {
   }
 
   // Progressive loading screen with staged contextual messages
-  if (authLoading || (user && profileLoading && !profile)) {
+  if (authLoading || (user && profileLoading && !profile && !window.location.search.includes('reset=true'))) {
     const stageMessages: Record<string, string> = {
       auth: 'Verifying your session...',
       profile: 'Loading your profile...',
@@ -264,7 +264,7 @@ function AppContent() {
     );
   }
 
-  if (!user) {
+  if (!user || window.location.search.includes('reset=true')) {
     return <AuthView />;
   }
 

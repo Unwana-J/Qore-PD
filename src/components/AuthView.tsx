@@ -91,9 +91,7 @@ export const AuthView: React.FC = () => {
         if (error) throw error;
         setSuccess('Password updated successfully! Redirecting...');
         setTimeout(() => {
-          window.history.replaceState({}, '', window.location.pathname);
-          setIsReset(false);
-          setIsLogin(true);
+          window.location.href = window.location.origin;
         }, 2000);
       } else if (isLogin) {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
