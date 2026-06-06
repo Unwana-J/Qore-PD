@@ -202,6 +202,8 @@ export const AuthView: React.FC = () => {
                       <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300" />
                       <input 
                         type={showPassword ? 'text' : 'password'} 
+                        name="password"
+                        autocomplete="new-password"
                         required
                         className="w-full pl-11 pr-12 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl font-bold focus:outline-none focus:border-teal-500 transition-all"
                         placeholder="••••••••"
@@ -223,6 +225,8 @@ export const AuthView: React.FC = () => {
                       <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300" />
                       <input 
                         type={showPassword ? 'text' : 'password'} 
+                        name="confirm-password"
+                        autocomplete="new-password"
                         required
                         className="w-full pl-11 pr-12 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl font-bold focus:outline-none focus:border-teal-500 transition-all"
                         placeholder="••••••••"
@@ -246,6 +250,8 @@ export const AuthView: React.FC = () => {
                       <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300" />
                       <input 
                         type="email" 
+                        name="email"
+                        autocomplete="username"
                         required
                         className="w-full pl-11 pr-5 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl font-bold focus:outline-none focus:border-teal-500 transition-all"
                         placeholder="name@company.com"
@@ -269,6 +275,8 @@ export const AuthView: React.FC = () => {
                       <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300" />
                       <input 
                         type={showPassword ? 'text' : 'password'} 
+                        name="password"
+                        autocomplete="current-password"
                         required
                         className="w-full pl-11 pr-12 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl font-bold focus:outline-none focus:border-teal-500 transition-all"
                         placeholder="••••••••"
@@ -304,6 +312,8 @@ export const AuthView: React.FC = () => {
                           <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300" />
                           <input 
                             type="email" 
+                            name="email"
+                            autocomplete="username"
                             required
                             className="w-full pl-11 pr-5 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl font-bold focus:outline-none focus:border-teal-500 transition-all"
                             placeholder="name@company.com"
@@ -329,6 +339,8 @@ export const AuthView: React.FC = () => {
                           <Fingerprint className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300" />
                           <input 
                             type="text" 
+                            name="name"
+                            autocomplete="name"
                             required
                             className="w-full pl-11 pr-5 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl font-bold focus:outline-none focus:border-teal-500 transition-all"
                             placeholder="Sarah Jenkins"
@@ -344,6 +356,8 @@ export const AuthView: React.FC = () => {
                           <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300 opacity-50" />
                           <input 
                             type="email" 
+                            name="email"
+                            autocomplete="username"
                             disabled
                             className="w-full pl-11 pr-5 py-4 bg-slate-100 border-2 border-slate-200 rounded-2xl font-bold text-slate-500 cursor-not-allowed"
                             value={email}
@@ -357,6 +371,8 @@ export const AuthView: React.FC = () => {
                           <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300" />
                           <input 
                             type={showPassword ? 'text' : 'password'} 
+                            name="password"
+                            autocomplete="new-password"
                             required
                             className="w-full pl-11 pr-12 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl font-bold focus:outline-none focus:border-teal-500 transition-all"
                             placeholder="••••••••"
@@ -379,6 +395,8 @@ export const AuthView: React.FC = () => {
                           <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300" />
                           <input 
                             type={showPassword ? 'text' : 'password'} 
+                            name="confirm-password"
+                            autocomplete="new-password"
                             required
                             className="w-full pl-11 pr-12 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl font-bold focus:outline-none focus:border-teal-500 transition-all"
                             placeholder="••••••••"
