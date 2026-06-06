@@ -96,6 +96,19 @@ export const AuthView: React.FC = () => {
       } else if (isLogin) {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
+
+        // Force browser/Chrome password manager to save credentials programmatically for SPA context
+        if (window.PasswordCredential && navigator.credentials) {
+          try {
+            const credential = new PasswordCredential({
+              id: email,
+              password: password
+            });
+            await navigator.credentials.store(credential);
+          } catch (e) {
+            console.warn('[Auth] Browser credentials storage prompt failed:', e);
+          }
+        }
       } else {
         if (password !== confirmPassword) throw new Error("Passwords do not match");
         const { data, error } = await supabase.auth.signUp({ 
@@ -445,6 +458,7 @@ export const AuthView: React.FC = () => {
             )}
 
             <button 
+              type="submit"
               disabled={loading}
               className="w-full py-5 bg-teal-600 text-white rounded-2xl font-black text-lg shadow-xl shadow-teal-100 hover:bg-teal-700 transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:scale-100 flex items-center justify-center gap-3"
             >
