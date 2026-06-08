@@ -300,8 +300,8 @@ export const PMScorecard: React.FC<PMScorecardProps> = ({ projects, users = [], 
     <div className="space-y-8 animate-in fade-in duration-500">
       
       {/* Scorecard Filters */}
-      <div className="flex flex-wrap items-center justify-between gap-4 bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
-        <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-6 glass-card p-5 rounded-[24px] shadow-sm">
+        <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2.5 tracking-tight">
           <Clock className={cn("w-5 h-5", theme.text)} />
           PM Performance Scorecard
         </h2>
@@ -317,7 +317,7 @@ export const PMScorecard: React.FC<PMScorecardProps> = ({ projects, users = [], 
                   setSelectedMonth('All Months');
                 }
               }} 
-              className="bg-slate-50 text-sm font-bold text-slate-700 border border-slate-200 rounded-xl px-3 py-2 outline-none cursor-pointer hover:bg-slate-100/50 transition-colors"
+              className="bg-slate-50 text-sm font-semibold text-slate-700 border border-slate-200 rounded-xl px-3 py-2 outline-none cursor-pointer hover:bg-slate-100/50 transition-colors"
             >
               <option>All Years</option>
               {availableYears.map(y => <option key={y} value={y}>{y}</option>)}
@@ -333,7 +333,7 @@ export const PMScorecard: React.FC<PMScorecardProps> = ({ projects, users = [], 
                 setSelectedQuarter(e.target.value);
                 setSelectedMonth('All Months');
               }} 
-              className="bg-slate-50 text-sm font-bold text-slate-700 border border-slate-200 rounded-xl px-3 py-2 outline-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed hover:enabled:bg-slate-100/50 transition-colors"
+              className="bg-slate-50 text-sm font-semibold text-slate-700 border border-slate-200 rounded-xl px-3 py-2 outline-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed hover:enabled:bg-slate-100/50 transition-colors"
             >
               <option>All Quarters</option>
               <option>Q1</option>
@@ -361,7 +361,7 @@ export const PMScorecard: React.FC<PMScorecardProps> = ({ projects, users = [], 
                   }
                 }
               }} 
-              className="bg-slate-50 text-sm font-bold text-slate-700 border border-slate-200 rounded-xl px-3 py-2 outline-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed hover:enabled:bg-slate-100/50 transition-colors"
+              className="bg-slate-50 text-sm font-semibold text-slate-700 border border-slate-200 rounded-xl px-3 py-2 outline-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed hover:enabled:bg-slate-100/50 transition-colors"
             >
               <option>All Months</option>
               <option>January</option>
@@ -384,7 +384,7 @@ export const PMScorecard: React.FC<PMScorecardProps> = ({ projects, users = [], 
             <select 
               value={sortBy} 
               onChange={e => setSortBy(e.target.value)} 
-              className="bg-slate-50 text-sm font-bold text-slate-700 border border-slate-200 rounded-xl px-3 py-2 outline-none cursor-pointer hover:bg-slate-100/50 transition-colors"
+              className="bg-slate-50 text-sm font-semibold text-slate-700 border border-slate-200 rounded-xl px-3 py-2 outline-none cursor-pointer hover:bg-slate-100/50 transition-colors"
             >
               <option>Weighted Score</option>
               <option>Delivery Rate</option>
@@ -398,28 +398,28 @@ export const PMScorecard: React.FC<PMScorecardProps> = ({ projects, users = [], 
 
       {/* Critical Burnout Alerts */}
       {burnedOutPMs.length > 0 && (
-        <div className="bg-rose-50 border border-rose-200 text-rose-900 p-5 rounded-3xl shadow-sm space-y-3">
+        <div className="bg-rose-50/40 backdrop-blur-md border border-rose-100 p-6 rounded-[24px] shadow-sm space-y-4">
           <div className="flex items-center gap-2">
             <Flame className="w-5 h-5 text-rose-600 animate-pulse" />
-            <h3 className="font-bold text-rose-800 text-base">Critical Burnout Alerts</h3>
+            <h3 className="font-bold text-rose-900 text-base tracking-tight">Critical Burnout Alerts</h3>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-in fade-in slide-in-from-top-4 duration-300">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-in fade-in slide-in-from-top-4 duration-300">
             {burnedOutPMs.map(pm => (
-              <div key={pm.id} className="bg-white/85 backdrop-blur-sm border border-rose-100 p-4 rounded-2xl flex items-center justify-between gap-4 shadow-sm hover:shadow transition-shadow">
+              <div key={pm.id} className="bg-white/80 backdrop-blur-sm border border-rose-100/60 p-5 rounded-2xl flex items-center justify-between gap-4 shadow-[0_4px_12px_rgba(244,63,94,0.02)] hover:shadow-[0_8px_20px_rgba(244,63,94,0.06)] hover:border-rose-200 transition-all duration-300 group">
                 <div className="space-y-1">
-                  <p className="font-black text-slate-900 text-sm">{pm.name}</p>
+                  <p className="font-bold text-slate-900 text-sm group-hover:text-rose-600 transition-colors">{pm.name}</p>
                   <p className="text-xs font-semibold text-slate-500">
                     Overloaded for <span className="text-rose-600 font-bold">{pm.daysOverloaded} days</span>
                   </p>
                 </div>
-                <div className="flex items-center gap-4 text-right">
+                <div className="flex items-center gap-5 text-right">
                   <div>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">WIP / Limit</p>
-                    <p className="text-sm font-black text-slate-700">{pm.serviceWeight} / {pm.wipLimit}</p>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">WIP / Limit</p>
+                    <p className="text-sm font-bold text-slate-700">{pm.serviceWeight} / {pm.wipLimit}</p>
                   </div>
                   <div>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Utilization</p>
-                    <p className="text-sm font-black text-rose-600">{pm.utilizationPct.toFixed(0)}%</p>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Utilization</p>
+                    <p className="text-sm font-extrabold text-rose-600">{pm.utilizationPct.toFixed(0)}%</p>
                   </div>
                 </div>
               </div>
@@ -429,58 +429,58 @@ export const PMScorecard: React.FC<PMScorecardProps> = ({ projects, users = [], 
       )}
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm">
-          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Best Performing PM</p>
-          <p className="text-xl font-black text-slate-900">{topPM ? topPM.name : '-'}</p>
-          {topPM && <p className="text-sm font-bold text-teal-600 mt-1">{topPM.weightedScore.toFixed(2)} Score</p>}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="glass-card glass-card-hover p-6 rounded-[24px] shadow-sm">
+          <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">Best Performing PM</p>
+          <p className="text-xl font-bold text-slate-900">{topPM ? topPM.name : '-'}</p>
+          {topPM && <p className="text-xs font-semibold text-teal-600 mt-1.5">{topPM.weightedScore.toFixed(2)} Score</p>}
         </div>
-        <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm">
-          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Largest Portfolio</p>
-          <p className="text-xl font-black text-slate-900">{mostProjectsPM ? mostProjectsPM.name : '-'}</p>
-          {mostProjectsPM && <p className="text-sm font-bold text-blue-600 mt-1">{mostProjectsPM.projects} Projects</p>}
+        <div className="glass-card glass-card-hover p-6 rounded-[24px] shadow-sm">
+          <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">Largest Portfolio</p>
+          <p className="text-xl font-bold text-slate-900">{mostProjectsPM ? mostProjectsPM.name : '-'}</p>
+          {mostProjectsPM && <p className="text-xs font-semibold text-blue-600 mt-1.5">{mostProjectsPM.projects} Projects</p>}
         </div>
-        <div className={cn("bg-white p-5 rounded-3xl border shadow-sm", mostStalePM?.staleCount > 0 ? "border-red-200 bg-red-50/30" : "border-slate-200")}>
-          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Most Stale Projects</p>
-          <p className="text-xl font-black text-slate-900">{mostStalePM && mostStalePM.staleCount > 0 ? mostStalePM.name : 'None'}</p>
-          <p className={cn("text-sm font-bold mt-1", mostStalePM?.staleCount > 0 ? "text-red-600" : "text-slate-500")}>
+        <div className={cn("glass-card glass-card-hover p-6 rounded-[24px] shadow-sm transition-all duration-300", mostStalePM?.staleCount > 0 ? "border-red-100 bg-red-50/20" : "")}>
+          <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">Most Stale Projects</p>
+          <p className="text-xl font-bold text-slate-900">{mostStalePM && mostStalePM.staleCount > 0 ? mostStalePM.name : 'None'}</p>
+          <p className={cn("text-xs font-semibold mt-1.5", mostStalePM?.staleCount > 0 ? "text-red-600" : "text-slate-500")}>
             {mostStalePM ? mostStalePM.staleCount : 0} Stale
           </p>
         </div>
-        <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm">
-          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Lowest Avg SPI</p>
-          <p className="text-xl font-black text-slate-900">{lowestSpiPM ? lowestSpiPM.name : '-'}</p>
-          {lowestSpiPM && <p className={cn("text-sm font-bold mt-1", (lowestSpiPM.avgSpi||0) < config.spiThresholds.atRisk ? "text-red-600" : "text-amber-600")}>
+        <div className="glass-card glass-card-hover p-6 rounded-[24px] shadow-sm">
+          <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">Lowest Avg SPI</p>
+          <p className="text-xl font-bold text-slate-900">{lowestSpiPM ? lowestSpiPM.name : '-'}</p>
+          {lowestSpiPM && <p className={cn("text-xs font-semibold mt-1.5", (lowestSpiPM.avgSpi||0) < config.spiThresholds.atRisk ? "text-red-600" : "text-amber-600")}>
             {lowestSpiPM.avgSpi?.toFixed(2) || 'N/A'} SPI
           </p>}
         </div>
       </div>
 
       {/* Main Table */}
-      <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+      <div className="glass-card rounded-[24px] shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left">
             <thead>
-              <tr className="bg-slate-50 border-b border-slate-100">
-                <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-widest">Project Manager</th>
-                <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-widest text-center">Projects</th>
-                <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-widest text-center">Delivery Rate</th>
-                <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-widest text-center">Map Rate</th>
-                <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-widest text-center">Avg SPI</th>
-                <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-widest text-center">Rebaselines</th>
-                <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-widest text-center">Stale</th>
-                <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-widest text-center">Burnout</th>
-                <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-widest text-right">W. Score</th>
+              <tr className="bg-slate-50/70 border-b border-slate-100">
+                <th className="px-6 py-4.5 text-xs font-bold text-slate-500 uppercase tracking-wider">Project Manager</th>
+                <th className="px-6 py-4.5 text-xs font-bold text-slate-500 uppercase tracking-wider text-center">Projects</th>
+                <th className="px-6 py-4.5 text-xs font-bold text-slate-500 uppercase tracking-wider text-center">Delivery Rate</th>
+                <th className="px-6 py-4.5 text-xs font-bold text-slate-500 uppercase tracking-wider text-center">Map Rate</th>
+                <th className="px-6 py-4.5 text-xs font-bold text-slate-500 uppercase tracking-wider text-center">Avg SPI</th>
+                <th className="px-6 py-4.5 text-xs font-bold text-slate-500 uppercase tracking-wider text-center">Rebaselines</th>
+                <th className="px-6 py-4.5 text-xs font-bold text-slate-500 uppercase tracking-wider text-center">Stale</th>
+                <th className="px-6 py-4.5 text-xs font-bold text-slate-500 uppercase tracking-wider text-center">Burnout</th>
+                <th className="px-6 py-4.5 text-xs font-bold text-slate-500 uppercase tracking-wider text-right">W. Score</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-slate-100/60">
               {pmStats.length === 0 ? (
                 <tr><td colSpan={9} className="p-8 text-center text-slate-400">No performance data found for active filters.</td></tr>
               ) : pmStats.map((stat, i) => (
                 <React.Fragment key={i}>
                   <tr 
                     onClick={() => togglePM(stat.name)}
-                    className="hover:bg-slate-50 transition-colors cursor-pointer group"
+                    className="hover:bg-slate-50/50 transition-colors cursor-pointer group"
                   >
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
@@ -488,7 +488,7 @@ export const PMScorecard: React.FC<PMScorecardProps> = ({ projects, users = [], 
                         <div className={cn("w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white shadow-sm", theme.bg)}>
                           {stat.name.split(' ').map(n => n[0]).join('')}
                         </div>
-                        <span className="text-sm font-black text-slate-900">{stat.name}</span>
+                        <span className="text-sm font-bold text-slate-900 group-hover:text-teal-600 transition-colors">{stat.name}</span>
                       </div>
                     </td>
                     <td className="px-6 py-4 text-center">
@@ -507,9 +507,9 @@ export const PMScorecard: React.FC<PMScorecardProps> = ({ projects, users = [], 
                     <td className="px-6 py-4 text-center">
                       {stat.mappingRatio !== null ? (
                         <span className={cn(
-                          "px-2.5 py-1 text-xs font-black rounded-lg",
-                          stat.mappingRatio >= 80 ? "bg-emerald-50 text-emerald-600 border border-emerald-100" :
-                          stat.mappingRatio >= 55 ? "bg-amber-50 text-amber-600 border border-amber-100" : "bg-rose-50 text-rose-600 border border-rose-100"
+                          "px-2.5 py-1 text-xs font-bold rounded-lg border",
+                          stat.mappingRatio >= 80 ? "bg-emerald-50/50 text-emerald-600 border-emerald-100" :
+                          stat.mappingRatio >= 55 ? "bg-amber-50/50 text-amber-600 border-amber-100" : "bg-rose-50/50 text-rose-600 border-rose-100"
                         )}>
                           {stat.mappingRatio.toFixed(0)}%
                         </span>
@@ -520,9 +520,9 @@ export const PMScorecard: React.FC<PMScorecardProps> = ({ projects, users = [], 
                     <td className="px-6 py-4 text-center">
                       {stat.avgSpi !== null ? (
                         <span className={cn(
-                          "px-2.5 py-1 text-xs font-black rounded-lg",
-                          stat.avgSpi >= config.spiThresholds.onTrack ? "bg-emerald-50 text-emerald-600" :
-                          stat.avgSpi >= config.spiThresholds.atRisk ? "bg-amber-50 text-amber-600" : "bg-red-50 text-red-600"
+                          "px-2.5 py-1 text-xs font-bold rounded-lg border",
+                          stat.avgSpi >= config.spiThresholds.onTrack ? "bg-emerald-50/50 text-emerald-600 border-emerald-100" :
+                          stat.avgSpi >= config.spiThresholds.atRisk ? "bg-amber-50/50 text-amber-600 border-amber-100" : "bg-rose-50/50 text-rose-600 border-rose-100"
                         )}>
                           {stat.avgSpi.toFixed(2)}
                         </span>
@@ -538,13 +538,13 @@ export const PMScorecard: React.FC<PMScorecardProps> = ({ projects, users = [], 
                       )}
                     </td>
                     <td className="px-6 py-4 text-center">
-                      <span className={cn("text-sm font-black", stat.staleCount > 0 ? "text-red-500" : "text-slate-400")}>
+                      <span className={cn("text-sm font-bold", stat.staleCount > 0 ? "text-red-500" : "text-slate-400")}>
                         {stat.staleCount}
                       </span>
                     </td>
                     <td className="px-6 py-4 text-center">
                       {pmResourceStats.find(rs => rs.name === stat.name)?.isBurnedOut ? (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-black rounded bg-rose-50 text-rose-600 border border-rose-100 shadow-sm">
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-bold rounded bg-rose-50 text-rose-600 border border-rose-100 shadow-sm">
                           <Flame className="w-3 h-3 text-rose-500 animate-pulse" />
                           Burnout
                         </span>
@@ -553,7 +553,7 @@ export const PMScorecard: React.FC<PMScorecardProps> = ({ projects, users = [], 
                       )}
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <span className={cn("text-lg font-black", theme.text)}>
+                      <span className={cn("text-lg font-extrabold", theme.text)}>
                         {stat.weightedScore.toFixed(2)}
                       </span>
                     </td>
@@ -561,51 +561,51 @@ export const PMScorecard: React.FC<PMScorecardProps> = ({ projects, users = [], 
 
                   {/* Expandable Content inside Table Row */}
                   {expandedPMs.includes(stat.name) && (
-                    <tr className="bg-slate-50/50 outline-none">
+                    <tr className="bg-slate-50/30 outline-none">
                       <td colSpan={9} className="px-6 py-6 border-b border-slate-100 p-0">
                         <div className="ml-8 space-y-3">
-                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-2 mb-2">Underlying Projects</p>
+                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider pl-2 mb-2">Underlying Projects</p>
                           {stat.pList.length === 0 ? (
                              <p className="text-sm text-slate-500 italic pl-2">No projects match current filters.</p>
                           ) : stat.pList.map(p => {
-                            const pSpi = calculateSPI(p, config.spiThresholds);
-                            const pDays = getActiveDaysCount(p);
-                            const hasPendingRebaseline = p.rebaselineRequests?.some(r => r.status === 'Pending');
-                            const isStale = !['Closed', 'Billed', 'Signed Off', 'Suspended'].includes(p.state) && 
-                                            differenceInDays(new Date(), getLatestInteractionDate(p)) >= config.staleThresholdDays;
-                            
-                            return (
-                              <div key={p.id} className="bg-white px-4 py-3 rounded-2xl border border-slate-200 shadow-sm flex flex-wrap items-center justify-between gap-4">
-                                <div className="flex flex-col gap-1 min-w-[200px]">
-                                  <div className="flex items-center gap-2">
-                                    <span className="text-sm font-bold text-slate-900 truncate max-w-[200px]">{p.clientName}</span>
-                                    {isStale && <span className="px-1.5 py-0.5 bg-red-100 text-red-600 text-[9px] font-black uppercase rounded">Stale</span>}
-                                  </div>
-                                  <div className="flex gap-2 items-center">
-                                    <StateBadge state={p.state} />
-                                    {hasPendingRebaseline && <span className="bg-amber-100 text-amber-700 text-[9px] font-black uppercase px-1.5 py-0.5 rounded">Pending Rebaseline</span>}
-                                  </div>
-                                </div>
-                                <div className="flex flex-wrap items-center justify-end gap-6 text-sm">
-                                  <div className="text-center">
-                                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Progress</p>
-                                    <p className="font-bold text-slate-700">{calculatePhaseScores(p).totalPercentage}%</p>
-                                  </div>
-                                  <div className="text-center w-12">
-                                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">SPI</p>
-                                    <p className={cn("font-bold", pSpi.color)}>{pSpi.rawSpi !== null ? pSpi.value : '-'}</p>
-                                  </div>
-                                  <div className="text-center w-20">
-                                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Active Days</p>
-                                    <p className="font-bold text-slate-700">{pDays.days} <span className="text-[10px] text-slate-400 font-medium">d</span></p>
-                                  </div>
-                                  <div className="text-right min-w-[100px]">
-                                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Target Date</p>
-                                    <p className="font-bold text-slate-700">{p.currentCompletionDate || '-'}</p>
-                                  </div>
-                                </div>
-                              </div>
-                            )
+                             const pSpi = calculateSPI(p, config.spiThresholds);
+                             const pDays = getActiveDaysCount(p);
+                             const hasPendingRebaseline = p.rebaselineRequests?.some(r => r.status === 'Pending');
+                             const isStale = !['Closed', 'Billed', 'Signed Off', 'Suspended'].includes(p.state) && 
+                                             differenceInDays(new Date(), getLatestInteractionDate(p)) >= config.staleThresholdDays;
+                             
+                             return (
+                               <div key={p.id} className="bg-white/80 backdrop-blur-sm px-4 py-3 rounded-2xl border border-slate-200/80 shadow-sm flex flex-wrap items-center justify-between gap-4">
+                                 <div className="flex flex-col gap-1 min-w-[200px]">
+                                   <div className="flex items-center gap-2">
+                                     <span className="text-sm font-semibold text-slate-900 truncate max-w-[200px]">{p.clientName}</span>
+                                     {isStale && <span className="px-1.5 py-0.5 bg-red-100 text-red-600 text-[9px] font-bold uppercase rounded">Stale</span>}
+                                   </div>
+                                   <div className="flex gap-2 items-center">
+                                     <StateBadge state={p.state} />
+                                     {hasPendingRebaseline && <span className="bg-amber-100 text-amber-700 text-[9px] font-bold uppercase px-1.5 py-0.5 rounded">Pending Rebaseline</span>}
+                                   </div>
+                                 </div>
+                                 <div className="flex flex-wrap items-center justify-end gap-6 text-sm">
+                                   <div className="text-center">
+                                     <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Progress</p>
+                                     <p className="font-semibold text-slate-700">{calculatePhaseScores(p).totalPercentage}%</p>
+                                   </div>
+                                   <div className="text-center w-12">
+                                     <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">SPI</p>
+                                     <p className={cn("font-bold", pSpi.color)}>{pSpi.rawSpi !== null ? pSpi.value : '-'}</p>
+                                   </div>
+                                   <div className="text-center w-20">
+                                     <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Active Days</p>
+                                     <p className="font-semibold text-slate-700">{pDays.days} <span className="text-[10px] text-slate-400 font-medium">d</span></p>
+                                   </div>
+                                   <div className="text-right min-w-[100px]">
+                                     <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Target Date</p>
+                                     <p className="font-semibold text-slate-700">{p.currentCompletionDate || '-'}</p>
+                                   </div>
+                                 </div>
+                               </div>
+                             )
                           })}
                         </div>
                       </td>
@@ -619,8 +619,8 @@ export const PMScorecard: React.FC<PMScorecardProps> = ({ projects, users = [], 
       </div>
 
       {/* Service Performance */}
-      <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
-        <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2 mb-6">
+      <div className="glass-card p-6 rounded-[24px] shadow-sm">
+        <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2.5 mb-6 tracking-tight">
           <Layers className={cn("w-5 h-5", theme.text)} />
           Service Performance
         </h2>
@@ -638,7 +638,7 @@ export const PMScorecard: React.FC<PMScorecardProps> = ({ projects, users = [], 
             </thead>
             <tbody className="divide-y divide-slate-50">
               {(isServicePerformanceExpanded ? packageStats : packageStats.slice(0, 5)).map((pkg, i) => (
-                <tr key={i} className="hover:bg-slate-50 transition-colors">
+                <tr key={i} className="hover:bg-slate-50/50 transition-colors">
                   <td className="py-4 font-bold text-slate-900">{pkg.name}</td>
                   <td className="py-4 text-center text-sm font-bold text-slate-600">{pkg.projectsWithService}</td>
                   <td className="py-4 text-center">
@@ -651,9 +651,9 @@ export const PMScorecard: React.FC<PMScorecardProps> = ({ projects, users = [], 
                   <td className="py-4 text-center">
                     {pkg.avgSpi !== null ? (
                       <span className={cn(
-                        "px-2.5 py-1 text-xs font-black rounded-lg",
-                        pkg.avgSpi >= config.spiThresholds.onTrack ? "bg-emerald-50 text-emerald-600" :
-                        pkg.avgSpi >= config.spiThresholds.atRisk ? "bg-amber-50 text-amber-600" : "bg-red-50 text-red-600"
+                        "px-2.5 py-1 text-xs font-bold rounded-lg border",
+                        pkg.avgSpi >= config.spiThresholds.onTrack ? "bg-emerald-50/50 text-emerald-600 border-emerald-100" :
+                        pkg.avgSpi >= config.spiThresholds.atRisk ? "bg-amber-50/50 text-amber-600 border-amber-100" : "bg-rose-50/50 text-rose-600 border-rose-100"
                       )}>
                         {pkg.avgSpi.toFixed(2)}
                       </span>
@@ -673,7 +673,7 @@ export const PMScorecard: React.FC<PMScorecardProps> = ({ projects, users = [], 
                   <td colSpan={5} className="py-4 px-2">
                     <button 
                       onClick={() => setIsServicePerformanceExpanded(!isServicePerformanceExpanded)}
-                      className="w-full py-3 bg-slate-50 hover:bg-slate-100 rounded-xl text-xs font-black text-slate-500 hover:text-slate-800 uppercase tracking-widest transition-colors flex items-center justify-center gap-2"
+                      className="w-full py-3 bg-slate-50 hover:bg-slate-100 rounded-xl text-xs font-bold text-slate-500 hover:text-slate-800 uppercase tracking-wider transition-colors flex items-center justify-center gap-2"
                     >
                       {isServicePerformanceExpanded ? (
                         <>

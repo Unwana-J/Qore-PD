@@ -160,7 +160,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
   const themeHex = themeHexMap[themeColor] || themeHexMap.teal;
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-8 p-8">
       <SetupBanner 
         config={config} 
         userRole={userRole!} 
@@ -172,17 +172,17 @@ export const Dashboard: React.FC<DashboardProps> = ({
       {loading && (
         <div className="flex items-center gap-2 px-1 text-slate-400">
           <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-          <span className="text-[10px] font-bold uppercase tracking-widest">Synchronizing latest project data...</span>
+          <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Synchronizing latest project data...</span>
         </div>
       )}
 
       {/* Revenue Panel */}
       <section id="revenue">
-        <div className="flex items-center gap-2 mb-4">
+        <div className="flex items-center gap-2 mb-5">
           <DollarSign className={cn("w-5 h-5", theme.text)} />
-          <h2 className="text-xl font-semibold text-slate-900">Revenue Overview</h2>
+          <h2 className="text-xl font-bold text-slate-900 tracking-tight">Revenue Overview</h2>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-8">
           <StatCard label="Total Intake" values={intakeGroups} subValue="All time revenue" icon={<TrendingUp className="w-4 h-4" />} themeColor={themeColor} />
           <StatCard 
             label="On-Track Priorities" 
@@ -196,134 +196,138 @@ export const Dashboard: React.FC<DashboardProps> = ({
         </div>
       </section>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Projects Panel */}
-        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-          <div className="flex items-center gap-2 mb-6">
-            <Activity className={cn("w-5 h-5", theme.text)} />
-            <h2 className="text-lg font-semibold text-slate-900">Project Status</h2>
+        <div className="glass-card p-6 rounded-[20px] shadow-sm flex flex-col justify-between">
+          <div>
+            <div className="flex items-center gap-2 mb-6">
+              <Activity className={cn("w-5 h-5", theme.text)} />
+              <h2 className="text-lg font-bold text-slate-900 tracking-tight">Project Status</h2>
+            </div>
+            <div className="h-[220px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={[
+                      { name: 'On-Track', value: activeCount },
+                      { name: 'Delayed', value: delayedCount },
+                      { name: 'Suspended', value: suspendedCount },
+                      { name: 'Signed Off', value: projects.filter(p => p.state === 'Signed Off').length },
+                      { name: 'Billed', value: projects.filter(p => p.state === 'Billed').length },
+                      { name: 'Closed', value: closedCount },
+                    ]}
+                    innerRadius={55}
+                    outerRadius={75}
+                    paddingAngle={5}
+                    dataKey="value"
+                  >
+                    {[
+                      '#10b981', // On-Track - Emerald
+                      '#ef4444', // Delayed - Red
+                      '#1e293b', // Suspended - Slate
+                      '#f59e0b', // Signed Off - Amber
+                      '#3b82f6', // Billed - Blue
+                      '#94a3b8', // Closed - Blue-grey
+                    ].map((color, index) => (
+                      <Cell key={`cell-${index}`} fill={color} />
+                    ))}
+                  </Pie>
+                  <Tooltip 
+                    contentStyle={{borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)'}}
+                  />
+                  <Legend verticalAlign="bottom" height={36} iconType="circle" />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
           </div>
-          <div className="h-[220px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={[
-                    { name: 'On-Track', value: activeCount },
-                    { name: 'Delayed', value: delayedCount },
-                    { name: 'Suspended', value: suspendedCount },
-                    { name: 'Signed Off', value: projects.filter(p => p.state === 'Signed Off').length },
-                    { name: 'Billed', value: projects.filter(p => p.state === 'Billed').length },
-                    { name: 'Closed', value: closedCount },
-                  ]}
-                  innerRadius={55}
-                  outerRadius={75}
-                  paddingAngle={5}
-                  dataKey="value"
-                >
-                  {[
-                    '#10b981', // On-Track - Emerald
-                    '#ef4444', // Delayed - Red
-                    '#1e293b', // Suspended - Slate
-                    '#f59e0b', // Signed Off - Amber
-                    '#3b82f6', // Billed - Blue
-                    '#94a3b8', // Closed - Blue-grey
-                  ].map((color, index) => (
-                    <Cell key={`cell-${index}`} fill={color} />
-                  ))}
-                </Pie>
-                <Tooltip 
-                  contentStyle={{borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)'}}
-                />
-                <Legend verticalAlign="bottom" height={36} iconType="circle" />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-          <div className="mt-4 grid grid-cols-2 gap-4">
-            <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
-              <p className="text-xs text-slate-500 uppercase font-semibold">Total Projects</p>
-              <p className="text-2xl font-bold text-slate-900">{projects.length}</p>
+          <div className="mt-6 grid grid-cols-2 gap-4">
+            <div className="p-4 bg-slate-50/60 rounded-2xl border border-slate-100 shadow-[inset_0_2px_4px_rgba(0,0,0,0.01)]">
+              <p className="text-xs text-slate-500 uppercase font-semibold tracking-wider">Total Projects</p>
+              <p className="text-3xl font-extrabold text-slate-900 mt-1">{projects.length}</p>
             </div>
             <div 
               onClick={() => onNavigateToProjects?.('At-Risk')}
-              className="p-3 bg-red-50 rounded-xl border border-red-100 cursor-pointer hover:bg-red-100/50 hover:border-red-200 transition-all flex items-center justify-between group"
+              className="p-4 bg-red-50/50 rounded-2xl border border-red-100/80 cursor-pointer hover:bg-red-50 hover:border-red-200 transition-all duration-300 flex items-center justify-between group"
             >
               <div>
-                <p className="text-xs text-red-500 uppercase font-semibold">At Risk</p>
-                <p className="text-2xl font-bold text-red-600">{atRiskCount}</p>
+                <p className="text-xs text-red-500 uppercase font-semibold tracking-wider">At Risk</p>
+                <p className="text-3xl font-extrabold text-red-600 mt-1">{atRiskCount}</p>
               </div>
               <span className="text-[10px] font-bold text-red-600 flex items-center gap-0.5 opacity-60 group-hover:opacity-100 transition-opacity">
-                View <ChevronRight className="w-3 h-3 transition-transform group-hover:translate-x-0.5" />
+                View <ChevronRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5" />
               </span>
             </div>
           </div>
         </div>
 
         {/* Package Panel */}
-        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col">
-          <div className="flex items-center justify-between mb-6 shrink-0 gap-4">
-            <div className="flex items-center gap-2">
-              <Layers className={cn("w-5 h-5", theme.text)} />
-              <h2 className="text-lg font-semibold text-slate-900">Package Distribution</h2>
+        <div className="glass-card p-6 rounded-[20px] shadow-sm flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between mb-6 shrink-0 gap-4">
+              <div className="flex items-center gap-2">
+                <Layers className={cn("w-5 h-5", theme.text)} />
+                <h2 className="text-lg font-bold text-slate-900 tracking-tight">Package Distribution</h2>
+              </div>
+              <div className="flex bg-slate-100 p-0.5 rounded-lg border border-slate-200">
+                <button 
+                  onClick={() => setChartCurrency('NGN')}
+                  className={cn("px-2.5 py-1 text-[10px] font-bold tracking-wider rounded transition-all", chartCurrency === 'NGN' ? "bg-white text-slate-900 shadow-sm" : "text-slate-400 hover:text-slate-600")}
+                >
+                  NGN
+                </button>
+                <button 
+                  onClick={() => setChartCurrency('USD')}
+                  className={cn("px-2.5 py-1 text-[10px] font-bold tracking-wider rounded transition-all", chartCurrency === 'USD' ? "bg-white text-slate-900 shadow-sm" : "text-slate-400 hover:text-slate-600")}
+                >
+                  USD
+                </button>
+              </div>
             </div>
-            <div className="flex bg-slate-100 p-0.5 rounded-lg border border-slate-200">
-              <button 
-                onClick={() => setChartCurrency('NGN')}
-                className={cn("px-2.5 py-1 text-[10px] font-black tracking-widest rounded transition-all", chartCurrency === 'NGN' ? "bg-white text-slate-900 shadow-sm" : "text-slate-400 hover:text-slate-600")}
-              >
-                NGN
-              </button>
-              <button 
-                onClick={() => setChartCurrency('USD')}
-                className={cn("px-2.5 py-1 text-[10px] font-black tracking-widest rounded transition-all", chartCurrency === 'USD' ? "bg-white text-slate-900 shadow-sm" : "text-slate-400 hover:text-slate-600")}
-              >
-                USD
-              </button>
-            </div>
-          </div>
-          <div className="h-[250px] overflow-y-auto pr-2 custom-scrollbar border-y border-slate-50 relative">
-            <div style={{ height: `${Math.max(100, packageData.length * 45)}px`, minHeight: '100%' }}>
-              <ResponsiveContainer width="100%" height="100%">
-                {packageData.length > 0 ? (
-                  <BarChart data={packageData} layout="vertical" margin={{ left: 10, right: 30, top: 10, bottom: 10 }}>
-                    <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#f1f5f9" />
-                    <XAxis type="number" domain={[0, 100]} hide />
-                    <YAxis 
-                      dataKey="name" 
-                      type="category" 
-                      axisLine={false} 
-                      tickLine={false} 
-                      tick={{fill: '#64748b', fontSize: 10, fontWeight: 700}} 
-                      width={120}
-                    />
-                    <Tooltip 
-                      cursor={{fill: '#f8fafc'}}
-                      contentStyle={{borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)', fontSize: '12px', fontWeight: 'bold'}}
-                      formatter={(value: number, name: string, props: any) => [
-                        `${chartCurrency === 'NGN' ? '₦' : '$'}${props.payload.revenue.toLocaleString()} (${props.payload.count} Projects)`, 
-                        'Revenue'
-                      ]}
-                    />
-                    <Bar dataKey="visualValue" fill={themeHex} radius={[0, 4, 4, 0]} barSize={16}>
-                      <LabelList 
-                        dataKey="count" 
-                        position="right" 
-                        content={(props: any) => (
-                           <text x={props.x + 8} y={props.y + 12} className="text-[9px] font-black text-slate-400">
-                             {props.value} P
-                           </text>
-                        )}
+            <div className="h-[250px] overflow-y-auto pr-2 custom-scrollbar border-y border-slate-50 relative">
+              <div style={{ height: `${Math.max(100, packageData.length * 45)}px`, minHeight: '100%' }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  {packageData.length > 0 ? (
+                    <BarChart data={packageData} layout="vertical" margin={{ left: 10, right: 30, top: 10, bottom: 10 }}>
+                      <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#f1f5f9" />
+                      <XAxis type="number" domain={[0, 100]} hide />
+                      <YAxis 
+                        dataKey="name" 
+                        type="category" 
+                        axisLine={false} 
+                        tickLine={false} 
+                        tick={{fill: '#64748b', fontSize: 10, fontWeight: 700}} 
+                        width={150}
                       />
-                    </Bar>
-                  </BarChart>
-                ) : (
-                  <div className="flex items-center justify-center h-full">
-                     <p className="text-xs font-bold text-slate-400 italic">No {chartCurrency} intake logged for active packages.</p>
-                  </div>
-                )}
-              </ResponsiveContainer>
+                      <Tooltip 
+                        cursor={{fill: '#f8fafc'}}
+                        contentStyle={{borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)', fontSize: '12px', fontWeight: 'bold'}}
+                        formatter={(value: number, name: string, props: any) => [
+                          `${chartCurrency === 'NGN' ? '₦' : '$'}${props.payload.revenue.toLocaleString()} (${props.payload.count} Projects)`, 
+                          'Revenue'
+                        ]}
+                      />
+                      <Bar dataKey="visualValue" fill={themeHex} radius={[0, 4, 4, 0]} barSize={16}>
+                        <LabelList 
+                          dataKey="count" 
+                          position="right" 
+                          content={(props: any) => (
+                             <text x={props.x + 8} y={props.y + 12} fill="#64748b" style={{ fontSize: '10px', fontWeight: 'bold' }}>
+                               {props.value} P
+                             </text>
+                          )}
+                        />
+                      </Bar>
+                    </BarChart>
+                  ) : (
+                    <div className="flex items-center justify-center h-full">
+                       <p className="text-xs font-bold text-slate-400 italic">No {chartCurrency} intake logged for active packages.</p>
+                    </div>
+                  )}
+                </ResponsiveContainer>
+              </div>
             </div>
           </div>
-          <p className="mt-4 text-sm text-slate-500 text-center italic shrink-0">Revenue contribution per package</p>
+          <p className="mt-4 text-xs font-medium text-slate-400 text-center italic shrink-0">Revenue contribution per package</p>
         </div>
       </div>
 
@@ -353,38 +357,43 @@ const StatCard = ({ label, value, values, subValue, icon, color = 'theme', theme
   };
 
   return (
-    <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md hover:border-slate-300 transition-all duration-300 group cursor-default">
-      <div className="flex justify-between items-start mb-3">
-        <p className="text-xs font-bold text-slate-600 uppercase tracking-wider">{label}</p>
-        <div className={cn("p-2 rounded-xl border transition-colors group-hover:scale-110", colors[color])}>
-          {icon}
+    <div className="glass-card glass-card-hover p-6 rounded-[20px] cursor-default flex flex-col justify-between h-full group">
+      <div>
+        <div className="flex justify-between items-start mb-4">
+          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{label}</p>
+          <div className={cn("p-2.5 rounded-xl border transition-all duration-300 group-hover:scale-105", colors[color])}>
+            {icon}
+          </div>
+        </div>
+        <div className="space-y-1.5 mt-1">
+          {values ? (
+            <div className="flex flex-col gap-1">
+              {Object.entries(values).map(([code, amount]: any) => (
+                <p 
+                  key={code} 
+                  title={`${code === 'NGN' ? 'Revenue in Naira: ' : code === 'USD' ? 'Revenue in Dollars: ' : ''}${formatCurrency(amount, code)}`}
+                  className={cn(
+                    "font-extrabold tracking-tight text-slate-900 leading-none cursor-help",
+                    Object.keys(values).length > 1 ? "text-xl first:text-2xl" : "text-3xl"
+                  )}
+                >
+                  {formatCompactCurrency(amount, code)}
+                </p>
+              ))}
+              {Object.keys(values).length === 0 && <p className="text-3xl font-extrabold text-slate-900">-</p>}
+            </div>
+          ) : (
+            <p className="text-3xl font-extrabold text-slate-900 tracking-tight">{value}</p>
+          )}
         </div>
       </div>
-      <div className="space-y-1 mt-1">
-        {values ? (
-          <div className="flex flex-col">
-            {Object.entries(values).map(([code, amount]: any, idx) => (
-              <p 
-                key={code} 
-                title={`${code === 'NGN' ? 'Revenue in Naira: ' : code === 'USD' ? 'Revenue in Dollars: ' : ''}${formatCurrency(amount, code)}`}
-                className={cn(
-                  "font-black tracking-tighter text-slate-900 leading-none cursor-help",
-                  Object.keys(values).length > 1 ? "text-lg first:text-xl" : "text-3xl"
-                )}
-              >
-                {formatCompactCurrency(amount, code)}
-              </p>
-            ))}
-            {Object.keys(values).length === 0 && <p className="text-3xl font-black text-slate-900">-</p>}
-          </div>
-        ) : (
-          <p className="text-3xl font-black text-slate-900 tracking-tighter">{value}</p>
-        )}
-      </div>
-      <p className="text-[11px] font-bold text-slate-500 mt-3 flex items-center gap-1">
-        <div className={cn("w-1.5 h-1.5 rounded-full", color === 'emerald' ? "bg-emerald-500" : theme.bg)} />
+      <div className="text-[11px] font-semibold text-slate-400 mt-4 pt-3 border-t border-slate-100/60 flex items-center gap-2">
+        <span className="relative flex h-2 w-2">
+          <span className={cn("animate-ping absolute inline-flex h-full w-full rounded-full opacity-75", color === 'emerald' ? "bg-emerald-400" : theme.bg)}></span>
+          <span className={cn("relative inline-flex rounded-full h-2 w-2", color === 'emerald' ? "bg-emerald-500" : theme.bg)}></span>
+        </span>
         {subValue}
-      </p>
+      </div>
     </div>
   );
 };
