@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
-  PieChart, Pie, Cell, Legend, LabelList 
+  PieChart, Pie, Cell, Legend, LabelList, Label
 } from 'recharts';
 import { useQuery } from '@tanstack/react-query';
 import { Project, ProductLine, Role, AppConfig, User, ProjectState } from '../types';
@@ -160,7 +160,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
   const themeHex = themeHexMap[themeColor] || themeHexMap.teal;
 
   return (
-    <div className="space-y-8 p-8">
+    <div className="space-y-6 lg:space-y-8 p-6 lg:p-8">
       <SetupBanner 
         config={config} 
         userRole={userRole!} 
@@ -182,7 +182,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
           <DollarSign className={cn("w-5 h-5", theme.text)} />
           <h2 className="text-xl font-bold text-slate-900 tracking-tight">Revenue Overview</h2>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6 lg:gap-8">
           <StatCard label="Total Intake" values={intakeGroups} subValue="All time revenue" icon={<TrendingUp className="w-4 h-4" />} themeColor={themeColor} />
           <StatCard 
             label="On-Track Priorities" 
@@ -196,7 +196,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
         </div>
       </section>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
         {/* Projects Panel */}
         <div className="glass-card p-6 rounded-[20px] shadow-sm flex flex-col justify-between">
           <div>
@@ -231,6 +231,12 @@ export const Dashboard: React.FC<DashboardProps> = ({
                     ].map((color, index) => (
                       <Cell key={`cell-${index}`} fill={color} />
                     ))}
+                    <Label 
+                      value={`${projects.length}`} 
+                      position="center" 
+                      fill="#0f172a"
+                      style={{ fontSize: '22px', fontWeight: '800', fontFamily: 'var(--font-sans)' }}
+                    />
                   </Pie>
                   <Tooltip 
                     contentStyle={{borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)'}}
