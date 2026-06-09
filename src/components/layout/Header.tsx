@@ -165,7 +165,9 @@ export const Header: React.FC<HeaderProps> = ({
       projects: 'Projects',
       settings: 'Settings',
       risks: 'Risks & Issues',
-      implementations: 'Ancillary Implementations'
+      implementations: 'Ancillary Implementations',
+      resources: 'Resources',
+      'rebaseline-requests': 'Rebaseline Requests'
     };
 
     if (currentView === 'implementations' && openedImplementationsFromDigest) {
