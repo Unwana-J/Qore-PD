@@ -76,6 +76,7 @@ export const IMInsightsView: React.FC<IMInsightsViewProps> = ({
   const [editingAnnotationKey, setEditingAnnotationKey] = useState<string|null>(null);
   const [annotationText, setAnnotationText] = useState<string>('');
   const [isSavingAnnotation, setIsSavingAnnotation] = useState(false);
+  const [distributionMode, setDistributionMode] = useState<'count' | 'wip'>('count');
   const theme = getThemeClasses(config.brand.themeColor);
   const today = new Date();
 
@@ -801,7 +802,26 @@ const weightMap = useMemo(() => {
 
       {/* Volume Distribution */}
       <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="flex items-center gap-2 mb-5"><Layers className="w-4 h-4 text-sky-600"/><h3 className="text-xs font-black text-slate-900 uppercase tracking-widest">Ancillary Volume Distribution</h3></div>
+        <div className="flex items-center justify-between mb-5">
+          <div className="flex items-center gap-2">
+            <Layers className="w-4 h-4 text-sky-600" />
+            <h3 className="text-xs font-black text-slate-900 uppercase tracking-widest">Ancillary Volume Distribution</h3>
+          </div>
+          <div className="flex bg-slate-100 p-0.5 rounded-lg border border-slate-200">
+            <button 
+              onClick={() => setDistributionMode('count')}
+              className={cn("px-2.5 py-1 text-[10px] font-bold tracking-wider rounded transition-all", distributionMode === 'count' ? "bg-white text-slate-900 shadow-sm" : "text-slate-400 hover:text-slate-600")}
+            >
+              Count
+            </button>
+            <button 
+              onClick={() => setDistributionMode('wip')}
+              className={cn("px-2.5 py-1 text-[10px] font-bold tracking-wider rounded transition-all", distributionMode === 'wip' ? "bg-white text-slate-900 shadow-sm" : "text-slate-400 hover:text-slate-600")}
+            >
+              WIP %
+            </button>
+          </div>
+        </div>
         <div className="overflow-x-auto">
           <table className="w-full text-left min-w-[700px]">
             <thead><tr className="border-b border-slate-100">
@@ -815,10 +835,56 @@ const weightMap = useMemo(() => {
                 return <tr key={im.id} className="hover:bg-slate-50/30 transition-colors">
                   <td className="py-2.5 text-sm font-bold text-slate-700">{im.name}</td>
                   {config.serviceBaselines.map(sb=>{
-                    const cnt=exts.filter(e=>e.serviceName.includes(sb.name)).length;
-                    return <td key={sb.id} className={cn("py-2.5 text-sm font-bold text-center",cnt>0?"text-slate-900":"text-slate-200")}>{cnt||'—'}</td>;
+                    if (distributionMode === 'count') {
+                      const cnt=exts.filter(e=>e.serviceName.includes(sb.name)).length;
+                      return <td key={sb.id} className={cn("py-2.5 text-sm font-bold text-center",cnt>0?"text-slate-900":"text-slate-200")}>{cnt||'—'}</td>;
+                    } else {
+                      const serviceExts = exts.filter(e => e.serviceName.includes(sb.name) && e.status !== 'Completed' && e.status !== 'Suspended');
+                      let servicePoints = 0;
+                      serviceExts.forEach(ext => {
+                        const pkg = config.packages?.find(p => p.name === ext.serviceName || p.name === ext.serviceVariant);
+                        const rawWeight = pkg?.storyPoints || weightMap[ext.serviceVariant] || weightMap[ext.serviceName] || 
+                                          Object.entries(weightMap).find(([k]) => ext.serviceName.includes(k))?.[1] || 1;
+                        const baseWeight = getIMStoryPoint(rawWeight);
+                        
+                        let progress = 0;
+                        const totalMilestones = ext.milestones?.length || 0;
+                        const completedMilestones = ext.milestones?.filter(m => m.completed).length || 0;
+                        progress = totalMilestones > 0 ? (completedMilestones / totalMilestones) : 0.1;
+                        
+                        servicePoints += baseWeight * (1 - progress);
+                      });
+                      const wipLimit = im.wipLimit || 30;
+                      const wipPct = (servicePoints / wipLimit) * 100;
+                      return <td key={sb.id} className={cn("py-2.5 text-sm font-bold text-center",wipPct>0?"text-slate-900":"text-slate-200")}>
+                        {wipPct > 0 ? `${wipPct.toFixed(0)}%` : '—'}
+                      </td>;
+                    }
                   })}
-                  <td className="py-2.5 text-sm font-black text-slate-900 text-center bg-slate-50/50">{exts.length}</td>
+                  <td className="py-2.5 text-sm font-black text-slate-900 text-center bg-slate-50/50">
+                    {distributionMode === 'count' ? (
+                      exts.length
+                    ) : (
+                      (() => {
+                        const totalActivePoints = exts.filter(e => e.status !== 'Completed' && e.status !== 'Suspended').reduce((sum, ext) => {
+                          const pkg = config.packages?.find(p => p.name === ext.serviceName || p.name === ext.serviceVariant);
+                          const rawWeight = pkg?.storyPoints || weightMap[ext.serviceVariant] || weightMap[ext.serviceName] || 
+                                            Object.entries(weightMap).find(([k]) => ext.serviceName.includes(k))?.[1] || 1;
+                          const baseWeight = getIMStoryPoint(rawWeight);
+                          
+                          let progress = 0;
+                          const totalMilestones = ext.milestones?.length || 0;
+                          const completedMilestones = ext.milestones?.filter(m => m.completed).length || 0;
+                          progress = totalMilestones > 0 ? (completedMilestones / totalMilestones) : 0.1;
+                          
+                          return sum + (baseWeight * (1 - progress));
+                        }, 0);
+                        const totalWipLimit = im.wipLimit || 30;
+                        const totalPct = (totalActivePoints / totalWipLimit) * 100;
+                        return `${totalPct.toFixed(0)}%`;
+                      })()
+                    )}
+                  </td>
                 </tr>;
               })}
             </tbody>
