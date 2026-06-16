@@ -28,6 +28,7 @@ import { NotificationProvider, useNotifications } from './contexts/NotificationC
 import { AuthView } from './components/AuthView';
 import { api } from './lib/api';
 import { OnboardingWizard } from './components/OnboardingWizard';
+import { LandingPage } from './components/LandingPage';
 
 type View = 'dashboard' | 'projects' | 'risks' | 'settings' | 'rebaseline-requests' | 'implementations' | 'resources';
 
@@ -270,6 +271,16 @@ function AppContent() {
   }
 
   if (!user || window.location.search.includes('reset=true')) {
+    // Show landing page by default; switching to login is handled inside LandingPage
+    if (!window.location.search.includes('login=true') && !window.location.search.includes('reset=true')) {
+      return (
+        <LandingPage
+          onExploreDemo={() => {
+            window.location.search = '?login=true';
+          }}
+        />
+      );
+    }
     return <AuthView />;
   }
 
