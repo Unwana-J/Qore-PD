@@ -19,7 +19,7 @@ import {
 } from 'lucide-react';
 
 interface LandingPageProps {
-  onExploreDemo: () => void;
+  onExploreDemo?: () => void;
   themeColor?: string;
   companyName?: string;
 }
@@ -356,10 +356,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({
 
           <div className="flex items-center gap-4">
             <button 
-              onClick={onExploreDemo}
+              onClick={() => document.getElementById('preview')?.scrollIntoView({ behavior: 'smooth' })}
               className={`hidden sm:flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold text-white transition-all bg-slate-900 border border-slate-800 hover:border-slate-700 hover:bg-slate-850`}
             >
-              <span>Try Sandbox Demo</span>
+              <span>See Live Preview</span>
               <ChevronRight className="w-4 h-4 text-slate-400" />
             </button>
             <a 
@@ -406,7 +406,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
               <span>Get a Custom Build</span>
             </a>
             <button 
-              onClick={onExploreDemo}
+              onClick={() => document.getElementById('preview')?.scrollIntoView({ behavior: 'smooth' })}
               className="w-full sm:w-auto flex items-center justify-center gap-2 px-8 py-4 rounded-xl font-bold text-white bg-slate-900 border border-slate-800 hover:border-slate-700 hover:bg-slate-850 transition-all text-base"
             >
               <span>See It in Action</span>
@@ -1071,13 +1071,13 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                 <p className="text-[11px] text-slate-400 text-center sm:text-left">
                   This interactive mockup demonstrates the actual features of the workspace. Click sidebar tabs and change roles to test it.
                 </p>
-                <button 
-                  onClick={onExploreDemo}
+                <a 
+                  href="#contact"
                   className={`w-full sm:w-auto flex items-center justify-center gap-2 px-5 py-2 rounded-lg text-xs font-bold text-slate-950 transition-all ${accent.bg} hover:opacity-90 shadow-md ${accent.glow}`}
                 >
-                  <span>Launch Live Demo Application</span>
+                  <span>Get a Custom Build</span>
                   <ArrowRight className="w-3.5 h-3.5" />
-                </button>
+                </a>
               </div>
 
             </div>
