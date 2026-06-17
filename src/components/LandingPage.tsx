@@ -388,12 +388,12 @@ export const LandingPage: React.FC<LandingPageProps> = ({
 
           {/* Headline */}
           <h1 className="text-4xl sm:text-5xl md:text-6xl font-black tracking-tight leading-tight max-w-4xl mx-auto mb-6 bg-gradient-to-b from-white via-slate-100 to-slate-400 bg-clip-text text-transparent">
-            Unify Your Project Milestones, Risks, & Revenue Realization
+            From Chaos to Clarity — One Platform for Every Delivery, Every Client, Every Phase.
           </h1>
 
           {/* Subtitle */}
           <p className="text-lg md:text-xl text-slate-400 max-w-3xl mx-auto mb-10 leading-relaxed font-normal">
-            A premium, high-visibility workspace designed specifically for delivery and program management teams. Align Executives, PMs, and Finance on client deliveries and billing status in one sleek, branded platform.
+            Built for delivery teams who manage multiple clients, complex phases, and finance alignment simultaneously — without the spreadsheet chaos.
           </p>
 
           {/* Call to Actions */}
@@ -403,13 +403,13 @@ export const LandingPage: React.FC<LandingPageProps> = ({
               className={`w-full sm:w-auto flex items-center justify-center gap-2 px-8 py-4 rounded-xl font-bold text-slate-950 transition-all text-base ${accent.bg} hover:opacity-95 shadow-xl ${accent.glow}`}
             >
               <Mail className="w-5 h-5" />
-              <span>Contact Me to Build This for You</span>
+              <span>Get a Custom Build</span>
             </a>
             <button 
               onClick={onExploreDemo}
               className="w-full sm:w-auto flex items-center justify-center gap-2 px-8 py-4 rounded-xl font-bold text-white bg-slate-900 border border-slate-800 hover:border-slate-700 hover:bg-slate-850 transition-all text-base"
             >
-              <span>Explore Interactive Demo Dashboard</span>
+              <span>See It in Action</span>
               <ArrowRight className="w-5 h-5 text-slate-400" />
             </button>
           </div>
@@ -1090,13 +1090,13 @@ export const LandingPage: React.FC<LandingPageProps> = ({
         <div className="max-w-7xl mx-auto">
           
           <div className="text-center max-w-3xl mx-auto mb-16">
-            <h2 className="text-xs font-bold uppercase tracking-widest text-slate-500 mb-2">THE DELIVERY CONUNDRUM</h2>
+            <h2 className="text-xs font-bold uppercase tracking-widest text-slate-500 mb-2">BUILT FOR DELIVERY TEAMS</h2>
             <p className="text-3xl sm:text-4xl font-extrabold tracking-tight text-white mb-4">
-              Why Standard Project Tools Miss the Mark
+              Why Generic PM Tools Fall Short
             </p>
             <p className="text-slate-400 text-base leading-relaxed">
-              Delivery managers, executives, and finance teams speak three different languages. 
-              Standard systems like Jira are too detailed for clients, while Excel lacks real-time alignment.
+              Delivery teams don't just manage tasks — they manage clients, phases, billings, and escalations simultaneously.
+              Generic tools weren't built for that reality.
             </p>
           </div>
 
@@ -1167,13 +1167,12 @@ export const LandingPage: React.FC<LandingPageProps> = ({
         <div className="max-w-7xl mx-auto">
           
           <div className="text-center max-w-3xl mx-auto mb-16">
-            <h2 className="text-xs font-bold uppercase tracking-widest text-slate-500 mb-2">KEY CAPABILITIES</h2>
+            <h2 className="text-xs font-bold uppercase tracking-widest text-slate-500 mb-2">WHAT IT ACTUALLY DOES</h2>
             <p className="text-3xl sm:text-4xl font-extrabold tracking-tight text-white mb-4">
-              What This Solution Brings to Your Team
+              Outcomes, Not Just Features
             </p>
             <p className="text-slate-400 text-base">
-              Explore the functional pillars built to handle delivery programs of any scale. 
-              Everything you need to move from manual tracking to structured program operations.
+              Every capability is designed around one question: what does your team need to stop worrying about?
             </p>
           </div>
 
@@ -1184,9 +1183,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({
               <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-5 ${accent.badgeBg} border border-slate-800 group-hover:border-slate-700 transition-colors`}>
                 <DollarSign className={`w-5 h-5 ${accent.text}`} />
               </div>
-              <h3 className="font-bold text-white text-base mb-2">Milestone Revenue Sync</h3>
+              <h3 className="font-bold text-white text-base mb-2">Know when a project is slipping — before the client does</h3>
               <p className="text-xs text-slate-400 leading-relaxed">
-                Map milestones directly to financial outcomes. Once delivery completes a milestone, finance is alerted automatically with "Ready for Billing" tags.
+                SPI tracking flags schedule deviations in real time. No more end-of-week surprises — your team sees drift the moment it starts.
               </p>
             </div>
 
@@ -1195,9 +1194,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({
               <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-5 ${accent.badgeBg} border border-slate-800 group-hover:border-slate-700 transition-colors`}>
                 <Globe className={`w-5 h-5 ${accent.text}`} />
               </div>
-              <h3 className="font-bold text-white text-base mb-2">Bespoke Brand Engines</h3>
+              <h3 className="font-bold text-white text-base mb-2">Every phase gated. No shortcuts. Full accountability.</h3>
               <p className="text-xs text-slate-400 leading-relaxed">
-                Apply dynamic client branding with automatic logo injection and color theme mapping for executive pitch reviews or dedicated client portals.
+                Phase management enforces structured delivery: each stage must be completed and signed off before the next opens.
               </p>
             </div>
 
@@ -1206,9 +1205,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({
               <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-5 ${accent.badgeBg} border border-slate-800 group-hover:border-slate-700 transition-colors`}>
                 <AlertTriangle className={`w-5 h-5 ${accent.text}`} />
               </div>
-              <h3 className="font-bold text-white text-base mb-2">Mitigation Risk Matrix</h3>
+              <h3 className="font-bold text-white text-base mb-2">Risks tracked, owned, and escalated — nothing falls through</h3>
               <p className="text-xs text-slate-400 leading-relaxed">
-                Log risks, impacts (Low/Medium/High), ownership, and action mitigation notes. Prevent project slippage through active commentary loops.
+                The risk registry assigns ownership and impact levels to every issue. Escalation loops ensure blockers surface before they become crises.
               </p>
             </div>
 
@@ -1217,9 +1216,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({
               <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-5 ${accent.badgeBg} border border-slate-800 group-hover:border-slate-700 transition-colors`}>
                 <Users className={`w-5 h-5 ${accent.text}`} />
               </div>
-              <h3 className="font-bold text-white text-base mb-2">Unified PM Scorecards</h3>
+              <h3 className="font-bold text-white text-base mb-2">Onboard 50 projects in minutes, not weeks</h3>
               <p className="text-xs text-slate-400 leading-relaxed">
-                Analyze resource velocity. Weighted scoring calculated automatically based on active vs. completed programs, helping managers distribute workload.
+                Bulk import tools let you migrate existing programmes at scale. No manual data entry, no re-keying — just structured, validated imports.
               </p>
             </div>
 
